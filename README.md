@@ -4,6 +4,10 @@ Mobile-first inventory optimization PWA for Hanger Liquor Store in Wiley, CO.
 
 Repository: https://github.com/Bigessfour/HangarLiquorStore
 
+## Documentation
+
+See [`docs/README.md`](docs/README.md) for architecture and flow diagrams (scan, dashboard, offline sync).
+
 ## Forecast Module
 
 The forecast feature uses a lightweight statistical engine in AWS Lambda:
@@ -18,8 +22,13 @@ SageMaker Canvas is supported as an optional offline training path (`?model=canv
 ## Project Structure
 
 ```
-src/features/forecast/     # Forecast dashboard and chart components
-src/features/events/       # Local event management UI
+src/app/                   # App shell, router, layout (FAB + bottom nav)
+src/features/dashboard/    # Stock overview, alerts, reorder cards
+src/features/scan/         # Camera UPC scanning
+src/features/inventory/    # Stock list
+src/features/forecast/     # Forecast dashboard and charts
+src/features/events/       # Local event management
+src/pwa/                   # Service worker + offline queue
 backend/lambdas/forecast/  # get-forecast and manage-events handlers
 backend/shared/types/      # Shared TypeScript contracts
 ```

@@ -1,0 +1,8 @@
+{
+  "comment": "Defaults for @playwright/mcp exploratory sessions. Test runs use playwright.config.ts via playwright-test MCP.",
+  "browser": {
+    "launchOptions": {
+      "headless": false
+    }
+  }
+}

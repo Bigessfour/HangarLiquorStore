@@ -6,6 +6,9 @@ backend/dist
 !.env.example
 playwright-report
 test-results
+.playwright-browsers
+dev-dist
 .DS_Store
 coverage
 *.log
+*.tsbuildinfo
