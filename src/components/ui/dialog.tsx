@@ -1,87 +1,59 @@
-import {
-  createContext,
-  useContext,
-  type HTMLAttributes,
-  type ReactNode,
-} from 'react';
+import * as React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface DialogContextValue {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+const Dialog = DialogPrimitive.Root;
+const DialogTrigger = DialogPrimitive.Trigger;
+const DialogPortal = DialogPrimitive.Portal;
+const DialogClose = DialogPrimitive.Close;
 
-const DialogContext = createContext<DialogContextValue | null>(null);
+const DialogOverlay = React.forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn('fixed inset-0 z-50 bg-black/80', className)}
+    {...props}
+  />
+));
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-interface DialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  children: ReactNode;
-}
-
-export function Dialog({ open, onOpenChange, children }: DialogProps) {
-  return (
-    <DialogContext.Provider value={{ open, onOpenChange }}>
+const DialogContent = React.forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg',
+        className,
+      )}
+      {...props}
+    >
       {children}
-    </DialogContext.Provider>
-  );
-}
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+        <X className="h-5 w-5" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPortal>
+));
+DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-export function DialogTrigger({
-  children,
-  asChild,
-}: {
-  children: ReactNode;
-  asChild?: boolean;
-}) {
-  const context = useContext(DialogContext);
-  if (!context) throw new Error('DialogTrigger must be used within Dialog');
+const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('flex flex-col space-y-1.5 text-center sm:text-left', className)} {...props} />
+);
 
-  if (asChild && typeof children === 'object' && children !== null && 'props' in children) {
-    const child = children as React.ReactElement<{ onClick?: () => void }>;
-    return (
-      <child.type
-        {...child.props}
-        onClick={() => {
-          child.props.onClick?.();
-          context.onOpenChange(true);
-        }}
-      />
-    );
-  }
+const DialogTitle = React.forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title ref={ref} className={cn('text-lg font-semibold', className)} {...props} />
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
-  return (
-    <button type="button" onClick={() => context.onOpenChange(true)}>
-      {children}
-    </button>
-  );
-}
-
-export function DialogContent({
-  className,
-  children,
-}: HTMLAttributes<HTMLDivElement>) {
-  const context = useContext(DialogContext);
-  if (!context?.open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div
-        className={cn(
-          'w-full max-w-md rounded-xl bg-white p-4 shadow-xl',
-          className,
-        )}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('mb-2', className)} {...props} />;
-}
-
-export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn('text-xl font-semibold', className)} {...props} />;
-}
+export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogPortal, DialogOverlay };

@@ -2,11 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 24 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+    --primary: 24 10% 10%;
+    --primary-foreground: 40 20% 98%;
+    --secondary: 40 15% 94%;
+    --secondary-foreground: 24 10% 10%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 24 5% 45%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 24 10% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 10% 88%;
+    --input: 40 10% 88%;
+    --ring: 38 92% 50%;
+    --radius: 0.75rem;
+    --hanger-amber: 38 92% 50%;
+    --hanger-gold: 43 96% 56%;
+  }
 
-body {
-  margin: 0;
-  min-height: 100vh;
+  .dark {
+    --background: 24 10% 8%;
+    --foreground: 40 20% 96%;
+    --card: 24 10% 12%;
+    --card-foreground: 40 20% 96%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 24 10% 8%;
+    --secondary: 24 8% 18%;
+    --secondary-foreground: 40 20% 96%;
+    --muted: 24 8% 18%;
+    --muted-foreground: 40 10% 60%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 24 10% 8%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 24 8% 20%;
+    --input: 24 8% 20%;
+    --ring: 38 92% 50%;
+    --hanger-amber: 38 92% 50%;
+    --hanger-gold: 43 96% 56%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    min-height: 100vh;
+  }
 }

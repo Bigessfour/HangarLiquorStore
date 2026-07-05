@@ -1,23 +1,36 @@
-import type { HTMLAttributes } from 'react';
+import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
+const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
     <div
-      className={cn('rounded-xl border border-slate-200 bg-white shadow-sm', className)}
+      ref={ref}
+      className={cn('rounded-xl border bg-card text-card-foreground shadow-sm', className)}
       {...props}
     />
-  );
-}
+  ),
+);
+Card.displayName = 'Card';
 
-export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-4 pt-4', className)} {...props} />;
-}
+const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn('flex flex-col space-y-1.5 p-4', className)} {...props} />
+  ),
+);
+CardHeader.displayName = 'CardHeader';
 
-export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-lg font-semibold', className)} {...props} />;
-}
+const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
+  ({ className, ...props }, ref) => (
+    <h3 ref={ref} className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />
+  ),
+);
+CardTitle.displayName = 'CardTitle';
 
-export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-4 pb-4', className)} {...props} />;
-}
+const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn('p-4 pt-0', className)} {...props} />
+  ),
+);
+CardContent.displayName = 'CardContent';
+
+export { Card, CardHeader, CardTitle, CardContent };
