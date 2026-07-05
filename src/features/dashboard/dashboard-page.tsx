@@ -8,9 +8,7 @@ const fastMovers = [
   { name: "Tito's Handmade Vodka 1L", weekly: 31, category: 'spirits' },
 ];
 
-const slowMovers = [
-  { name: 'Highland Park 12yr Scotch 750ml', weekly: 2, category: 'whiskey' },
-];
+const slowMovers = [{ name: 'Highland Park 12yr Scotch 750ml', weekly: 2, category: 'whiskey' }];
 
 const lowStockAlerts = [
   { name: "Jack Daniel's Tennessee Whiskey 750ml", stock: 3, reorderPoint: 12 },

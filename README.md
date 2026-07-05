@@ -56,6 +56,13 @@ Copy `.env.example` to `.env` and set `VITE_API_URL` to your API Gateway base UR
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/inventory?search=&category=` | List inventory items |
+| GET | `/api/inventory/{upc}` | Get single item |
+| POST | `/api/inventory` | Add or increment stock |
+| PATCH | `/api/inventory/{upc}` | Update item fields |
+| POST | `/api/inventory/scan` | Adjust stock by delta (sale scan) |
+| POST | `/api/inventory/import` | Bulk CSV import |
+| POST | `/api/inventory/sync` | Replay offline queued actions |
 | GET | `/api/forecast?horizon=14&upc=` | Demand forecasts |
 | GET | `/api/events` | Local events + static holidays |
 | POST | `/api/events` | Create local event multiplier |

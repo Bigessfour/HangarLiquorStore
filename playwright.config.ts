@@ -10,7 +10,10 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173',
+    command: (() => {
+      const node = `"${process.execPath}"`;
+      return `${node} node_modules/typescript/bin/tsc -b && ${node} node_modules/vite/bin/vite.js build && ${node} node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173`;
+    })(),
     port: 4173,
     reuseExistingServer: !process.env.CI,
   },

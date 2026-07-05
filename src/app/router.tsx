@@ -2,16 +2,20 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/app/layout';
 import { DashboardPage } from '@/features/dashboard/dashboard-page';
-import { InventoryPage } from '@/features/inventory/inventory-page';
-import { ScanPage } from '@/features/scan/scan-page';
 import { EventsPage } from '@/features/events/events-page';
+import { InventoryPage } from '@/features/inventory/inventory-page';
+import { MorePage } from '@/features/more/more-page';
+import { SuggestionsPage } from '@/features/suggestions/suggestions-page';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const ForecastDashboard = lazy(
-  () =>
-    import('@/features/forecast/forecast-dashboard').then((m) => ({
-      default: m.ForecastDashboard,
-    })),
+const ScanPage = lazy(() =>
+  import('@/features/scan/scan-page').then((m) => ({ default: m.ScanPage })),
+);
+
+const ForecastDashboard = lazy(() =>
+  import('@/features/forecast/forecast-dashboard').then((m) => ({
+    default: m.ForecastDashboard,
+  })),
 );
 
 function RouteFallback() {
@@ -29,8 +33,17 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: 'scan', element: <ScanPage /> },
+      {
+        path: 'scan',
+        element: (
+          <Suspense fallback={<RouteFallback />}>
+            <ScanPage />
+          </Suspense>
+        ),
+      },
       { path: 'inventory', element: <InventoryPage /> },
+      { path: 'suggestions', element: <SuggestionsPage /> },
+      { path: 'more', element: <MorePage /> },
       { path: 'events', element: <EventsPage /> },
       {
         path: 'reports',

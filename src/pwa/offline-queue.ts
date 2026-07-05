@@ -1,9 +1,18 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
+export interface QueuedActionPayload {
+  upc: string;
+  delta?: number;
+  quantity?: number;
+  name?: string;
+  category?: string;
+  productName?: string;
+}
+
 export interface QueuedAction {
   id: string;
-  type: 'scan' | 'adjust' | 'sale';
-  payload: { upc: string; delta: number; productName?: string };
+  type: 'add' | 'adjust' | 'sale';
+  payload: QueuedActionPayload;
   timestamp: number;
 }
 
@@ -32,7 +41,9 @@ function getDb() {
   return dbPromise;
 }
 
-export async function enqueueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>): Promise<QueuedAction> {
+export async function enqueueAction(
+  action: Omit<QueuedAction, 'id' | 'timestamp'>,
+): Promise<QueuedAction> {
   const db = await getDb();
   const entry: QueuedAction = {
     ...action,
