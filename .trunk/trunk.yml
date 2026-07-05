@@ -1,0 +1,9 @@
+version: 0.1
+cli:
+  version: 1.25.0
+lint:
+  enabled:
+    - eslint@9
+    - prettier@3
+    - git-diff-check
+    - markdownlint@0

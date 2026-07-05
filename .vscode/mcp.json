@@ -1,0 +1,42 @@
+{
+  "mcp": {
+    "servers": {
+      "terraform": {
+        "command": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+        "args": [
+          "run",
+          "-i",
+          "--rm",
+          "-e",
+          "TFE_ADDRESS=${input:tfe_address}",
+          "-e",
+          "TFE_TOKEN=${input:tfe_token}",
+          "hashicorp/terraform-mcp-server:1.0.0"
+        ]
+      },
+      "playwright-mcp": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest", "--config", "playwright-mcp.config.json"],
+        "env": {
+          "PATH": "C:\\Program Files\\nodejs;${env:PATH}",
+          "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}\\.playwright-browsers"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "tfe_token",
+        "description": "Terraform API Token (optional — for HCP Terraform / TFE)",
+        "password": true
+      },
+      {
+        "type": "promptString",
+        "id": "tfe_address",
+        "description": "Terraform Address",
+        "password": false,
+        "default": "https://app.terraform.io"
+      }
+    ]
+  }
+}

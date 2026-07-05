@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "usernamehw.errorlens",
+    "editorconfig.editorconfig",
+    "amazonwebservices.aws-toolkit-vscode",
+    "eamodio.gitlens",
+    "trunk.io"
+  ]
+}
