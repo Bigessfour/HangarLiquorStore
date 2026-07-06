@@ -43,15 +43,15 @@ test('import CSV dialog opens from inventory page', async ({ page }) => {
 test('inventory shows pack size badge for case items', async ({ page }) => {
   await page.goto('/inventory');
 
-  await expect(page.getByText('pack of 12')).toBeVisible(); // for Coors or Bud
+  await expect(page.getByText('pack of 12').first()).toBeVisible(); // for Coors or Bud
   await expect(page.getByText("Jack Daniel's Tennessee Whiskey 750ml")).toBeVisible(); // no pack badge
 });
 
 test('inventory shows shrinkage risk for low stock items', async ({ page }) => {
   await page.goto('/inventory');
 
-  // Jack has low stock (3 <= 12)
-  await expect(page.getByText('LOW / Shrink risk')).toBeVisible();
+  // Multiple low stock items (e.g. Jack and Bud)
+  await expect(page.getByText('LOW / Shrink risk').first()).toBeVisible();
   await expect(page.getByText("Jack Daniel's Tennessee Whiskey 750ml")).toBeVisible();
 });
 
