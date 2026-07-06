@@ -97,7 +97,7 @@ export function MorePage() {
         {moreLinks.map(({ to, label, icon: Icon, description }) => (
           <li key={to}>
             <Link to={to} className="block">
-              <Card className="transition-colors hover:bg-muted/50">
+              <Card className="transition-all hover:bg-muted/50 hover:shadow-sm border-hanger-amber/10">
                 <CardContent className="flex min-h-14 items-center gap-3 p-4">
                   <Icon className="h-6 w-6 shrink-0 text-hanger-amber" aria-hidden />
                   <div className="min-w-0 flex-1">
@@ -112,7 +112,7 @@ export function MorePage() {
         ))}
       </ul>
 
-      <Card>
+      <Card className="border-hanger-amber/10">
         <CardContent className="flex min-h-14 items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <Settings className="h-6 w-6 text-muted-foreground" aria-hidden />
@@ -123,7 +123,7 @@ export function MorePage() {
       </Card>
 
       {/* PWA Install Prompt + QR for staff (per Phase 7 plan) */}
-      <Card>
+      <Card className="border-hanger-gold/20">
         <CardContent className="p-4 space-y-4">
           <div className="flex items-center gap-3">
             <Smartphone className="h-6 w-6 text-hanger-amber" aria-hidden />
@@ -198,9 +198,65 @@ export function MorePage() {
         </CardContent>
       </Card>
 
+      {/* AWS Budgets & Cost Monitoring (recommended per AWS best practices for low-cost deployments) */}
+      <Card className="border-hanger-amber/20">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="h-6 w-6 text-hanger-amber" aria-hidden />
+            <div>
+              <p className="font-medium">AWS Cost Monitoring</p>
+              <p className="text-sm text-muted-foreground">Budget alerts for serverless costs (Terraform managed).</p>
+            </div>
+          </div>
+          <div className="text-xs bg-muted/50 p-2 rounded">
+            Monthly budget: $50 USD • Forecast alerts at 80%. View in AWS Console → Budgets.
+          </div>
+          <p className="text-[10px] text-muted-foreground">Keeps deployment low-cost as per AGENTS guidelines. Use PAY_PER_REQUEST + filtered data.</p>
+        </CardContent>
+      </Card>
+
+      {/* Onboarding Runbook (Phase 7 recommended) */}
+      <Card>
+        <CardContent className="p-4">
+          <p className="font-medium mb-2 flex items-center gap-2">
+            <Settings className="h-4 w-4" /> Staff Onboarding Runbook
+          </p>
+          <ol className="text-xs space-y-1 text-muted-foreground list-decimal pl-4">
+            <li>Scan QR or visit app URL on phone</li>
+            <li>Install PWA for offline use</li>
+            <li>Use "Reset demo catalog" for training data</li>
+            <li>Scan items → add stock → view live forecasts</li>
+            <li>For SageMaker: export CSV, train in Canvas, set endpoint in TF</li>
+          </ol>
+        </CardContent>
+      </Card>
+
+      {/* AWS SageMaker Info (recommended feature) */}
+      <Card className="border-hanger-gold/30 bg-gradient-to-br from-hanger-gold/5 to-card">
+        <CardContent className="p-4">
+          <p className="font-medium mb-1 text-hanger-gold">AWS SageMaker Canvas Integration</p>
+          <p className="text-xs text-muted-foreground">
+            Optional high-accuracy forecasting via no-code ML in client's AWS. 
+            Export sales → train in Canvas → deploy Serverless endpoint → toggle in /forecast or ?model=canvas.
+            Falls back to statistical engine. See client-deployment.md for full workflow.
+          </p>
+          <p className="text-[10px] mt-1">Developed by Steve McKitrick, AWS Certified AI Practitioner</p>
+        </CardContent>
+      </Card>
+
       <div className="mt-6 text-center text-xs text-muted-foreground">
         <p>UPC product data (when available) provided by <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline">Open Food Facts</a> under free open licenses.</p>
         <p className="mt-1">We comply with their terms: proper attribution, User-Agent, and 1 API call per real user scan.</p>
+      </div>
+
+      {/* Premium developer credit */}
+      <div className="mt-8 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-hanger-gold/30 bg-gradient-to-r from-hanger-gold/10 to-hanger-amber/10 px-4 py-1.5 text-[10px] font-medium text-hanger-gold">
+          <span>Developed by</span>
+          <span className="font-semibold">Steve McKitrick</span>
+          <span className="text-[9px] opacity-70">• AWS Certified AI Practitioner</span>
+        </div>
+        <p className="mt-1 text-[9px] text-muted-foreground/60">Premium forecasting powered by AWS SageMaker Canvas</p>
       </div>
     </div>
   );

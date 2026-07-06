@@ -102,17 +102,29 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }),
     );
 
+    let forecasts: any;
     if (model === 'canvas') {
       try {
-        const forecasts = await getCanvasForecasts({ salesByUpc, horizon, upc });
+        forecasts = await getCanvasForecasts({ salesByUpc, horizon, upc });
         return jsonResponse(200, upc ? forecasts[0] ?? null : forecasts);
       } catch (error) {
         if (error instanceof CanvasBridgeUnavailableError) {
-          return errorResponse(501, error.message);
+          // Graceful fallback to statistical as per workflow
+          console.warn('Canvas unavailable, falling back to statistical:', error.message);
+        } else {
+          throw error;
         }
-        throw error;
       }
     }
+
+    // statistical or fallback from canvas error
+    forecasts = buildForecastsForInventory(inventoryItems, salesByUpc, localEvents, {
+      horizon,
+      upc,
+      today,
+    });
+
+    return jsonResponse(200, upc ? forecasts[0] ?? null : forecasts);
 
     const forecasts = buildForecastsForInventory(inventoryItems, salesByUpc, localEvents, {
       horizon,

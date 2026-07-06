@@ -21,12 +21,12 @@ export function DashboardPage() {
 
   const lowStockAlerts = useMemo(
     () => inventory.filter((item) => item.currentStock < (item.reorderPoint ?? 10)).slice(0, 3),
-    [inventory]
+    [inventory],
   );
 
   const totalStock = useMemo(
     () => inventory.reduce((sum, i) => sum + i.currentStock, 0),
-    [inventory]
+    [inventory],
   );
   const lowStockCount = lowStockAlerts.length;
 
@@ -39,9 +39,7 @@ export function DashboardPage() {
       .slice(0, 3)
       .map((f) => {
         const inv = inventory.find((i) => i.upc === f.upc);
-        const shortName = f.name
-          .replace(/\s(12pk.*|750ml|1L).*$/, '')
-          .trim();
+        const shortName = f.name.replace(/\s(12pk.*|750ml|1L).*$/, '').trim();
         return {
           item: shortName,
           demand: f.predictedDemand14d,
@@ -60,11 +58,11 @@ export function DashboardPage() {
           qty: `${f.suggestedOrder} units`,
           reason: f.confidence === 'high' ? 'High confidence forecast' : 'Based on trends + events',
         })),
-    [forecasts]
+    [forecasts],
   );
 
   const activeMultiplier = (eventsData?.localEvents ?? []).find((e) =>
-    /july|4th|boost|rodeo/i.test(e.name)
+    /july|4th|boost|rodeo/i.test(e.name),
   );
 
   const handleReorder = () => {
@@ -82,7 +80,7 @@ export function DashboardPage() {
           setActionMessage('Added 6 × Jack Daniels to stock');
           setTimeout(() => setActionMessage(null), 2200);
         },
-      }
+      },
     );
   };
 
@@ -101,7 +99,7 @@ export function DashboardPage() {
           setActionMessage('4th of July +35% multiplier event created');
           setTimeout(() => setActionMessage(null), 2200);
         },
-      }
+      },
     );
   };
 
@@ -121,17 +119,19 @@ export function DashboardPage() {
 
       {actionMessage && (
         <Alert className="border-green-500/40 bg-green-500/5">
-          <AlertDescription className="font-medium text-green-600">{actionMessage}</AlertDescription>
-        </Alert>
+          <AlertDescription className="font-medium text-green-600">
+            {actionMessage}
+          </AlertDescription>
+        </Alert>  
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 bg-card">
+        <Card className="p-4 bg-gradient-to-br from-card to-hanger-amber/5 border-hanger-amber/20 shadow-sm hover:shadow-md transition-all">
           <p className="text-sm text-hanger-amber">Total Stock</p>
           <p className="text-5xl font-bold">{totalStock}</p>
           <p className="text-sm text-green-600">Live inventory</p>
         </Card>
-        <Card className="p-4 bg-card">
+        <Card className="p-4 bg-gradient-to-br from-card to-destructive/5 border-destructive/20 shadow-sm hover:shadow-md transition-all">
           <p className="text-sm text-destructive">Low Items</p>
           <p className="text-5xl font-bold text-destructive">{lowStockCount}</p>
           <Button
@@ -215,7 +215,7 @@ export function DashboardPage() {
 
       <TrendingSuggestions />
 
-      <Card className="bg-card">
+      <Card className="bg-card border-hanger-gold/20">
         <CardContent className="pt-4 text-sm text-muted-foreground">
           {chartData[0] && (
             <p>
@@ -226,6 +226,9 @@ export function DashboardPage() {
             {activeMultiplier
               ? `🔥 ${activeMultiplier.name} active (+${Math.round((activeMultiplier.multiplier - 1) * 100)}% boost)`
               : '🥃 Low stock items flagged by forecast — apply event multiplier to boost'}
+          </p>
+          <p className="mt-2 text-[10px] text-hanger-gold">
+            Premium: Optional AWS SageMaker Canvas for ML-powered forecasts (see /forecast toggle)
           </p>
         </CardContent>
       </Card>

@@ -52,7 +52,17 @@ export function InventoryPage() {
             )}
           </p>
         </div>
-        <ImportCSV />
+        <div className="flex gap-2">
+          <ImportCSV 
+            defaultIsShipment={true}
+            trigger={
+              <Button variant="outline" size="sm" className="min-h-9 text-xs bg-hanger-amber/10 border-hanger-amber/30">
+                Receive Shipment (Bulk)
+              </Button>
+            } 
+          />
+          <ImportCSV />
+        </div>
       </div>
 
       {!isOnline && (
@@ -147,7 +157,7 @@ export function InventoryPage() {
 
             return (
               <li key={item.upc}>
-                <Card>
+                <Card className="transition-all hover:shadow-md border-hanger-amber/10">
                   <CardContent className="flex items-center gap-3 p-4">
                     {item.photo && (
                       <img

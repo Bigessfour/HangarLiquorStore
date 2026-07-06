@@ -93,7 +93,7 @@ export const forecastApi = {
     return apiClient<ItemForecast[]>(`/api/forecast?horizon=${horizon}&model=${model}`);
   },
 
-  async getByUpc(upc: string, horizon = 14) {
+  async getByUpc(upc: string, horizon = 14, model: 'statistical' | 'canvas' = 'statistical') {
     if (useMockApi()) {
       await delay(120);
       const found = MOCK_FORECASTS.find((f) => f.upc === upc);
@@ -101,7 +101,7 @@ export const forecastApi = {
       return { ...found, chartData: found.chartData.map((p) => ({ ...p })) };
     }
     return apiClient<ItemForecast>(
-      `/api/forecast?horizon=${horizon}&upc=${encodeURIComponent(upc)}`,
+      `/api/forecast?horizon=${horizon}&upc=${encodeURIComponent(upc)}&model=${model}`,
     );
   },
 

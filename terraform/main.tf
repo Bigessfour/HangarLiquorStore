@@ -231,6 +231,46 @@ resource "aws_iam_role_policy" "s3_off" {
   policy = data.aws_iam_policy_document.s3_off_data.json
 }
 
+# SageMaker Canvas inference (for high-accuracy model)
+data "aws_iam_policy_document" "sagemaker_invoke" {
+  count = var.sagemaker_endpoint != "" ? 1 : 0
+  statement {
+    actions   = ["sagemaker:InvokeEndpoint"]
+    resources = ["*"] # Scope to specific endpoint ARN in production if desired
+  }
+}
+
+resource "aws_iam_role_policy" "sagemaker" {
+  count  = var.sagemaker_endpoint != "" ? 1 : 0
+  name   = "${var.store_id}-sagemaker-invoke"
+  role   = aws_iam_role.lambda_exec.id
+  policy = data.aws_iam_policy_document.sagemaker_invoke[0].json
+}
+
+# AWS Budgets for cost control (recommended for low-cost client deployment)
+resource "aws_budgets_budget" "monthly_cost" {
+  name              = "${var.store_id}-monthly-cost-budget"
+  budget_type       = "COST"
+  limit_amount      = "50"
+  limit_unit        = "USD"
+  time_unit         = "MONTHLY"
+  time_period_start = "2026-01-01_00:00"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = ["alerts@example.com"] # Update with real email
+  }
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Purpose     = "Cost monitoring for serverless inventory app"
+  }
+}
+
 # Lambda code packaging
 # IMPORTANT: Backend is TypeScript. Build first:
 #   cd backend && npm install && npx esbuild lambdas/inventory/inventory-api.ts --bundle --platform=node --target=node20 --outfile=dist/inventory.js

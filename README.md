@@ -21,6 +21,8 @@ SageMaker Canvas is supported as an **optional** offline training path (`?model=
 
 See [Docs/client-deployment.md](Docs/client-deployment.md) for how to deploy the backend into Hangar Liquor's own AWS account (they pay AWS bills directly) and the Canvas training workflow.
 
+**Developed by Steve McKitrick, AWS Certified AI Practitioner** — Premium AI forecasting features (SageMaker Canvas integration).
+
 ### UPC Lookup (Free)
 UPC product metadata uses Open Food Facts (free open data). We comply with their terms:
 - 1 API call per real user scan

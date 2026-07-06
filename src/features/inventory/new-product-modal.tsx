@@ -237,7 +237,7 @@ export default function NewProductModal({
         <Button
           onClick={handleAdd}
           disabled={addMutation.isPending || !name.trim()}
-          className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-lg"
+          className="w-full py-6 bg-gradient-to-r from-emerald-600 to-hanger-gold hover:from-emerald-500 text-lg shadow-sm"
         >
           {addMutation.isPending ? 'Adding...' : 'Add to Hanger Inventory + Notify Forecast'}
         </Button>

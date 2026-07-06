@@ -30,6 +30,7 @@ import {
 
 interface ImportCSVProps {
   trigger?: ReactNode;
+  defaultIsShipment?: boolean;
 }
 
 function normalizeCategory(value: string): InventoryCategory {
@@ -63,12 +64,12 @@ function parseCsvRows(results: Papa.ParseResult<Record<string, string>>): CsvImp
   return parsed;
 }
 
-export function ImportCSV({ trigger }: ImportCSVProps) {
+export function ImportCSV({ trigger, defaultIsShipment = false }: ImportCSVProps) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<CsvImportRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
-  const [isShipment, setIsShipment] = useState(false); // for bulk shipment / receiving: add instead of replace
+  const [isShipment, setIsShipment] = useState(defaultIsShipment); // for bulk shipment / receiving: add instead of replace
 
   const importMutation = useImportInventory({
     onSuccess: (result) => {

@@ -14,7 +14,8 @@
     "test:backend": "npm --prefix backend test",
     "aws:profile": "node -e \"const isWin = process.platform === 'win32'; console.log(isWin ? 'Run: npm run aws:profile:win' : 'source scripts/set-aws-profile.sh')\"",
     "aws:profile:win": "powershell -ExecutionPolicy Bypass -File scripts/set-aws-profile.ps1",
-    "deploy:terraform": "cd terraform && terraform init && terraform apply -var=\"store_id=hanger\""
+    "deploy:terraform": "cd terraform && terraform init && terraform apply -var=\"store_id=hanger\"",
+    "export-sales-for-canvas": "npx tsx scripts/export-sales-for-canvas.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
