@@ -32,7 +32,7 @@ export const scanAddItemSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
   category: inventoryCategorySchema.default('Beer'),
-  packSize: z.number().int().min(1).optional().default(1), // for case-break (e.g. qty=1 but packSize=12 means +12 units)
+  packSize: z.coerce.number().int().min(1).optional().default(1), // for case-break (e.g. qty=1 but packSize=12 means +12 units)
   photo: z.string().optional(), // optional photo captured or from lookup
 });
 

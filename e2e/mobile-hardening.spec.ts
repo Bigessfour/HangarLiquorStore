@@ -31,7 +31,7 @@ test('iOS home screen PWA prefers photo scan over live camera', async ({ browser
   const page = await context.newPage();
   await page.goto('/scan');
 
-  await expect(page.getByRole('button', { name: 'Take photo of barcode' })).toBeVisible();
+  await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /live camera/i })).toHaveCount(0);
   await expect(page.getByText(/iPhone tip/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /open in Safari for live scan/i })).toBeVisible();
@@ -53,7 +53,7 @@ test('iOS Safari browser shows both photo and live camera scan', async ({ browse
   const page = await context.newPage();
   await page.goto('/scan');
 
-  await expect(page.getByRole('button', { name: 'Take photo of barcode' })).toBeVisible();
+  await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /live camera/i })).toBeVisible();
   await expect(page.getByText(/iPhone tip/i)).toHaveCount(0);
 

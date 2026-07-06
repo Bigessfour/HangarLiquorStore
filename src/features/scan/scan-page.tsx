@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CheckCircle2, ExternalLink, Keyboard, Loader2, ScanLine, XCircle } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,14 @@ import { toast } from 'sonner';
 
 const SCANNER_ELEMENT_ID = 'hanger-upc-scanner';
 const FILE_SCANNER_ELEMENT_ID = 'hanger-upc-file-scanner';
+const PHOTO_CAPTURE_INPUT_ID = 'hanger-photo-capture';
+const PHOTO_LIBRARY_INPUT_ID = 'hanger-photo-library';
+
+function normalizeCategory(value?: string): InventoryCategory {
+  if (!value) return 'Beer';
+  const match = INVENTORY_CATEGORIES.find((c) => c.toLowerCase() === value.toLowerCase());
+  return match ?? 'Beer';
+}
 
 export function ScanPage() {
   const isOnline = useOnlineStatus();
@@ -49,7 +57,6 @@ export function ScanPage() {
   const [isPhotoScanning, setIsPhotoScanning] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const iosHomeScreen = isIosHomeScreenApp();
 
   const { data: matchedItem, isLoading: isLookingUp } = useInventoryItem(scannedUpc);
@@ -62,8 +69,15 @@ export function ScanPage() {
     formState: { errors },
   } = useForm<ScanAddItemInput>({
     resolver: zodResolver(scanAddItemSchema),
-    defaultValues: { quantity: 1, category: 'Beer' },
+    defaultValues: { quantity: 1, category: 'Beer', packSize: 1, upc: '', name: '' },
   });
+
+  const onInvalid = useCallback((fieldErrors: FieldErrors<ScanAddItemInput>) => {
+    const first = Object.values(fieldErrors).find((e) => e?.message);
+    const message = first?.message?.toString() || 'Check quantity, UPC, and product name.';
+    setBanner({ type: 'error', message });
+    toast.error(message);
+  }, []);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current?.isScanning) {
@@ -121,7 +135,6 @@ export function ScanPage() {
         );
       } finally {
         setIsPhotoScanning(false);
-        if (photoInputRef.current) photoInputRef.current.value = '';
       }
     },
     [applyUpc],
@@ -139,8 +152,7 @@ export function ScanPage() {
 
   const startScanner = useCallback(async () => {
     if (prefersPhotoCaptureScan()) {
-      setScanError(getCameraDeniedMessage(new Error('ios-pwa')));
-      photoInputRef.current?.click();
+      setScanError(null);
       return;
     }
 
@@ -182,13 +194,10 @@ export function ScanPage() {
   useEffect(() => {
     if (matchedItem) {
       setValue('name', matchedItem.name);
-      setValue('category', matchedItem.category);
-      // Case-break: default quantity to packSize if >1 (e.g. 12 for 12pk)
-      const defaultQty = (matchedItem as any).packSize && (matchedItem as any).packSize > 1
-        ? (matchedItem as any).packSize
-        : 1;
-      setValue('quantity', defaultQty);
-      setValue('packSize', (matchedItem as any).packSize ?? 1);
+      setValue('category', normalizeCategory(matchedItem.category));
+      const pack = matchedItem.packSize ?? 1;
+      setValue('packSize', pack);
+      setValue('quantity', pack > 1 ? pack : 1);
       setBanner({
         type: 'success',
         message: `Found: ${matchedItem.name} (${matchedItem.currentStock} in stock)`,
@@ -218,7 +227,7 @@ export function ScanPage() {
         setLookupResult({ name, photo, category: cat });
         if (!matchedItem) {
           setValue('name', name);
-          if (cat) setValue('category', cat);
+          if (cat) setValue('category', normalizeCategory(cat));
           setValue('packSize', ps);
           setValue('quantity', ps);
         }
@@ -258,7 +267,7 @@ export function ScanPage() {
       }
       setLookupResult({ name: result.name, photo: result.photo, category: result.category });
       setValue('name', result.name);
-      if (result.category) setValue('category', result.category);
+      if (result.category) setValue('category', normalizeCategory(result.category));
       if (result.packSize) {
         setValue('packSize', result.packSize);
         setValue('quantity', result.packSize);
@@ -281,30 +290,32 @@ export function ScanPage() {
 
   const onSubmit = async (values: ScanAddItemInput) => {
     setBanner(null);
+    const payload: ScanAddItemInput = {
+      ...values,
+      packSize: values.packSize && values.packSize >= 1 ? values.packSize : 1,
+      category: normalizeCategory(values.category),
+    };
     try {
       if (!isOnline) {
-        await queueAddItem(values);
-        setBanner({
-          type: 'success',
-          message: `Offline — queued +${values.quantity} for ${values.name}`,
-        });
+        await queueAddItem(payload);
+        const msg = `Offline — queued +${payload.quantity} for ${payload.name}`;
+        setBanner({ type: 'success', message: msg });
+        toast.success(msg);
       } else {
-        await addMutation.mutateAsync(values);
-        setBanner({
-          type: 'success',
-          message: `Added ${values.quantity} × ${values.name}`,
-        });
+        await addMutation.mutateAsync(payload);
+        const msg = `Added ${payload.quantity} × ${payload.name}`;
+        setBanner({ type: 'success', message: msg });
+        toast.success(msg);
       }
       setScannedUpc(null);
       setManualUpc('');
       setLookupResult(null);
       setShowNewProductModal(false);
-      reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
+      reset({ quantity: 1, category: 'Beer', packSize: 1, upc: '', name: '' });
     } catch (err) {
-      setBanner({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Failed to add item',
-      });
+      const message = err instanceof Error ? err.message : 'Failed to add item';
+      setBanner({ type: 'error', message });
+      toast.error(message);
     }
   };
 
@@ -312,15 +323,28 @@ export function ScanPage() {
     <div className="flex min-h-[calc(100dvh-8rem)] flex-col">
       <div id={FILE_SCANNER_ELEMENT_ID} className="hidden" aria-hidden />
       <input
-        ref={photoInputRef}
+        id={PHOTO_CAPTURE_INPUT_ID}
         type="file"
         accept="image/*"
         capture="environment"
         className="sr-only"
-        aria-label="Choose barcode photo file"
+        aria-label="Take barcode photo with camera"
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void handlePhotoScan(file);
+          e.target.value = '';
+        }}
+      />
+      <input
+        id={PHOTO_LIBRARY_INPUT_ID}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label="Choose barcode photo from library"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handlePhotoScan(file);
+          e.target.value = '';
         }}
       />
       <div
@@ -384,18 +408,15 @@ export function ScanPage() {
                 <AlertDescription>{scanError}</AlertDescription>
               </Alert>
             )}
-            <Button
-              type="button"
-              size="lg"
-              aria-label="Take photo of barcode"
+            <label
+              htmlFor={PHOTO_CAPTURE_INPUT_ID}
               className={cn(
-                'min-h-14 w-full max-w-sm text-lg font-bold',
+                'inline-flex min-h-14 w-full max-w-sm cursor-pointer items-center justify-center rounded-lg px-4 text-lg font-bold touch-manipulation',
                 iosHomeScreen
-                  ? 'bg-gradient-to-r from-hanger-gold to-hanger-amber'
-                  : 'bg-card border-2 border-hanger-amber/50 text-foreground hover:bg-muted',
+                  ? 'bg-gradient-to-r from-hanger-gold to-hanger-amber text-primary-foreground'
+                  : 'border-2 border-hanger-amber/50 bg-card text-foreground hover:bg-muted',
+                isPhotoScanning && 'pointer-events-none opacity-70',
               )}
-              disabled={isPhotoScanning}
-              onClick={() => photoInputRef.current?.click()}
             >
               {isPhotoScanning ? (
                 <Loader2 className="mr-2 h-6 w-6 animate-spin" aria-hidden />
@@ -403,7 +424,18 @@ export function ScanPage() {
                 <Camera className="mr-2 h-6 w-6" aria-hidden />
               )}
               {isPhotoScanning ? 'Reading barcode…' : 'Take Photo of Barcode'}
-            </Button>
+            </label>
+            {iosHomeScreen && (
+              <label
+                htmlFor={PHOTO_LIBRARY_INPUT_ID}
+                className={cn(
+                  'inline-flex min-h-12 w-full max-w-sm cursor-pointer items-center justify-center rounded-lg border border-hanger-amber/40 px-4 text-sm font-medium text-hanger-amber touch-manipulation hover:bg-muted/50',
+                  isPhotoScanning && 'pointer-events-none opacity-70',
+                )}
+              >
+                Choose photo from library
+              </label>
+            )}
             {canUseLiveCameraScan() && (
               <Button
                 type="button"
@@ -452,7 +484,7 @@ export function ScanPage() {
       </div>
 
       {!isScanning && (scannedUpc || banner) && (
-        <div className="space-y-4 border-t border-border bg-card p-4 pb-6">
+        <div className="space-y-4 border-t border-border bg-card p-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
           {banner && (
             <Alert
               className={cn(
@@ -497,7 +529,7 @@ export function ScanPage() {
               <Skeleton className="h-12 w-full" />
             </div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
               <div>
                 <Label htmlFor="scan-upc">UPC</Label>
                 <Input
@@ -576,10 +608,13 @@ export function ScanPage() {
                     ))}
                   </select>
                 </div>
-                {/* Hidden packSize for case-break tracking (set via lookup or toggle) */}
-                <input type="hidden" {...register('packSize', { valueAsNumber: true })} />
+                <input type="hidden" {...register('packSize')} />
               </div>
-              <Button type="submit" className="min-h-12 w-full" disabled={addMutation.isPending}>
+              <Button
+                type="submit"
+                className="min-h-14 w-full touch-manipulation text-base font-semibold"
+                disabled={addMutation.isPending}
+              >
                 {addMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
