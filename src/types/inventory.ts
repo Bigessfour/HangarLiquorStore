@@ -56,6 +56,16 @@ export interface ScanResult {
   isNew: boolean;
 }
 
+// HangerItem: lightweight view model for dashboard/scan displays (Phase 2/3)
+export interface HangerItem {
+  upc: string;
+  name: string; // e.g. "Bud Light 12pk"
+  stock: number;
+  lastSold: string;
+  forecast: string; // "4th July" | "REORDER NOW" | "Rodeo Weekend"
+  category: 'Beer' | 'Whiskey' | 'Vodka' | 'Spirits' | 'Wine' | 'Mixers';
+}
+
 export interface InventoryListParams {
   search?: string;
   category?: InventoryCategory | 'All';

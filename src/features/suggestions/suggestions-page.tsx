@@ -8,17 +8,17 @@ export function SuggestionsPage() {
   const { data: forecasts = [] } = useForecasts(14);
   const { data: inventory = [] } = useInventoryList();
 
-  const suggestions = forecasts
-    .filter(f => f.suggestedOrder > 0)
+  const suggestions = (forecasts as any[])
+    .filter((f: any) => Number(f?.suggestedOrder ?? 0) > 0)
     .slice(0, 5)
-    .map(f => {
+    .map((f: any) => {
       const item = inventory.find(i => i.upc === f.upc);
-      const reasonParts = [];
-      if (f.confidence > 0.75) reasonParts.push('High confidence');
-      if (f.chartData.some(d => d.event)) reasonParts.push('Event boost');
+      const reasonParts: string[] = [];
+      if ((f.confidence ?? '') === 'high' || f.confidence > 0.75) reasonParts.push('High confidence');
+      if (Array.isArray(f.chartData) && f.chartData.some((d: any) => !!d.event)) reasonParts.push('Event boost');
       return {
         name: f.name,
-        qty: `${f.suggestedOrder} units`,
+        qty: `${Number(f.suggestedOrder)} units`,
         reason: reasonParts.length ? reasonParts.join(' + ') : 'Trend + weekday pattern',
         upc: f.upc
       };
