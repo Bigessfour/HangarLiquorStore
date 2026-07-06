@@ -1,8 +1,13 @@
 {
-  "vitest.nodeExecutable": "C:\\Program Files\\nodejs\\node.exe",
   "vitest.rootConfig": "backend/vitest.config.ts",
   "vitest.vitestPackagePath": "backend/node_modules/vitest/package.json",
   "vitest.enable": true,
+  "terminal.integrated.env.osx": {
+    "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/.playwright-browsers"
+  },
+  "terminal.integrated.env.linux": {
+    "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/.playwright-browsers"
+  },
   "terminal.integrated.env.windows": {
     "PATH": "C:\\Program Files\\nodejs;${env:PATH}",
     "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}\\.playwright-browsers"
@@ -36,5 +41,8 @@
     "typescriptreact": "javascript"
   },
   "playwright.reuseBrowser": true,
-  "npm.packageManager": "npm"
+  "npm.packageManager": "npm",
+  "[jsonc]": {
+    "editor.defaultFormatter": "trunk.io"
+  }
 }

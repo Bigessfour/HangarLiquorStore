@@ -1,7 +1,12 @@
 # Project-scoped MCP servers for Hanger Liquor Store.
+# Canonical list: docs/mcp-setup.md — keep in sync with .cursor/mcp.json and .vscode/mcp.json
+
+[mcp_servers.vite]
+url = "http://localhost:5173/__mcp/sse"
+startup_timeout_sec = 30
 
 [mcp_servers.terraform]
-command = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"
+command = "docker"
 args = [
   "run", "-i", "--rm",
   "-e", "TFE_ADDRESS=${TFE_ADDRESS}",
@@ -15,7 +20,6 @@ command = "npx"
 args = ["-y", "@playwright/mcp@latest", "--config", "playwright-mcp.config.json"]
 startup_timeout_sec = 60
 [mcp_servers.playwright-mcp.env]
-PATH = "C:\\Program Files\\nodejs;${PATH}"
 PLAYWRIGHT_BROWSERS_PATH = ".playwright-browsers"
 
 [mcp_servers.playwright-test]
@@ -23,12 +27,9 @@ command = "npx"
 args = ["-y", "playwright", "run-test-mcp-server"]
 startup_timeout_sec = 60
 [mcp_servers.playwright-test.env]
-PATH = "C:\\Program Files\\nodejs;${PATH}"
 PLAYWRIGHT_BROWSERS_PATH = ".playwright-browsers"
 
 [mcp_servers.chrome-devtools]
 command = "npx"
 args = ["-y", "chrome-devtools-mcp@latest"]
 startup_timeout_sec = 60
-[mcp_servers.chrome-devtools.env]
-PATH = "C:\\Program Files\\nodejs;${PATH}"

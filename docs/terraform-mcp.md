@@ -11,6 +11,8 @@ HashiCorp **terraform-mcp-server v1.0.0** bridges AI assistants with the Terrafo
 
 ## Local setup (this project)
 
+See **[MCP setup](./mcp-setup.md)** for the full server list, sync checklist, and verification steps.
+
 | Client | Config file |
 |--------|-------------|
 | Cursor | [`.cursor/mcp.json`](../.cursor/mcp.json) |
@@ -53,6 +55,6 @@ docker run --rm hashicorp/terraform-mcp-server:1.0.0 --help
 
 Reload Cursor after config changes: `Ctrl+Shift+P` → **Developer: Reload Window**.
 
-## Vite MCP (separate)
+## Vite MCP
 
-`vite-plugin-mcp` exposes dev-server tools at `http://localhost:5173/__mcp/sse` when `npm run dev` is running. Configured in `.cursor/mcp.json` as `"vite"`. Requires the dev server to be active.
+`vite-plugin-mcp` exposes dev-server tools at `http://localhost:5173/__mcp/sse` when `npm run dev` is running. Configured as `"vite"` in all three IDE configs — see [MCP setup](./mcp-setup.md).

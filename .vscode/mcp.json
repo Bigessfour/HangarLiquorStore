@@ -1,6 +1,9 @@
 {
   "mcp": {
     "servers": {
+      "vite": {
+        "url": "http://localhost:5173/__mcp/sse"
+      },
       "terraform": {
         "command": "docker",
         "args": [
@@ -20,6 +23,21 @@
         "env": {
           "PATH": "${env:PATH}",
           "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/.playwright-browsers"
+        }
+      },
+      "playwright-test": {
+        "command": "npx",
+        "args": ["-y", "playwright", "run-test-mcp-server"],
+        "env": {
+          "PATH": "${env:PATH}",
+          "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/.playwright-browsers"
+        }
+      },
+      "chrome-devtools": {
+        "command": "npx",
+        "args": ["-y", "chrome-devtools-mcp@latest"],
+        "env": {
+          "PATH": "${env:PATH}"
         }
       }
     },

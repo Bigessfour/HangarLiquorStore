@@ -41,7 +41,10 @@ Use realistic product names in UI and docs:
 
 ## MCP servers (IDE)
 
-- **terraform** — `hashicorp/terraform-mcp-server:1.0.0` via Docker (public registry + optional HCP/TFE with `TFE_TOKEN` / `TFE_ADDRESS`)
+Five servers in sync across `.cursor/mcp.json`, `.vscode/mcp.json`, `.grok/config.toml` — see [`docs/mcp-setup.md`](../docs/mcp-setup.md).
+
+- **vite** — dev-server SSE (`npm run dev` required)
+- **terraform** — `hashicorp/terraform-mcp-server:1.0.0` via Docker
 - **playwright-mcp / playwright-test / chrome-devtools** — browser testing and PWA inspection
 
 ## Backend
