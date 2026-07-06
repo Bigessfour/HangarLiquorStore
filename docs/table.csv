@@ -1,0 +1,38 @@
+Phase,Duration,Goal (tied to diagrams),Deliverables (copy-paste ready files),Priority
+Phase 1: PWA Shell + Big Scan FAB,1 day,Mobile-first foundation + primary action button (all diagrams start here),"• src/app/layout.tsx (bottom nav + floating Scan button)
+• src/components/ui/bottom-nav.tsx
+• src/pwa/manifest.json + service-worker registration
+• Dark “liquor-store” theme + shadcn setup",★★★★★
+Phase 2: Scan Flow (Diagram 1),2–3 days,Full UPC → optimistic update → forecast flow for beer/spirits,"• src/features/scan/scan-modal.tsx (html5-qrcode)
+• src/features/inventory/use-scan-mutation.ts (TanStack + optimistic)
+• Toast + “Low stock on Jack Daniel’s” alert
+• POST /inventory/scan stub",★★★★★
+Phase 3: Dashboard (Diagram 2),2 days,Launch view with summary cards & charts (fast/slow movers),"• src/app/dashboard/page.tsx
+• src/features/dashboard/summary-cards.tsx + Recharts (Beer vs Whiskey bars)
+• useQuery for /dashboard/summary
+• Reorder list (“Reorder 12 bottles of Tito’s”)",★★★★
+Phase 4: Offline-First + Sync (Diagram 3),2 days,Spotty rural internet handling,"• src/lib/offline-queue.ts (IndexedDB)
+• Service Worker sync on reconnect
+• “Queued • Synced successfully” badges on scan button
+• Optimistic UI while offline",★★★★
+Phase 5: Full Features (Diagram 4),3 days,Complete routes + smart logic,"• Inventory table (fast/slow movers)
+• Events tab (4th of July multiplier + local rodeo)
+• Reports tab (Recharts sales-vs-forecast)
+• Zustand store for Hanger-specific UI state",★★★
+Phase 6: Backend Integration & Polish,2 days,Connect everything + tests,"• AWS Lambda stubs (scan + summary + forecast)
+• DynamoDB types for Hanger inventory
+• Playwright tests: scan → dashboard refresh → offline sync
+• PWA install prompt + Lighthouse 95+",★★★
+Phase 7: Deploy & Hanger Go-Live,1 day,Ready for store staff,"• vite preview + ngrok mobile test
+• QR code for staff to install PWA
+• Final tweaks based on your real store hours/events",★★
+
+Completed - Phase 1: PWA Shell + Big Scan FAB (Phase 0/1/1.5),1 day,"Mobile-first foundation + primary action button complete (all diagrams start here)","src/app/layout.tsx (header + FAB + bottom nav), src/app/router.tsx, src/components/common/bottom-nav.tsx, src/components/common/scan-bottle-fab.tsx, src/pwa/* (offline-queue, register-sw), src/index.css + theme, shadcn/ui setup, PWA manifest/sw",Done
+Completed - Phase 2: Scan Flow (Diagram 1),2-3 days,"Full UPC camera + manual → optimistic update → forecast refresh + offline queue","src/features/scan/scan-page.tsx (html5-qrcode + form RHF+Zod), src/lib/api.ts (useAddInventoryItem + mutations + optimistic), src/stores/offline-queue-store.ts + pwa/offline-queue.ts (idb), use-online-status, sync-toast",Done
+Completed - Phase 3: Dashboard (Diagram 2) [Partial],2 days,"Launch view with summary cards & charts (fast/slow movers) - core implemented but some hardcoded data remains","src/features/dashboard/dashboard-page.tsx, src/features/forecast/* (summary-cards, forecast-chart with Recharts, item table), useForecasts + useLocalEvents (TanStack Query)",Partial
+Completed - Phase 4: Offline-First + Sync (Diagram 3),2 days,"Spotty rural internet handling complete","src/lib/offline-queue.ts (IndexedDB), src/stores/offline-queue-store.ts, Service Worker + sync on reconnect, optimistic UI + queued/sync badges, use-online-status hook",Done
+Completed - Phase 5: Full Features (Diagram 4),3 days,"Complete routes + smart logic (inventory, events, forecast/reports, suggestions stub)","src/features/inventory/* (full list/search/edit/CSV import), src/features/events/* (full with form + TanStack), src/features/forecast/forecast-dashboard.tsx + reports, src/features/suggestions/suggestions-page.tsx (stub notes Phase 2), src/features/more/more-page.tsx, Zustand only for ephemeral (offline)",Done
+Completed - Phase 6: Backend Integration & Polish,2 days,"Connect everything + tests (Lambdas + DynamoDB + e2e)","backend/lambdas/inventory/* + forecast/* (full handlers, dynamodb, validators, engine), backend/shared/types/*, backend/tests/*, e2e/scan.spec.ts + inventory.spec.ts + forecast.spec.ts (14 tests), Playwright config, API client + TanStack hooks in src/lib/api.ts",Done
+Completed - AWS & Client Deployment Setup (Post-Phase),1 day,"Permanent AWS config for repo + export to Hangar Liquor's own AWS + SageMaker Canvas prep + cost estimates","scripts/set-aws-profile.ps1 (npm run aws:profile, sets hanger-personal), .env.example (AWS_PROFILE), README.md (AWS setup section), Docs/client-deployment.md (full client AWS + Canvas + billing models), scripts/export-sales-for-canvas.ts (CSV export for Canvas training), AWS account review (5709 personal vs 3886 platoon), cost estimates for Lambda/DDB/API/Canvas",Done
+Next Task: Phase 7 - Deploy & Client AWS Go-Live + Terraform + Live Dashboard Polish + Invoice Model,2-3 days,"Ready for store staff in Hangar Liquor's own AWS account. Include SageMaker Canvas training workflow, invoicing method (client pays AWS + you invoice + markup), full live data in dashboard, and suggestions (forecast-driven Phase 2)","Terraform modules for Lambda+APIGW+DDB (client deployable) [REVIEWED & CREATED: main.tf with tables/IAM/Lambdas/HTTP API + vars/outputs; packaging note for build], onboarding runbook (in terraform/README.md), improve dashboard-page.tsx (live queries - partial done), implement full suggestions-page.tsx (forecast-driven - done), PWA install/QR, ngrok or prod deploy test, AWS Budgets/alerts setup",★★★★★
+Completed - Terraform Review (2026 AWS provider via MCP),0.5 day,"Reviewed & updated terraform/ for client AWS deploy using up-to-date MCP data (provider 6.53.0, lambda/apigw/dynamodb resources)","terraform/main.tf (DDB tables PAY_PER_REQUEST, IAM role+policy, archive zips for inventory/forecast Lambdas, apigatewayv2_api + integrations + routes for /api/*, stage, outputs; fixed packaging excludes + runtime), terraform/variables.tf (store_id, sagemaker_endpoint etc), terraform/README.md (client usage + build steps + invoice notes), fixes: packaging, runtime comments from MCP review",Done

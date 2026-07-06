@@ -1,26 +1,29 @@
 import { Lightbulb, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const suggestions = [
-  {
-    name: 'Coors Light 12pk 12oz Cans',
-    qty: '2 cases',
-    reason: 'July 4th forecast +40% beer demand',
-  },
-  {
-    name: "Jack Daniel's Tennessee Whiskey 750ml",
-    qty: '1 case',
-    reason: 'Below reorder point — football season ramp-up',
-  },
-  {
-    name: 'Yellow Tail Cabernet Sauvignon 750ml',
-    qty: '6 bottles',
-    reason: 'Weekend wine spike from local festival',
-  },
-];
+import { useForecasts } from '@/features/forecast/api/use-forecasts';
+import { useInventoryList } from '@/lib/api';
 
 export function SuggestionsPage() {
+  const { data: forecasts = [] } = useForecasts(14);
+  const { data: inventory = [] } = useInventoryList();
+
+  const suggestions = forecasts
+    .filter(f => f.suggestedOrder > 0)
+    .slice(0, 5)
+    .map(f => {
+      const item = inventory.find(i => i.upc === f.upc);
+      const reasonParts = [];
+      if (f.confidence > 0.75) reasonParts.push('High confidence');
+      if (f.chartData.some(d => d.event)) reasonParts.push('Event boost');
+      return {
+        name: f.name,
+        qty: `${f.suggestedOrder} units`,
+        reason: reasonParts.length ? reasonParts.join(' + ') : 'Trend + weekday pattern',
+        upc: f.upc
+      };
+    });
+
   return (
     <div className="space-y-4 p-4">
       <div>
@@ -28,7 +31,7 @@ export function SuggestionsPage() {
           <Lightbulb className="h-7 w-7 text-hanger-amber" aria-hidden />
           Suggestions
         </h2>
-        <p className="text-muted-foreground">Reorder ideas based on forecasts and local events.</p>
+        <p className="text-muted-foreground">Forecast-driven reorder recommendations.</p>
       </div>
 
       <Card>
@@ -39,20 +42,22 @@ export function SuggestionsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {suggestions.map((item) => (
-            <div key={item.name} className="rounded-lg border border-border p-3">
+          {suggestions.length > 0 ? suggestions.map((item) => (
+            <div key={item.upc} className="rounded-lg border border-border p-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-semibold">{item.name}</p>
                 <Badge variant="warning">{item.qty}</Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{item.reason}</p>
             </div>
-          ))}
+          )) : (
+            <p className="text-sm text-muted-foreground">No suggestions yet. Check back after some sales data.</p>
+          )}
         </CardContent>
       </Card>
 
       <p className="text-center text-sm text-muted-foreground">
-        Full forecast-driven suggestions arrive in Phase 2.
+        Suggestions powered by live forecasts + inventory.
       </p>
     </div>
   );

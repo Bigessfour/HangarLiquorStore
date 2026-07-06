@@ -1,34 +1,47 @@
+import { useMemo } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, Package, TrendingUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const fastMovers = [
-  { name: 'Coors Light 12pk 12oz Cans', weekly: 84, category: 'beer' },
-  { name: "Tito's Handmade Vodka 1L", weekly: 31, category: 'spirits' },
-];
-
-const slowMovers = [{ name: 'Highland Park 12yr Scotch 750ml', weekly: 2, category: 'whiskey' }];
-
-const lowStockAlerts = [
-  { name: "Jack Daniel's Tennessee Whiskey 750ml", stock: 3, reorderPoint: 12 },
-  { name: 'Bud Light 12pk 12oz Cans', stock: 5, reorderPoint: 24 },
-];
-
-const reorderSuggestions = [
-  {
-    name: 'Coors Light 12pk 12oz Cans',
-    qty: '2 cases',
-    reason: 'July 4th forecast +40% beer demand',
-  },
-  {
-    name: "Jack Daniel's Tennessee Whiskey 750ml",
-    qty: '1 case',
-    reason: 'Below reorder point — football season ramp-up',
-  },
-];
+import { useInventoryList } from '@/lib/api';
+import { useForecasts } from '@/features/forecast/api/use-forecasts';
 
 export function DashboardPage() {
+  const { data: inventory = [] } = useInventoryList();
+  const { data: forecasts = [] } = useForecasts(14);
+
+  const lowStockAlerts = useMemo(() => 
+    inventory.filter(item => item.currentStock < item.reorderPoint).slice(0, 3),
+    [inventory]
+  );
+
+  const reorderSuggestions = useMemo(() => 
+    forecasts
+      .filter(f => f.suggestedOrder > 0)
+      .slice(0, 3)
+      .map(f => ({
+        name: f.name,
+        qty: `${f.suggestedOrder} units`,
+        reason: f.confidence > 0.7 ? 'High confidence forecast' : 'Based on trends + events'
+      })),
+    [forecasts]
+  );
+
+  const totalSKUs = inventory.length;
+  const lowStockCount = lowStockAlerts.length;
+
+  // Mock movers from inventory for now (can enhance with sales history later)
+  const fastMovers = inventory.slice(0, 2).map(item => ({
+    name: item.name,
+    weekly: Math.floor(item.currentStock * 0.3) + 10,
+    category: item.category.toLowerCase()
+  }));
+  const slowMovers = inventory.slice(-1).map(item => ({
+    name: item.name,
+    weekly: Math.floor(item.currentStock * 0.05),
+    category: item.category.toLowerCase()
+  }));
+
   return (
     <div className="space-y-4 p-4">
       <div>
@@ -44,7 +57,7 @@ export function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">248</p>
+            <p className="text-3xl font-bold">{totalSKUs}</p>
           </CardContent>
         </Card>
         <Card>
@@ -54,7 +67,7 @@ export function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-destructive">{lowStockAlerts.length}</p>
+            <p className="text-3xl font-bold text-destructive">{lowStockCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -98,17 +111,17 @@ export function DashboardPage() {
 
       <div className="space-y-2">
         <h3 className="text-lg font-semibold">Low-Stock Alerts</h3>
-        {lowStockAlerts.map((item) => (
+        {lowStockAlerts.length > 0 ? lowStockAlerts.map((item) => (
           <Alert key={item.name} className="border-destructive/30">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <AlertDescription className="font-medium">
-              {item.name} — <strong>{item.stock} bottles left</strong>
+              {item.name} — <strong>{item.currentStock} left</strong>
               <span className="block text-sm text-muted-foreground">
                 Reorder at {item.reorderPoint}
               </span>
             </AlertDescription>
           </Alert>
-        ))}
+        )) : <p className="text-sm text-muted-foreground">No low stock alerts.</p>}
       </div>
 
       <Card>
@@ -118,7 +131,7 @@ export function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {reorderSuggestions.map((item) => (
+          {reorderSuggestions.length > 0 ? reorderSuggestions.map((item) => (
             <div key={item.name} className="rounded-lg border border-border p-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-semibold">{item.name}</p>
@@ -126,7 +139,7 @@ export function DashboardPage() {
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{item.reason}</p>
             </div>
-          ))}
+          )) : <p className="text-sm text-muted-foreground">No reorder suggestions yet.</p>}
         </CardContent>
       </Card>
     </div>
