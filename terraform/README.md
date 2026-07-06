@@ -121,3 +121,45 @@ Using terraform MCP (get_latest_*, search_modules, get_provider_details):
 - Tests with terraform test.
 
 Update after review: current custom TF is solid start but modules will make maintenance easier for client exports.
+
+## Client Onboarding Runbook (Phase 7)
+For deploying to Hangar Liquor's AWS account and going live:
+
+1. **Prerequisites**
+   - Client creates AWS account and provides IAM user with admin/PowerUser.
+   - Set AWS_PROFILE for client (use scripts/set-aws-profile.ps1 or similar).
+   - Client enables SageMaker Canvas if using high-accuracy forecasts.
+
+2. **Setup AWS Resources**
+   - Run `terraform init && terraform apply -var="store_id=hanger-liquor-wiley" -var="sagemaker_endpoint=hanger-forecast-canvas"`
+   - This creates: DynamoDB tables (PAY_PER_REQUEST), Lambda functions (inventory + forecast), API Gateway, IAM, Budgets, S3 for OFF data.
+   - Note: Build backend first if needed (zip Lambdas manually or via CI).
+
+3. **Data & Canvas**
+   - Export sales: `npm run export-sales-for-canvas -- --store-id=hanger --output=sales.csv`
+   - Upload to SageMaker Canvas in client account, train time-series model (item=upc, timestamp=date, target=quantity).
+   - Deploy to Serverless endpoint, set `SAGEMAKER_ENDPOINT_NAME` in TF or Lambda env.
+   - Load product catalog: filter OFF dump to liquor, load to HangerProducts table (scripts provided).
+
+4. **App & PWA**
+   - Update frontend VITE_API_URL to the deployed API Gateway URL.
+   - Build and host PWA (S3+CloudFront recommended, or client CDN).
+   - Staff: Scan QR from More page or use URL. Install PWA for offline.
+   - Test: Scan, add stock, view live forecasts (toggle Canvas model), events, shipments via CSV import.
+   - Offline: Queue works, syncs on reconnect.
+
+5. **Invoicing & Costs**
+   - Client pays their own AWS bill (low-cost: on-demand DDB, small Lambda, S3 filtered).
+   - You invoice client for: one-time setup/deployment + monthly support/markup.
+   - Budgets alert at 80% of $50/mo example.
+   - Monitor via AWS Budgets console.
+
+6. **Go-Live & Support**
+   - ngrok for mobile testing: `ngrok http 5173` (or deployed URL).
+   - Prod: Deploy TF, update API URL, seed demo or real data.
+   - Train staff: Use demo catalog reset in More, test scans.
+   - Ongoing: Update via git, redeploy TF/Lambda. Canvas retrain as sales data grows.
+   - Fallback: Statistical engine always available if Canvas endpoint down.
+
+See client-deployment.md for billing models (client-hosted recommended) and full context.
+

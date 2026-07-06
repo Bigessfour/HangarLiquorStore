@@ -66,18 +66,24 @@ export function DashboardPage() {
   );
 
   const handleReorder = () => {
-    // Real action: add 6 units via the canonical add hook (optimistic + persists in mock)
+    // Real action: use first low stock or reorder suggestion (fully dynamic)
+    const target = lowStockAlerts[0] || reorderSuggestions[0];
+    if (!target) return;
+    const upc = (target as any).upc;
+    const name = (target as any).name;
+    const qty = (target as any).suggestedOrder || (target as any).currentStock ? 1 : 6;
+    if (!upc || !name) return;
     addInventory.mutate(
       {
-        upc: '082184000012',
-        name: "Jack Daniel's Tennessee Whiskey 750ml",
-        quantity: 6,
-        category: 'Spirits',
-        packSize: 1,
+        upc,
+        name,
+        quantity: qty,
+        category: (target as any).category || 'Spirits',
+        packSize: (target as any).packSize || 1,
       } as any,
       {
         onSuccess: () => {
-          setActionMessage('Added 6 × Jack Daniels to stock');
+          setActionMessage(`Added ${qty} × ${name} to stock`);
           setTimeout(() => setActionMessage(null), 2200);
         },
       },
@@ -85,18 +91,20 @@ export function DashboardPage() {
   };
 
   const handleApplyMultiplier = () => {
-    // Real action: create the event using the canonical events system
+    // Real action: create event based on active or default
+    const eventName = activeMultiplier?.name || 'Demand Boost';
+    const mult = activeMultiplier?.multiplier || 1.35;
     createEvent.mutate(
       {
-        name: '4th of July Boost',
-        startDate: '2026-07-04',
-        endDate: '2026-07-06',
-        multiplier: 1.35,
-        notes: 'Beer focus — +35% expected demand',
+        name: eventName,
+        startDate: new Date().toISOString().slice(0, 10),
+        endDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+        multiplier: mult,
+        notes: 'From dashboard action',
       },
       {
         onSuccess: () => {
-          setActionMessage('4th of July +35% multiplier event created');
+          setActionMessage(`${eventName} event created`);
           setTimeout(() => setActionMessage(null), 2200);
         },
       },
@@ -141,7 +149,7 @@ export function DashboardPage() {
             onClick={handleReorder}
             disabled={addInventory.isPending}
           >
-            Reorder Jack Daniels
+            Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || 'Low Stock'}
           </Button>
         </Card>
       </div>
@@ -174,7 +182,7 @@ export function DashboardPage() {
           disabled={addInventory.isPending}
           className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg active:scale-[0.985]"
         >
-          Reorder 6 Jack Daniels • $89.94
+          Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || reorderSuggestions[0]?.name?.split(' ')[0] || 'Stock'} • from live data
         </Button>
 
         <Button
@@ -182,7 +190,7 @@ export function DashboardPage() {
           disabled={createEvent.isPending}
           className="w-full py-4 bg-amber-500 text-zinc-900 hover:bg-amber-400 rounded-xl text-lg active:scale-[0.985]"
         >
-          Apply 4th of July +35% multiplier
+          Apply {activeMultiplier?.name || 'Event'} multiplier
         </Button>
 
         {reorderSuggestions.length > 0 && (
