@@ -167,7 +167,7 @@ test('deep-link selects item detail from upc query', async ({ page }) => {
 
   // Basic production readiness: page loads with deep link param, no crash
   await expect(page).toHaveURL(/upc=008216000032/);
-  await expect(page.getByText(/Demand Forecast|forecast/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Demand Forecast/i })).toBeVisible();
 });
 
 test('shows error state when forecast api fails', async ({ page }) => {
@@ -186,5 +186,5 @@ test('shows error state when forecast api fails', async ({ page }) => {
   await page.goto('/forecast');
   await page.waitForTimeout(500);
   // The route 500 may not always trigger client error UI in this test env; at least page renders main content without crash
-  await expect(page.getByText(/Demand Forecast/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Demand Forecast/i })).toBeVisible();
 });
