@@ -53,22 +53,18 @@ This project uses **MCP (Model Context Protocol)** servers heavily for AI-assist
 git clone https://github.com/Bigessfour/HangarLiquorStore.git
 cd HangarLiquorStore
 
-# Install dependencies
+# One-command setup (recommended)
+./scripts/dev-setup.sh          # macOS / Linux
+# or on Windows PowerShell:
+# .\scripts\set-aws-profile.ps1 ; npm install ; npm --prefix backend install ; npx playwright install
+
+# Or manual steps
 npm install
 npm --prefix backend install
-
-# Install Playwright browsers (for E2E + MCP)
 npx playwright install
-
-# Set up AWS profile (cross-platform)
-export AWS_PROFILE=hanger-personal   # macOS / Linux
-# or on Windows PowerShell:
-# $env:AWS_PROFILE = "hanger-personal"
-
-# Verify
-npm run aws:profile   # if on Windows, or just run the ps1
-aws sts get-caller-identity
 ```
+
+The `dev-setup.sh` script handles dependencies, Playwright, .env, and prints MCP/AWS hints.
 
 **Run the app**
 ```bash
@@ -100,27 +96,39 @@ See `Docs/` for architecture and flows.
 
 Copy `.env.example` to `.env` and set `VITE_API_URL` to your API Gateway base URL (or leave empty for mocks).
 
-### AWS Account Setup (Important)
+### AWS & Environment Setup
 
-This project uses AWS (Lambda + API Gateway + DynamoDB). You have two AWS accounts configured locally.
+This project uses AWS (Lambda + API Gateway + DynamoDB).
 
-**Use your personal account (starts with 5). Do not use the Code Platoon account (starts with 3).**
-
-Run this script in PowerShell from the repo root to configure the correct account for this project:
-
-```powershell
-.\scripts\set-aws-profile.ps1
+**Recommended (Mac / Linux):**
+```bash
+./scripts/dev-setup.sh
 ```
 
-This sets `AWS_PROFILE=hanger-personal` for the current session and verifies the identity.
+**Windows:**
+```powershell
+.\scripts\set-aws-profile.ps1
+npm install
+npm --prefix backend install
+npx playwright install
+```
 
-**Tips:**
-- Run the script at the start of every terminal session when working on this repo.
-- In VS Code / Cursor, also select the `hanger-personal` profile in the AWS Toolkit or Amazon Q extension settings.
-- The `aico` profile (Code Platoon) is left untouched.
-- The AWS SDK in the backend Lambdas and CLI commands will automatically use this profile.
+**Manual cross-platform:**
+```bash
+export AWS_PROFILE=hanger-personal   # macOS/Linux
+# $env:AWS_PROFILE = "hanger-personal"  # Windows PowerShell
 
-See `scripts/set-aws-profile.ps1` for details.
+npm install
+npm --prefix backend install
+npx playwright install
+```
+
+Use the `hanger-personal` profile (your personal AWS account starting with 5). Never use the Code Platoon account.
+
+See:
+- `scripts/dev-setup.sh`
+- `scripts/set-aws-profile.sh` / `.ps1`
+- `Docs/client-deployment.md` for client AWS + invoicing details.
 
 ## API Endpoints
 
