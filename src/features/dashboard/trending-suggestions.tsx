@@ -3,35 +3,42 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { forecastApi } from '@/features/forecast/api/forecast-api';
+import { useTrendingSuggestions } from '@/features/forecast/api/use-trending-suggestions';
+import { useAddInventoryItem } from '@/lib/api';
 import type { TrendingSuggestion } from '@/types/forecast';
 
 export default function TrendingSuggestions() {
-  const [trends, setTrends] = useState<TrendingSuggestion[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: trends = [], isLoading, refetch, isFetching } = useTrendingSuggestions();
+  const addInventory = useAddInventoryItem();
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const getLocalSuggestions = async () => {
-    setIsLoading(true);
-    try {
-      const data = await forecastApi.getTrending();
-      setTrends(data);
-      if (data.length > 0) {
-        alert(
-          `📈 AWS Forecast (Lambda):\n\n` +
-            data
-              .map((t) => `${t.name} ${t.change} — ${t.reason} (add ~${t.suggestedAdd})`)
-              .join('\n') +
-            `\n\nLive data from inventory + events. Low-cost in-Lambda stats (no extra ML services).`
-        );
-      } else {
-        alert('No strong trends right now. Add a local event (rodeo, holiday) to boost suggestions.');
+  const loading = isLoading || isFetching;
+
+  const handleAddSuggestion = (trend: TrendingSuggestion) => {
+    addInventory.mutate(
+      {
+        upc: trend.upc,
+        name: trend.name,
+        quantity: trend.suggestedAdd,
+        category: 'General',
+        packSize: 1,
+      } as any,
+      {
+        onSuccess: () => {
+          const msg = `Added +${trend.suggestedAdd} × ${trend.name}`;
+          setActionMessage(msg);
+          setTimeout(() => setActionMessage(null), 2200);
+        },
+        onError: () => {
+          setActionMessage('Add failed — try again');
+          setTimeout(() => setActionMessage(null), 2000);
+        },
       }
-    } catch (e) {
-      alert('Failed to load trending. Check connection or try again.');
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
+    );
+  };
+
+  const handleRefresh = () => {
+    refetch();
   };
 
   return (
@@ -41,43 +48,60 @@ export default function TrendingSuggestions() {
           🔥 Trending Locally — Hanger Liquor Store (Wiley / Denver area)
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Powered by Amazon Forecast + local events (rodeo, 4th of July, summer)
+          Powered by live Lambda forecast + local events (rodeo, 4th of July, summer)
         </p>
       </CardHeader>
 
       <CardContent className="space-y-3">
+        {actionMessage && (
+          <div className="rounded-md bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs text-green-600 font-medium">
+            {actionMessage}
+          </div>
+        )}
+
         {trends.length > 0 ? (
-          trends.map((trend, idx) => (
+          trends.map((trend) => (
             <div
-              key={idx}
+              key={trend.upc}
               className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card/80 p-3 text-sm"
             >
-              <div>
-                <p className="font-medium">{trend.name}</p>
-                <p className="text-xs text-muted-foreground">{trend.reason}</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium leading-tight">{trend.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{trend.reason}</p>
               </div>
-              <div className="text-right">
-                <span className="font-bold text-emerald-500">{trend.change}</span>
-                <div className="text-[10px] text-muted-foreground">+{trend.suggestedAdd} suggested</div>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <div className="text-right">
+                  <span className="font-bold text-emerald-500">{trend.change}</span>
+                  <div className="text-[10px] text-muted-foreground">+{trend.suggestedAdd} suggested</div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 min-h-[44px] px-3 text-xs active:scale-[0.985]"
+                  onClick={() => handleAddSuggestion(trend)}
+                  disabled={addInventory.isPending}
+                >
+                  + Add {trend.suggestedAdd}
+                </Button>
               </div>
             </div>
           ))
         ) : (
           <div className="rounded-lg border border-dashed border-hanger-amber/30 p-4 text-center text-sm text-muted-foreground">
-            No local trends loaded. Tap below for live AWS Lambda suggestions (inventory + events).
+            {loading ? 'Loading live trends…' : 'No trending items yet. Add local events for stronger multipliers.'}
           </div>
         )}
 
         <Button
-          onClick={getLocalSuggestions}
-          disabled={isLoading}
+          onClick={handleRefresh}
+          disabled={loading}
           className="w-full min-h-12 bg-amber-500 text-zinc-950 hover:bg-amber-400 active:scale-[0.985]"
         >
-          {isLoading ? 'Running AWS Forecast…' : '🚀 Get Fresh Local AWS Suggestions'}
+          {loading ? 'Fetching from Lambda…' : trends.length > 0 ? '🔄 Refresh AWS Suggestions' : '🚀 Load Trending Suggestions'}
         </Button>
 
         <p className="text-center text-[10px] text-muted-foreground">
-          Lightweight stats in Lambda • PAY_PER_REQUEST DynamoDB • Filtered OFF catalog
+          Lightweight stats in Lambda • PAY_PER_REQUEST • Events drive boost
         </p>
       </CardContent>
     </Card>
