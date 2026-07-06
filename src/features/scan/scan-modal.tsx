@@ -7,13 +7,14 @@ import { cn } from '@/lib/utils';
 import { isIosHomeScreenApp } from '@/lib/device-scan';
 import { toast } from 'sonner';
 import { BarcodeCaptureZone } from '@/features/scan/components/barcode-capture-zone';
+import { NativeScanOverlay } from '@/features/scan/components/native-scan-overlay';
+import { startPlatformLiveScan, usesNativeLiveScan } from '@/features/scan/lib/scan-adapter';
 import {
   FILE_SCANNER_ELEMENT_ID,
   LIVE_SCANNER_ELEMENT_ID,
   PHOTO_CAPTURE_INPUT_ID,
   PHOTO_LIBRARY_INPUT_ID,
   scanBarcodeFromFile,
-  startLiveBarcodeScanner,
 } from './lib/barcode-scan';
 
 type ScanModalProps = {
@@ -35,6 +36,7 @@ export function ScanModal({ onClose }: ScanModalProps) {
   const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const iosHomeScreen = isIosHomeScreenApp();
+  const androidNative = usesNativeLiveScan();
 
   const finishWithUpc = useCallback(
     (upc: string) => {
@@ -55,7 +57,7 @@ export function ScanModal({ onClose }: ScanModalProps) {
     setError(null);
     setIsLive(true);
     try {
-      scannerRef.current = await startLiveBarcodeScanner(
+      scannerRef.current = await startPlatformLiveScan(
         finishWithUpc,
         (message) => {
           setError(message);
@@ -101,11 +103,9 @@ export function ScanModal({ onClose }: ScanModalProps) {
     return () => {
       void stopLive();
     };
-    // Auto-start live camera once on open (not on iOS Home Screen PWA)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // WebKit PWA: release camera when app backgrounds (avoids stuck black feed on resume).
   useEffect(() => {
     const releaseCamera = () => {
       if (document.visibilityState === 'hidden') {
@@ -120,9 +120,18 @@ export function ScanModal({ onClose }: ScanModalProps) {
     };
   }, [stopLive]);
 
+  const handleClose = () => {
+    void stopLive();
+    onClose();
+  };
+
+  if (isLive && androidNative) {
+    return <NativeScanOverlay onCancel={handleClose} />;
+  }
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-black/95 text-white"
+      className={cn('fixed inset-0 z-[60] flex flex-col bg-black/95 text-white')}
       role="dialog"
       aria-modal="true"
       aria-label="Scan bottle barcode"
@@ -161,10 +170,7 @@ export function ScanModal({ onClose }: ScanModalProps) {
           size="icon"
           className="h-12 w-12 text-white hover:bg-white/10"
           aria-label="Close scanner"
-          onClick={() => {
-            void stopLive();
-            onClose();
-          }}
+          onClick={handleClose}
         >
           <X className="h-6 w-6" />
         </Button>
@@ -208,7 +214,7 @@ export function ScanModal({ onClose }: ScanModalProps) {
           variant="ghost"
           className="text-sm text-white/70"
           onClick={() => {
-            onClose();
+            handleClose();
             navigate('/scan');
           }}
         >

@@ -65,3 +65,14 @@
     min-height: 100vh;
   }
 }
+
+/* ML Kit native scan: camera renders behind WebView; only overlay stays visible */
+body.barcode-scanner-active {
+  visibility: hidden;
+  background: transparent !important;
+}
+
+body.barcode-scanner-active .barcode-scanner-modal,
+body.barcode-scanner-active .native-scan-overlay {
+  visibility: visible;
+}

@@ -108,9 +108,8 @@ test('Android Chrome more page shows install instructions', async ({ browser }) 
   await page.goto('/more');
 
   await expect(page.getByText('Install the app', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Chrome/i).first()).toBeVisible();
+  await expect(page.getByText(/For scanning/i).first()).toBeVisible();
   await expect(page.getByText(/Staff QR/i)).toBeVisible();
-  await expect(page.getByText('PWABuilder (Android APK)')).toBeVisible();
 
   await context.close();
 });
@@ -130,7 +129,7 @@ test('iOS Safari more page shows Add to Home Screen steps', async ({ browser }) 
   await page.goto('/more');
 
   await expect(page.getByText(/Add to Home Screen/i).first()).toBeVisible();
-  await expect(page.getByText(/tap the frame to open camera/i)).toBeVisible();
+  await expect(page.getByText(/tap the frame to photograph/i)).toBeVisible();
 
   await context.close();
 });

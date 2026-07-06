@@ -65,7 +65,15 @@ export function getPublicAppUrl(): string {
   return window.location.origin;
 }
 
+/** PWABuilder WebView APK (legacy). */
 export function getAndroidApkUrl(): string | null {
   const url = import.meta.env.VITE_ANDROID_APK_URL;
   return url || null;
+}
+
+/** Capacitor native APK with ML Kit live scanning (preferred for floor staff). */
+export function getNativeAndroidApkUrl(): string | null {
+  const native = import.meta.env.VITE_NATIVE_ANDROID_APK_URL;
+  if (native) return native;
+  return getAndroidApkUrl();
 }

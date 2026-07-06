@@ -14,6 +14,7 @@ import { usePwaInstall } from '@/hooks/use-pwa-install';
 import {
   getAndroidApkUrl,
   getInstallPlatform,
+  getNativeAndroidApkUrl,
   getPublicAppUrl,
   getPwabuilderReportUrl,
   type InstallPlatform,
@@ -35,8 +36,8 @@ function IosInstallSteps({ deviceLabel }: { deviceLabel: string }) {
       </li>
       <li>Open the <strong>Hanger</strong> icon — full-screen app, works offline.</li>
       <li>
-        On Scan, <strong>tap the frame to open camera</strong> and photograph the UPC (live camera
-        is limited in iOS home screen apps).
+        On Scan, <strong>tap the frame to photograph the UPC</strong>. Live barcode scanning is on
+        the <strong>Android native app</strong>; iPhone uses photo scan (Apple limitation).
       </li>
     </ol>
   );
@@ -45,52 +46,60 @@ function IosInstallSteps({ deviceLabel }: { deviceLabel: string }) {
 function AndroidInstallSteps({
   onInstall,
   canPrompt,
-  apkUrl,
+  nativeApkUrl,
+  legacyApkUrl,
 }: {
   onInstall: () => void;
   canPrompt: boolean;
-  apkUrl: string | null;
+  nativeApkUrl: string | null;
+  legacyApkUrl: string | null;
 }) {
   return (
     <div className="space-y-3">
-      {canPrompt && (
-        <Button
-          type="button"
-          className="min-h-12 w-full bg-hanger-amber text-primary-foreground hover:bg-hanger-amber/90"
-          onClick={onInstall}
-        >
-          <Download className="mr-2 h-5 w-5" aria-hidden />
-          Install app (Chrome)
-        </Button>
-      )}
-      <ol className="list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
-        <li>Open this site in <strong>Chrome</strong> on your Android phone or tablet.</li>
-        {canPrompt ? (
-          <li>Tap <strong>Install app</strong> above, or use the browser menu → Install app.</li>
-        ) : (
-          <li>
-            Tap the menu (⋮) → <strong>Install app</strong> or <strong>Add to Home screen</strong>.
-          </li>
-        )}
-        <li>The Hanger icon appears on your home screen — no Play Store required.</li>
-      </ol>
-      {apkUrl && (
-        <div className="rounded-lg border border-hanger-amber/30 bg-muted/40 p-3">
-          <p className="text-sm font-medium">Sideload APK (no Play Store)</p>
+      {nativeApkUrl && (
+        <div className="rounded-lg border-2 border-hanger-amber/50 bg-hanger-amber/5 p-3">
+          <p className="text-sm font-bold text-foreground">Native app — live barcode scanning</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Download the Android package built with PWABuilder, then open the .apk and allow install
-            from your files app.
+            Recommended for floor staff. Walmart-style continuous UPC scan (ML Kit). Install the APK,
+            then open <strong>Hanger Liquor</strong> from your home screen.
           </p>
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            className="mt-2 min-h-10 w-full"
+            className="mt-3 min-h-12 w-full bg-gradient-to-r from-hanger-gold to-hanger-amber font-bold text-primary-foreground"
             asChild
           >
-            <a href={apkUrl} download>
+            <a href={nativeApkUrl} download>
+              <Download className="mr-2 h-5 w-5" aria-hidden />
+              Download native Android APK
+            </a>
+          </Button>
+        </div>
+      )}
+      {canPrompt && (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-12 w-full"
+          onClick={onInstall}
+        >
+          <Download className="mr-2 h-5 w-5" aria-hidden />
+          Install browser PWA (Chrome)
+        </Button>
+      )}
+      <ol className="list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
+        <li>
+          <strong>For scanning:</strong> use the native APK above (live camera). iPhone staff use
+          photo scan in the browser PWA.
+        </li>
+        <li>Optional: install the browser PWA via Chrome menu → Install app for dashboard access.</li>
+      </ol>
+      {legacyApkUrl && !nativeApkUrl && (
+        <div className="rounded-lg border border-hanger-amber/30 bg-muted/40 p-3">
+          <p className="text-sm font-medium">Legacy WebView APK</p>
+          <Button type="button" variant="outline" size="sm" className="mt-2 min-h-10 w-full" asChild>
+            <a href={legacyApkUrl} download>
               <Download className="mr-2 h-4 w-4" aria-hidden />
-              Download Android APK
+              Download APK
             </a>
           </Button>
         </div>
@@ -103,12 +112,14 @@ function PlatformInstructions({
   platform,
   onInstall,
   canPrompt,
-  apkUrl,
+  nativeApkUrl,
+  legacyApkUrl,
 }: {
   platform: InstallPlatform;
   onInstall: () => void;
   canPrompt: boolean;
-  apkUrl: string | null;
+  nativeApkUrl: string | null;
+  legacyApkUrl: string | null;
 }) {
   switch (platform) {
     case 'ios-installed':
@@ -132,7 +143,12 @@ function PlatformInstructions({
     case 'android-chrome':
     case 'android-other':
       return (
-        <AndroidInstallSteps onInstall={onInstall} canPrompt={canPrompt} apkUrl={apkUrl} />
+        <AndroidInstallSteps
+          onInstall={onInstall}
+          canPrompt={canPrompt}
+          nativeApkUrl={nativeApkUrl}
+          legacyApkUrl={legacyApkUrl}
+        />
       );
     default:
       return (
@@ -156,7 +172,8 @@ export function InstallAppPanel({ showQr = true }: { showQr?: boolean }) {
   const [qrLoaded, setQrLoaded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const platform = getInstallPlatform();
-  const apkUrl = getAndroidApkUrl();
+  const nativeApkUrl = getNativeAndroidApkUrl();
+  const legacyApkUrl = getAndroidApkUrl();
   const pwabuilderUrl = getPwabuilderReportUrl(appUrl);
 
   useEffect(() => {
@@ -253,7 +270,8 @@ export function InstallAppPanel({ showQr = true }: { showQr?: boolean }) {
           platform={platform}
           onInstall={handleInstall}
           canPrompt={isInstallable && !isInstalled}
-          apkUrl={apkUrl}
+          nativeApkUrl={nativeApkUrl}
+          legacyApkUrl={legacyApkUrl}
         />
 
         {isLocalHttp && (
@@ -316,11 +334,13 @@ export function InstallAppPanel({ showQr = true }: { showQr?: boolean }) {
         )}
 
         <div className="border-t border-border pt-3">
-          <p className="text-xs font-medium text-muted-foreground">PWABuilder (Android APK)</p>
+          <p className="text-xs font-medium text-muted-foreground">Build native Android APK (staff scanning)</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            After HTTPS deploy, run{' '}
-            <code className="rounded bg-muted px-1 text-[10px]">npm run package:android -- YOUR-URL</code>{' '}
-            to generate a sideload APK, or open the report card:
+            On a machine with Android SDK:{' '}
+            <code className="rounded bg-muted px-1 text-[10px]">npm run build:android</code> then upload
+            the APK and set <code className="text-[10px]">VITE_NATIVE_ANDROID_APK_URL</code>. Legacy
+            PWABuilder WebView:{' '}
+            <code className="rounded bg-muted px-1 text-[10px]">npm run package:android -- YOUR-URL</code>
           </p>
           <Button type="button" variant="outline" size="sm" className="mt-2 min-h-10 w-full" asChild>
             <a href={pwabuilderUrl} target="_blank" rel="noopener noreferrer">

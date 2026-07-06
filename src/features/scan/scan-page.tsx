@@ -30,6 +30,11 @@ import {
 import NewProductModal from '@/features/inventory/new-product-modal';
 import { toast } from 'sonner';
 import { BarcodeCaptureZone } from '@/features/scan/components/barcode-capture-zone';
+import { NativeScanOverlay } from '@/features/scan/components/native-scan-overlay';
+import {
+  startPlatformLiveScan,
+  usesNativeLiveScan,
+} from '@/features/scan/lib/scan-adapter';
 import {
   FILE_SCANNER_ELEMENT_ID,
   LIVE_SCANNER_ELEMENT_ID,
@@ -37,8 +42,8 @@ import {
   PHOTO_LIBRARY_INPUT_ID,
   normalizeUpc,
   scanBarcodeFromFile,
-  startLiveBarcodeScanner,
 } from '@/features/scan/lib/barcode-scan';
+import { isAndroid } from '@/lib/pwa-platform';
 
 const SCANNER_ELEMENT_ID = LIVE_SCANNER_ELEMENT_ID;
 
@@ -70,6 +75,7 @@ export function ScanPage() {
 
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const iosHomeScreen = isIosHomeScreenApp();
+  const androidNative = usesNativeLiveScan();
 
   const { data: matchedItem, isLoading: isLookingUp } = useInventoryItem(scannedUpc);
 
@@ -168,7 +174,7 @@ export function ScanPage() {
 
     setIsScanning(true);
     try {
-      scannerRef.current = await startLiveBarcodeScanner(
+      scannerRef.current = await startPlatformLiveScan(
         (upc) => {
           void handleScanSuccess(upc);
         },
@@ -183,6 +189,16 @@ export function ScanPage() {
       setIsScanning(false);
     }
   }, [handleScanSuccess, reset]);
+
+  useEffect(() => {
+    if (!androidNative || searchParams.get('upc')) return;
+    void startScanner();
+    return () => {
+      void stopScanner();
+    };
+    // Auto-start native ML Kit scanner on Android app open
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleManualUpc = () => {
     if (!applyUpc(manualUpc)) {
@@ -370,15 +386,36 @@ export function ScanPage() {
       />
       <div className="relative flex flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col items-center justify-center gap-5 py-6">
-          <BarcodeCaptureZone
-            photoOnly={iosHomeScreen}
-            isLiveScanning={isScanning}
-            isPhotoScanning={isPhotoScanning}
-            capturePreviewUrl={capturePreviewUrl}
-            scannerElementId={SCANNER_ELEMENT_ID}
-            onStartLiveScan={() => void startScanner()}
-            onStopLiveScan={() => void stopScanner()}
-          />
+          {!androidNative && (
+            <BarcodeCaptureZone
+              photoOnly={iosHomeScreen}
+              isLiveScanning={isScanning}
+              isPhotoScanning={isPhotoScanning}
+              capturePreviewUrl={capturePreviewUrl}
+              scannerElementId={SCANNER_ELEMENT_ID}
+              onStartLiveScan={() => void startScanner()}
+              onStopLiveScan={() => void stopScanner()}
+            />
+          )}
+
+          {androidNative && !isScanning && !scannedUpc && (
+            <Alert className="max-w-sm border-green-500/30 bg-green-500/10" role="status">
+              <AlertDescription className="text-sm">
+                <strong>Live native scanning</strong> — tap below to scan again, or enter UPC manually.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {androidNative && !isScanning && (
+            <Button
+              type="button"
+              size="lg"
+              className="min-h-14 w-full max-w-sm bg-gradient-to-r from-hanger-gold to-hanger-amber font-bold text-primary-foreground"
+              onClick={() => void startScanner()}
+            >
+              Scan another barcode
+            </Button>
+          )}
 
           {iosHomeScreen && !isScanning && (
             <>
@@ -393,8 +430,9 @@ export function ScanPage() {
               </label>
               <Alert className="max-w-sm border-hanger-amber/40 bg-hanger-amber/5" role="status">
                 <AlertDescription className="text-sm">
-                  <strong>iPhone tip:</strong> Tap the frame above to open your camera. Live scanning
-                  in the installed app is limited by Apple —{' '}
+                  <strong>iPhone tip:</strong> Tap the frame above to photograph the UPC.{' '}
+                  <strong>Live barcode scanning is available on the Android app.</strong>{' '}
+                  In the installed iPhone app, Apple limits live camera —{' '}
                   <button
                     type="button"
                     className="font-semibold text-hanger-amber underline"
@@ -454,8 +492,20 @@ export function ScanPage() {
               Copy link — open in Safari for live scan
             </Button>
           )}
+          {isAndroid() && !androidNative && !isScanning && (
+            <Alert className="max-w-sm border-hanger-amber/40 bg-hanger-amber/5" role="status">
+              <AlertDescription className="text-sm">
+                For Walmart-style <strong>live barcode scanning</strong>, install the native Android
+                app from <strong>More → Install the app</strong> (not the browser PWA).
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </div>
+
+      {isScanning && androidNative && (
+        <NativeScanOverlay onCancel={() => void stopScanner()} />
+      )}
 
       {!isScanning && (scannedUpc || banner) && (
         <div className="space-y-4 border-t border-border bg-card p-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">

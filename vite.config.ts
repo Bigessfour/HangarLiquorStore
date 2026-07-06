@@ -5,6 +5,7 @@ import { ViteMcp } from 'vite-plugin-mcp';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  base: './',
   define: {
     global: 'globalThis',
   },
