@@ -57,7 +57,18 @@ function main() {
     process.exit(1);
   }
 
-  run(`aws s3 sync dist/ s3://${bucket}/ --delete`, `Upload → s3://${bucket}`);
+  run(
+    `aws s3 sync dist/ s3://${bucket}/ --delete --exclude "hanger-liquor-native.apk"`,
+    `Upload → s3://${bucket}`,
+  );
+
+  const apkPath = path.join(root, 'dist', 'mobile-apk', 'app-debug.apk');
+  if (fs.existsSync(apkPath)) {
+    run(
+      `aws s3 cp "${apkPath}" "s3://${bucket}/hanger-liquor-native.apk" --content-type application/vnd.android.package-archive`,
+      'Refresh native Android APK',
+    );
+  }
 
   run(
     `aws cloudfront create-invalidation --distribution-id ${distributionId} --paths "/*"`,
