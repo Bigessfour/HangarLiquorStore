@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CheckCircle2, ExternalLink, Keyboard, Loader2, ScanLine, XCircle } from 'lucide-react';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -30,11 +30,17 @@ import {
 } from '@/lib/device-scan';
 import NewProductModal from '@/features/inventory/new-product-modal';
 import { toast } from 'sonner';
+import {
+  FILE_SCANNER_ELEMENT_ID,
+  LIVE_SCANNER_ELEMENT_ID,
+  PHOTO_CAPTURE_INPUT_ID,
+  PHOTO_LIBRARY_INPUT_ID,
+  normalizeUpc,
+  scanBarcodeFromFile,
+  startLiveBarcodeScanner,
+} from '@/features/scan/lib/barcode-scan';
 
-const SCANNER_ELEMENT_ID = 'hanger-upc-scanner';
-const FILE_SCANNER_ELEMENT_ID = 'hanger-upc-file-scanner';
-const PHOTO_CAPTURE_INPUT_ID = 'hanger-photo-capture';
-const PHOTO_LIBRARY_INPUT_ID = 'hanger-photo-library';
+const SCANNER_ELEMENT_ID = LIVE_SCANNER_ELEMENT_ID;
 
 function normalizeCategory(value?: string): InventoryCategory {
   if (!value) return 'Beer';
@@ -42,7 +48,12 @@ function normalizeCategory(value?: string): InventoryCategory {
   return match ?? 'Beer';
 }
 
+function normalizeManualUpc(raw: string): string | null {
+  return normalizeUpc(raw);
+}
+
 export function ScanPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const isOnline = useOnlineStatus();
   const { queueAddItem } = useOfflineQueueStore();
   const addMutation = useAddInventoryItem();
@@ -56,7 +67,7 @@ export function ScanPage() {
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [isPhotoScanning, setIsPhotoScanning] = useState(false);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const iosHomeScreen = isIosHomeScreenApp();
 
   const { data: matchedItem, isLoading: isLookingUp } = useInventoryItem(scannedUpc);
@@ -80,23 +91,17 @@ export function ScanPage() {
   }, []);
 
   const stopScanner = useCallback(async () => {
-    if (scannerRef.current?.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // Scanner may already be stopped
-      }
-    }
+    await scannerRef.current?.stop();
     scannerRef.current = null;
     setIsScanning(false);
   }, []);
 
   const applyUpc = useCallback(
     (upc: string) => {
-      const normalized = upc.replace(/\D/g, '');
-      if (normalized.length < 8) return false;
+      const normalized = normalizeManualUpc(upc);
+      if (!normalized) return false;
       setScannedUpc(normalized);
-      setValue('upc', normalized);
+      setValue('upc', normalized, { shouldValidate: true });
       setBanner({ type: 'success', message: `UPC ${normalized} ready` });
       return true;
     },
@@ -104,10 +109,7 @@ export function ScanPage() {
   );
 
   const handleScanSuccess = useCallback(
-    async (decodedText: string) => {
-      const upc = decodedText.replace(/\D/g, '');
-      if (upc.length < 8) return;
-
+    async (upc: string) => {
       await stopScanner();
       applyUpc(upc);
     },
@@ -119,12 +121,7 @@ export function ScanPage() {
       setScanError(null);
       setIsPhotoScanning(true);
       try {
-        const scanner = new Html5Qrcode(FILE_SCANNER_ELEMENT_ID);
-        const decoded = await scanner.scanFile(file, false);
-        const upc = decoded.replace(/\D/g, '');
-        if (upc.length < 8) {
-          throw new Error('Barcode too short — try a closer photo of the UPC');
-        }
+        const upc = await scanBarcodeFromFile(file, FILE_SCANNER_ELEMENT_ID);
         applyUpc(upc);
         setBanner({ type: 'success', message: `Barcode read from photo: ${upc}` });
       } catch (err) {
@@ -164,20 +161,17 @@ export function ScanPage() {
     setShowNewProductModal(false);
     reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
 
+    setIsScanning(true);
     try {
-      await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-
-      const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
-      scannerRef.current = scanner;
-      setIsScanning(true);
-
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 280, height: 140 }, aspectRatio: 1.5 },
-        handleScanSuccess,
-        () => {
-          // Ignore per-frame scan misses
+      scannerRef.current = await startLiveBarcodeScanner(
+        (upc) => {
+          void handleScanSuccess(upc);
         },
+        (message) => {
+          setScanError(message);
+          setIsScanning(false);
+        },
+        SCANNER_ELEMENT_ID,
       );
     } catch (err) {
       setScanError(getCameraDeniedMessage(err));
@@ -281,6 +275,14 @@ export function ScanPage() {
       cancelled = true;
     };
   }, [scannedUpc, matchedItem, isLookingUp, isOnline, setValue]);
+
+  useEffect(() => {
+    const upcParam = searchParams.get('upc');
+    if (!upcParam) return;
+    applyUpc(upcParam);
+    searchParams.delete('upc');
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, applyUpc]);
 
   useEffect(() => {
     return () => {
