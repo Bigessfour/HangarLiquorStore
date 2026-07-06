@@ -58,3 +58,11 @@ export interface CreateLocalEventInput {
   multiplier: number;
   notes?: string;
 }
+
+export interface TrendingSuggestion {
+  name: string;
+  upc: string;
+  change: string;
+  reason: string;
+  suggestedAdd: number;
+}

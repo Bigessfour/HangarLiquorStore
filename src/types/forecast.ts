@@ -6,4 +6,5 @@ export type {
   LocalEvent,
   StaticHoliday,
   CreateLocalEventInput,
+  TrendingSuggestion,
 } from '../../backend/shared/types/forecast';

@@ -3,71 +3,35 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useLocalEvents } from '@/features/events/api/use-local-events';
-import { useInventoryList } from '@/lib/api';
-
-interface LocalTrend {
-  name: string;
-  change: string;
-  reason: string;
-  upc?: string;
-}
+import { forecastApi } from '@/features/forecast/api/forecast-api';
+import type { TrendingSuggestion } from '@/types/forecast';
 
 export default function TrendingSuggestions() {
-  const [trends, setTrends] = useState<LocalTrend[]>([]);
+  const [trends, setTrends] = useState<TrendingSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { data: eventsData } = useLocalEvents();
-  const { data: inventory = [] } = useInventoryList();
 
   const getLocalSuggestions = async () => {
     setIsLoading(true);
-
-    // Simulate AWS Lambda + Amazon Forecast call
-    // In real: call backend /api/forecast or dedicated trending endpoint
-    // using item metadata + time series from sales + local events multipliers
-    await new Promise((r) => setTimeout(r, 650));
-
-    // Mock realistic local trends for Hanger Liquor (Wiley/Denver area)
-    // Uses current inventory + active events for "personalized" feel
-    const activeEvents = eventsData?.localEvents ?? [];
-    const hasRodeo = activeEvents.some((e) => /rodeo/i.test(e.name));
-    const hasJuly = activeEvents.some((e) => /july|4th/i.test(e.name));
-
-    const mockTrends: LocalTrend[] = [
-      {
-        name: 'High Noon Hard Seltzer 8pk',
-        change: '+47%',
-        reason: `Denver rodeo + summer spike${hasRodeo ? ' (active multiplier)' : ''}`,
-        upc: '0123456789012', // demo
-      },
-      {
-        name: 'Local Craft IPA 6pk',
-        change: '+32%',
-        reason: 'Denver summer + weekend events',
-        upc: '071984000012',
-      },
-    ];
-
-    if (hasJuly) {
-      mockTrends.unshift({
-        name: 'Bud Light 12pk',
-        change: '+65%',
-        reason: '4th of July boost active',
-        upc: '018200000103',
-      });
+    try {
+      const data = await forecastApi.getTrending();
+      setTrends(data);
+      if (data.length > 0) {
+        alert(
+          `📈 AWS Forecast (Lambda):\n\n` +
+            data
+              .map((t) => `${t.name} ${t.change} — ${t.reason} (add ~${t.suggestedAdd})`)
+              .join('\n') +
+            `\n\nLive data from inventory + events. Low-cost in-Lambda stats (no extra ML services).`
+        );
+      } else {
+        alert('No strong trends right now. Add a local event (rodeo, holiday) to boost suggestions.');
+      }
+    } catch (e) {
+      alert('Failed to load trending. Check connection or try again.');
+      console.error(e);
+    } finally {
+      setIsLoading(false);
     }
-
-    setTrends(mockTrends);
-    setIsLoading(false);
-
-    // Simple feedback (matches project demo style)
-    alert(
-      `📈 AWS Forecast (simulated Lambda):\n\n` +
-        mockTrends
-          .map((t) => `${t.name} ${t.change} — ${t.reason}`)
-          .join('\n') +
-        `\n\nSuggest adding to reorder list? (In real: would call backend to create event or add stock)`
-    );
   };
 
   return (
@@ -94,13 +58,13 @@ export default function TrendingSuggestions() {
               </div>
               <div className="text-right">
                 <span className="font-bold text-emerald-500">{trend.change}</span>
-                <div className="text-[10px] text-muted-foreground">this period</div>
+                <div className="text-[10px] text-muted-foreground">+{trend.suggestedAdd} suggested</div>
               </div>
             </div>
           ))
         ) : (
           <div className="rounded-lg border border-dashed border-hanger-amber/30 p-4 text-center text-sm text-muted-foreground">
-            No local trends yet. Tap below to simulate AWS Forecast run with current events + inventory.
+            No local trends loaded. Tap below for live AWS Lambda suggestions (inventory + events).
           </div>
         )}
 
@@ -113,7 +77,7 @@ export default function TrendingSuggestions() {
         </Button>
 
         <p className="text-center text-[10px] text-muted-foreground">
-          Lambda + Forecast &lt; 1s in prod • Uses filtered OFF product data + your events
+          Lightweight stats in Lambda • PAY_PER_REQUEST DynamoDB • Filtered OFF catalog
         </p>
       </CardContent>
     </Card>

@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client';
-import type { ItemForecast } from '@/types/forecast';
+import type { ItemForecast, TrendingSuggestion } from '@/types/forecast';
 
 const MOCK_FORECASTS: ItemForecast[] = [
   {
@@ -103,5 +103,17 @@ export const forecastApi = {
     return apiClient<ItemForecast>(
       `/api/forecast?horizon=${horizon}&upc=${encodeURIComponent(upc)}`,
     );
+  },
+
+  async getTrending(): Promise<TrendingSuggestion[]> {
+    if (useMockApi()) {
+      await delay(400);
+      // Lightweight simulation matching backend logic (event multipliers + patterns)
+      return [
+        { name: 'Bud Light 12pk', upc: '018200000103', change: '+58%', reason: '4th of July / local boost', suggestedAdd: 10 },
+        { name: 'High Noon Hard Seltzer 8pk', upc: '0123456789012', change: '+41%', reason: 'Summer + Denver area events', suggestedAdd: 6 },
+      ];
+    }
+    return apiClient<TrendingSuggestion[]>('/api/forecast?trending=true');
   },
 };
