@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
+import { resetToDemoData } from '@/lib/api';
 
 const moreLinks = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, description: 'Store overview & alerts' },
@@ -171,6 +172,26 @@ export function MorePage() {
                 <p className="text-[10px] mt-1 text-muted-foreground text-center">
                   Includes live product catalog from filtered OFF dump (liquor only).
                 </p>
+
+                <div className="pt-3 mt-2 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full min-h-10 text-xs"
+                    onClick={() => {
+                      if (confirm('Reset to realistic Hanger demo items (Bud, High Noon, Jack, etc.)? This only affects the local demo data.')) {
+                        resetToDemoData();
+                        // Simple non-blocking feedback (project style)
+                        alert('Demo catalog reset. Refresh dashboard or scan to see updated live items.');
+                      }
+                    }}
+                  >
+                    Reset to realistic Hanger demo catalog
+                  </Button>
+                  <p className="text-[9px] text-center text-muted-foreground mt-1">
+                    Useful for staff training &amp; seeing 12pk / packSize examples
+                  </p>
+                </div>
               </div>
             )}
           </div>

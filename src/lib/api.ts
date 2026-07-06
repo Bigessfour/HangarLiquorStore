@@ -102,6 +102,63 @@ function useMockApi(): boolean {
   return !import.meta.env.VITE_API_URL;
 }
 
+/**
+ * Resets the in-memory demo catalog to a rich realistic Hanger Liquor set.
+ * Safe no-op when using real backend (VITE_API_URL set).
+ * Used for staff demo / testing "live" product data + photos feel.
+ */
+export function resetToDemoData(): void {
+  if (!useMockApi()) return;
+
+  mockStore = [
+    {
+      upc: '071984000012',
+      name: 'Coors Light 12pk 12oz Cans',
+      category: 'Beer',
+      currentStock: 48,
+      reorderPoint: 24,
+      packSize: 12,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '018200000103',
+      name: 'Bud Light 12pk 12oz Cans',
+      category: 'Beer',
+      currentStock: 36,
+      reorderPoint: 30,
+      packSize: 12,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '082184000012',
+      name: "Jack Daniel's Tennessee Whiskey 750ml",
+      category: 'Spirits',
+      currentStock: 5,
+      reorderPoint: 6,
+      packSize: 1,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '619947000011',
+      name: "Tito's Handmade Vodka 1L",
+      category: 'Spirits',
+      currentStock: 22,
+      reorderPoint: 12,
+      packSize: 1,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '0123456789012',
+      name: 'High Noon Hard Seltzer 8pk',
+      category: 'Beer',
+      currentStock: 14,
+      reorderPoint: 10,
+      packSize: 8,
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+}
+
 function filterInventory(items: InventoryItem[], params: InventoryListParams): InventoryItem[] {
   const search = params.search?.trim().toLowerCase();
   const category = params.category ?? 'All';

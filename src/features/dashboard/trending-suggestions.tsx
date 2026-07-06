@@ -5,12 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTrendingSuggestions } from '@/features/forecast/api/use-trending-suggestions';
 import { useAddInventoryItem } from '@/lib/api';
+import NewProductModal from '@/features/inventory/new-product-modal';
 import type { TrendingSuggestion } from '@/types/forecast';
 
 export default function TrendingSuggestions() {
   const { data: trends = [], isLoading, refetch, isFetching } = useTrendingSuggestions();
   const addInventory = useAddInventoryItem();
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // For "Customize" flow that opens NewProductModal prefilled (addresses user review intent safely)
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [customizePrefill, setCustomizePrefill] = useState<{
+    upc: string;
+    name: string;
+    packSize: number;
+  } | null>(null);
 
   const loading = isLoading || isFetching;
 
@@ -35,6 +44,15 @@ export default function TrendingSuggestions() {
         },
       }
     );
+  };
+
+  const handleCustomize = (trend: TrendingSuggestion) => {
+    setCustomizePrefill({
+      upc: trend.upc,
+      name: trend.name,
+      packSize: 1, // suggestions don't carry pack; user can adjust in modal (realistic for hot new picks)
+    });
+    setShowCustomize(true);
   };
 
   const handleRefresh = () => {
@@ -74,15 +92,25 @@ export default function TrendingSuggestions() {
                   <span className="font-bold text-emerald-500">{trend.change}</span>
                   <div className="text-[10px] text-muted-foreground">+{trend.suggestedAdd} suggested</div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 min-h-[44px] px-3 text-xs active:scale-[0.985]"
-                  onClick={() => handleAddSuggestion(trend)}
-                  disabled={addInventory.isPending}
-                >
-                  + Add {trend.suggestedAdd}
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 min-h-[44px] px-3 text-xs active:scale-[0.985]"
+                    onClick={() => handleAddSuggestion(trend)}
+                    disabled={addInventory.isPending}
+                  >
+                    + Add {trend.suggestedAdd}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-9 min-h-[44px] px-2 text-[10px] text-muted-foreground active:scale-[0.985]"
+                    onClick={() => handleCustomize(trend)}
+                  >
+                    Customize
+                  </Button>
+                </div>
               </div>
             </div>
           ))
@@ -104,6 +132,20 @@ export default function TrendingSuggestions() {
           Lightweight stats in Lambda • PAY_PER_REQUEST • Events drive boost
         </p>
       </CardContent>
+
+      {/* NewProductModal integration for "Customize" flow from live suggestions (per Phase 7 polish) */}
+      {customizePrefill && (
+        <NewProductModal
+          open={showCustomize}
+          onClose={() => {
+            setShowCustomize(false);
+            setCustomizePrefill(null);
+          }}
+          scannedUPC={customizePrefill.upc}
+          initialName={customizePrefill.name}
+          initialPackSize={customizePrefill.packSize}
+        />
+      )}
     </Card>
   );
 }
