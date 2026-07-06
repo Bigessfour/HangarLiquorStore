@@ -39,3 +39,35 @@ test('import CSV dialog opens from inventory page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Import inventory CSV' })).toBeVisible();
   await expect(page.getByText('Drag & drop a CSV file')).toBeVisible();
 });
+
+test('inventory shows pack size badge for case items', async ({ page }) => {
+  await page.goto('/inventory');
+
+  await expect(page.getByText('pack of 12')).toBeVisible(); // for Coors or Bud
+  await expect(page.getByText("Jack Daniel's Tennessee Whiskey 750ml")).toBeVisible(); // no pack badge
+});
+
+test('inventory shows shrinkage risk for low stock items', async ({ page }) => {
+  await page.goto('/inventory');
+
+  // Jack has low stock (3 <= 12)
+  await expect(page.getByText('LOW / Shrink risk')).toBeVisible();
+  await expect(page.getByText("Jack Daniel's Tennessee Whiskey 750ml")).toBeVisible();
+});
+
+test('inventory edit dialog shows pack size field', async ({ page }) => {
+  await page.goto('/inventory');
+
+  await page.getByRole('button', { name: /Edit Coors Light/ }).click();
+  await expect(page.getByRole('heading', { name: 'Edit item' })).toBeVisible();
+  await expect(page.getByLabel('Pack size (case-break)')).toBeVisible();
+  await expect(page.getByLabel('Pack size (case-break)')).toHaveValue('12');
+});
+
+test('inventory CSV import dialog mentions pack size', async ({ page }) => {
+  await page.goto('/inventory');
+
+  await page.getByRole('button', { name: 'Import CSV' }).click();
+  await expect(page.getByRole('heading', { name: 'Import inventory CSV' })).toBeVisible();
+  await expect(page.getByText(/packSize.*case-break/i)).toBeVisible();
+});
