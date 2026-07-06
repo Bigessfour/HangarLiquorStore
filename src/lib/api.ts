@@ -234,6 +234,7 @@ async function createInventoryItem(input: ScanAddItemInput): Promise<InventoryIt
       currentStock: input.quantity,
       reorderPoint: 6,
       packSize: input.packSize ?? 1,
+      photo: input.photo,
       updatedAt: new Date().toISOString(),
     };
     mockStore = [...mockStore, created];
@@ -362,6 +363,7 @@ export function useAddInventoryItem(
             category: input.category,
             currentStock: input.quantity,
             packSize: input.packSize ?? 1,
+            photo: input.photo,
           },
         ];
       });

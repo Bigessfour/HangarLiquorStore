@@ -149,13 +149,20 @@ export function InventoryPage() {
               <li key={item.upc}>
                 <Card>
                   <CardContent className="flex items-center gap-3 p-4">
+                    {item.photo && (
+                      <img
+                        src={item.photo}
+                        alt={item.name}
+                        className="h-12 w-12 rounded object-cover border shrink-0"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{item.name}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">{item.category}</Badge>
                         <span className="font-mono text-xs text-muted-foreground">{item.upc}</span>
-                        {(item as any).packSize && (item as any).packSize > 1 && (
-                          <Badge variant="outline" className="text-[10px]">pack of {(item as any).packSize}</Badge>
+                        {item.packSize && item.packSize > 1 && (
+                          <Badge variant="outline" className="text-[10px]">pack of {item.packSize}</Badge>
                         )}
                       </div>
                     </div>

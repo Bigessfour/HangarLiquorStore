@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ interface NewProductModalProps {
   scannedUPC: string;
   initialName?: string;
   initialPackSize?: number;
+  initialPhoto?: string;
 }
 
 export default function NewProductModal({
@@ -22,13 +23,68 @@ export default function NewProductModal({
   scannedUPC,
   initialName = '',
   initialPackSize = 1,
+  initialPhoto,
 }: NewProductModalProps) {
   const [name, setName] = useState(initialName || 'New Item - Tap to edit');
   const [packSize, setPackSize] = useState(initialPackSize);
   const [category, setCategory] = useState<InventoryCategory>('Beer');
   const [initialStock, setInitialStock] = useState(0);
+  const [photo, setPhoto] = useState<string | null>(initialPhoto || null);
+
+  // Camera capture state/refs (browser getUserMedia, mobile friendly)
+  const [isCapturing, setIsCapturing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const addMutation = useAddInventoryItem();
+
+  async function startCamera() {
+    try {
+      setIsCapturing(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (e) {
+      alert('Camera access failed. Check permissions or use device camera app.');
+      setIsCapturing(false);
+      stopCamera();
+    }
+  }
+
+  function stopCamera() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsCapturing(false);
+  }
+
+  function capturePhoto() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+    setPhoto(dataUrl);
+    stopCamera();
+  }
+
+  function removePhoto() {
+    setPhoto(null);
+  }
 
   const handleAdd = async () => {
     if (!name.trim()) return;
@@ -40,24 +96,32 @@ export default function NewProductModal({
         quantity: initialStock,
         category,
         packSize,
+        photo: photo || undefined,
       });
 
       // Simple success feedback (project uses alerts/banners for demo)
       alert(`🌟 New item added to Hanger Liquor Store\n${name} (${packSize}pk)\nStock = ${initialStock} (ready to receive)`);
 
-      onClose();
+      handleClose();
       // Reset for next
       setName('');
       setPackSize(1);
       setCategory('Beer');
       setInitialStock(0);
+      setPhoto(null);
     } catch (err) {
       alert('Failed to add item. Try again.');
     }
   };
 
+  // Ensure camera is stopped when dialog closes
+  const handleClose = () => {
+    stopCamera();
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="bg-card border-hanger-amber text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -125,6 +189,49 @@ export default function NewProductModal({
               Set to 0 if receiving later. Will be adjusted on receipt.
             </p>
           </div>
+
+          {/* Camera photo capture (Phase 7: direct in new product flow) */}
+          <div>
+            <Label>Photo (optional)</Label>
+            {photo ? (
+              <div className="space-y-2">
+                <img src={photo} alt="Captured product" className="max-h-32 rounded border object-contain" />
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={removePhoto} className="min-h-10">
+                    Remove Photo
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={startCamera} className="min-h-10">
+                    Retake
+                  </Button>
+                </div>
+              </div>
+            ) : isCapturing ? (
+              <div className="space-y-2">
+                <video ref={videoRef} className="w-full max-h-48 rounded bg-black" playsInline muted />
+                <canvas ref={canvasRef} className="hidden" />
+                <div className="flex gap-2">
+                  <Button type="button" onClick={capturePhoto} className="min-h-10 flex-1">
+                    📸 Capture Photo
+                  </Button>
+                  <Button type="button" variant="outline" onClick={stopCamera} className="min-h-10">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={startCamera}
+                className="w-full min-h-12"
+              >
+                📷 Capture Photo with Camera
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Use device camera for product image (shows in scan &amp; trending).
+            </p>
+          </div>
         </div>
 
         <Button
@@ -136,7 +243,7 @@ export default function NewProductModal({
         </Button>
 
         <p className="text-xs text-center text-muted-foreground">
-          Photo can be captured later via camera in inventory edit. Will appear in local trending suggestions.
+          Photo captured here will show during scans and in trending suggestions.
         </p>
       </DialogContent>
     </Dialog>

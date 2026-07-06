@@ -18,6 +18,7 @@ export const inventoryItemSchema = z.object({
   reorderPoint: z.number().int().min(0).optional(),
   updatedAt: z.string().optional(),
   packSize: z.number().int().min(1).optional().default(1), // case-break support: 12 for 12pk, 1 for single bottle
+  photo: z.string().optional(), // base64 data URL or http URL from camera or OFF lookup
 });
 
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;
@@ -32,6 +33,7 @@ export const scanAddItemSchema = z.object({
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
   category: inventoryCategorySchema.default('Beer'),
   packSize: z.number().int().min(1).optional().default(1), // for case-break (e.g. qty=1 but packSize=12 means +12 units)
+  photo: z.string().optional(), // optional photo captured or from lookup
 });
 
 export type ScanAddItemInput = z.infer<typeof scanAddItemSchema>;
@@ -47,6 +49,7 @@ export const csvImportRowSchema = z.object({
   currentStock: z.coerce.number().int().min(0),
   reorderPoint: z.coerce.number().int().min(0).optional(),
   packSize: z.coerce.number().int().min(1).optional().default(1),
+  photo: z.string().optional(),
 });
 
 export type CsvImportRow = z.infer<typeof csvImportRowSchema>;

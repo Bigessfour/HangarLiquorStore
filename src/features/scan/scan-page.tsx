@@ -445,6 +445,7 @@ export function ScanPage() {
           scannedUPC={scannedUpc}
           initialName={lookupResult?.name}
           initialPackSize={(lookupResult as any)?.packSize || 1}
+          initialPhoto={lookupResult?.photo}
         />
       )}
     </div>
