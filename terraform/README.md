@@ -59,3 +59,19 @@ Use AWS Cost Explorer + Budgets in their account for transparency.
 - PWA QR/install prompt
 
 See root `Docs/client-deployment.md` for full context.
+
+## Planned TF Updates (MCP latest 2026)
+Using terraform MCP (get_latest_*, search_modules, get_provider_details):
+- Refactor Lambda to terraform-aws-modules/lambda/aws@8.8.0 (auto build/packaging, better features).
+- Use terraform-aws-modules/apigateway-v2/aws@6.1.0 for API.
+- Add aws_budgets_budget for client cost alerts (invoice support).
+- Optional SageMaker Serverless endpoint resources + IAM.
+- S3+CloudFront for PWA hosting.
+- Improve packaging with build integration or module.
+- Add CloudWatch, tracing, least-privilege via data sources.
+- GH Action for validate/plan (MCP patterns).
+- Multi-client support (for_each or modules).
+- State: S3 backend example.
+- Tests with terraform test.
+
+Update after review: current custom TF is solid start but modules will make maintenance easier for client exports.
