@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Loader2, ScanLine, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { isIosHomeScreenApp } from '@/lib/device-scan';
 import { toast } from 'sonner';
+import { BarcodeCaptureZone } from '@/features/scan/components/barcode-capture-zone';
 import {
   FILE_SCANNER_ELEMENT_ID,
   LIVE_SCANNER_ELEMENT_ID,
@@ -31,6 +32,7 @@ export function ScanModal({ onClose }: ScanModalProps) {
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isPhotoScanning, setIsPhotoScanning] = useState(false);
+  const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const iosHomeScreen = isIosHomeScreenApp();
 
@@ -71,6 +73,8 @@ export function ScanModal({ onClose }: ScanModalProps) {
     async (file: File) => {
       setError(null);
       setIsPhotoScanning(true);
+      const preview = URL.createObjectURL(file);
+      setCapturePreviewUrl(preview);
       try {
         const upc = await scanBarcodeFromFile(file, fileElementId);
         finishWithUpc(upc);
@@ -82,6 +86,8 @@ export function ScanModal({ onClose }: ScanModalProps) {
         setError(message);
         toast.error(message);
       } finally {
+        URL.revokeObjectURL(preview);
+        setCapturePreviewUrl(null);
         setIsPhotoScanning(false);
       }
     },
@@ -164,51 +170,28 @@ export function ScanModal({ onClose }: ScanModalProps) {
         </Button>
       </div>
 
-      {isLive ? (
-        <div className="relative flex flex-1 flex-col">
-          <div id={liveElementId} className="min-h-0 flex-1" />
-          <div className="space-y-3 bg-gradient-to-t from-black to-transparent p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            <p className="text-center text-sm text-white/80">Align the UPC barcode in the frame</p>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-12 w-full border-white/30 bg-black/50 text-white"
-              onClick={() => void stopLive()}
-            >
-              Cancel live scan
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-          <ScanLine className="h-16 w-16 text-hanger-amber" aria-hidden />
-          <p className="max-w-xs text-center text-sm text-white/80">
-            {iosHomeScreen
-              ? 'iPhone Home Screen app: use photo scan (camera permission is limited by Apple).'
-              : 'Point at the barcode or use photo scan.'}
-          </p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <BarcodeCaptureZone
+          photoOnly={iosHomeScreen}
+          isLiveScanning={isLive}
+          isPhotoScanning={isPhotoScanning}
+          capturePreviewUrl={capturePreviewUrl}
+          scannerElementId={liveElementId}
+          captureInputId={captureInputId}
+          libraryInputId={libraryInputId}
+          onStartLiveScan={() => void startLive()}
+          onStopLiveScan={() => void stopLive()}
+          dark
+          className={cn(iosHomeScreen && 'border-hanger-amber/70 bg-black/40')}
+        />
 
-          {error && (
-            <Alert className="max-w-sm border-destructive/40 bg-destructive/10" role="alert">
-              <AlertDescription className="text-sm text-white">{error}</AlertDescription>
-            </Alert>
-          )}
+        {error && (
+          <Alert className="max-w-sm border-destructive/40 bg-destructive/10" role="alert">
+            <AlertDescription className="text-sm text-white">{error}</AlertDescription>
+          </Alert>
+        )}
 
-          <label
-            htmlFor={captureInputId}
-            className={cn(
-              'inline-flex min-h-14 w-full max-w-sm cursor-pointer items-center justify-center rounded-lg bg-gradient-to-r from-hanger-gold to-hanger-amber px-4 text-lg font-bold text-primary-foreground touch-manipulation',
-              isPhotoScanning && 'pointer-events-none opacity-70',
-            )}
-          >
-            {isPhotoScanning ? (
-              <Loader2 className="mr-2 h-6 w-6 animate-spin" aria-hidden />
-            ) : (
-              <Camera className="mr-2 h-6 w-6" aria-hidden />
-            )}
-            {isPhotoScanning ? 'Reading barcode…' : 'Take Photo of Barcode'}
-          </label>
-
+        {iosHomeScreen && !isLive && (
           <label
             htmlFor={libraryInputId}
             className={cn(
@@ -218,32 +201,20 @@ export function ScanModal({ onClose }: ScanModalProps) {
           >
             Choose photo from library
           </label>
+        )}
 
-          {!iosHomeScreen && (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-12 w-full max-w-sm border-hanger-amber/50"
-              onClick={() => void startLive()}
-            >
-              <ScanLine className="mr-2 h-5 w-5" aria-hidden />
-              Start live camera
-            </Button>
-          )}
-
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-sm text-white/70"
-            onClick={() => {
-              onClose();
-              navigate('/scan');
-            }}
-          >
-            Enter UPC manually instead
-          </Button>
-        </div>
-      )}
+        <Button
+          type="button"
+          variant="ghost"
+          className="text-sm text-white/70"
+          onClick={() => {
+            onClose();
+            navigate('/scan');
+          }}
+        >
+          Enter UPC manually instead
+        </Button>
+      </div>
     </div>
   );
 }

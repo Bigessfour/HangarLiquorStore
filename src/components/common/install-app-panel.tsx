@@ -35,8 +35,8 @@ function IosInstallSteps({ deviceLabel }: { deviceLabel: string }) {
       </li>
       <li>Open the <strong>Hanger</strong> icon — full-screen app, works offline.</li>
       <li>
-        On Scan, use <strong>Take Photo of Barcode</strong> (live camera is limited in iOS home
-        screen apps).
+        On Scan, <strong>tap the frame to open camera</strong> and photograph the UPC (live camera
+        is limited in iOS home screen apps).
       </li>
     </ol>
   );

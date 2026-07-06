@@ -74,8 +74,8 @@ test('scan FAB opens modal with photo capture and manual fallback', async ({ pag
   await page.getByRole('button', { name: 'Scan Bottle' }).click();
 
   await expect(page.getByRole('dialog', { name: 'Scan bottle barcode' })).toBeVisible();
-  await expect(page.getByText('Take Photo of Barcode')).toBeVisible();
-  await expect(page.getByRole('button', { name: /live camera/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /start live camera/i })).toBeVisible();
+  await expect(page.getByText(/take photo instead/i)).toBeVisible();
 
   await page.getByRole('button', { name: /enter UPC manually/i }).click();
   await expect(page).toHaveURL(/\/scan$/);

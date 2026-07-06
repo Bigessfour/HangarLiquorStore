@@ -31,8 +31,8 @@ test('iOS home screen PWA prefers photo scan over live camera', async ({ browser
   const page = await context.newPage();
   await page.goto('/scan');
 
-  await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: /live camera/i })).toHaveCount(0);
+  await expect(page.getByLabel('Tap to open camera and photograph barcode')).toBeVisible();
+  await expect(page.getByRole('button', { name: /start live camera/i })).toHaveCount(0);
   await expect(page.getByText(/iPhone tip/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /open in Safari for live scan/i })).toBeVisible();
 
@@ -67,8 +67,8 @@ test('iOS home screen FAB modal hides live camera', async ({ browser }) => {
   await page.getByRole('button', { name: 'Scan Bottle' }).click();
 
   await expect(page.getByRole('dialog', { name: 'Scan bottle barcode' })).toBeVisible();
-  await expect(page.getByText('Take Photo of Barcode')).toBeVisible();
-  await expect(page.getByRole('button', { name: /live camera/i })).toHaveCount(0);
+  await expect(page.getByLabel('Tap to open camera and photograph barcode')).toBeVisible();
+  await expect(page.getByRole('button', { name: /start live camera/i })).toHaveCount(0);
 
   await context.close();
 });
@@ -87,8 +87,8 @@ test('iOS Safari browser shows both photo and live camera scan', async ({ browse
   const page = await context.newPage();
   await page.goto('/scan');
 
-  await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: /live camera/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /start live camera/i })).toBeVisible();
+  await expect(page.getByText(/take photo instead/i)).toBeVisible();
   await expect(page.getByText(/iPhone tip/i)).toHaveCount(0);
 
   await context.close();
@@ -130,7 +130,7 @@ test('iOS Safari more page shows Add to Home Screen steps', async ({ browser }) 
   await page.goto('/more');
 
   await expect(page.getByText(/Add to Home Screen/i).first()).toBeVisible();
-  await expect(page.getByText(/Take Photo of Barcode/i)).toBeVisible();
+  await expect(page.getByText(/tap the frame to open camera/i)).toBeVisible();
 
   await context.close();
 });

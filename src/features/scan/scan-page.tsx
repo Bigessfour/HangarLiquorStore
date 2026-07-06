@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Camera, CheckCircle2, ExternalLink, Keyboard, Loader2, ScanLine, XCircle } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Keyboard, Loader2, XCircle } from 'lucide-react';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,6 @@ import {
 } from '@/types/inventory';
 import { lookupUpc } from '@/lib/upc-lookup';
 import {
-  canUseLiveCameraScan,
   getCameraDeniedMessage,
   getIosScanHelpUrl,
   isIosHomeScreenApp,
@@ -30,6 +29,7 @@ import {
 } from '@/lib/device-scan';
 import NewProductModal from '@/features/inventory/new-product-modal';
 import { toast } from 'sonner';
+import { BarcodeCaptureZone } from '@/features/scan/components/barcode-capture-zone';
 import {
   FILE_SCANNER_ELEMENT_ID,
   LIVE_SCANNER_ELEMENT_ID,
@@ -66,6 +66,7 @@ export function ScanPage() {
   const [lookupResult, setLookupResult] = useState<null | { name: string; photo?: string; category?: string }>(null);
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [isPhotoScanning, setIsPhotoScanning] = useState(false);
+  const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(null);
 
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const iosHomeScreen = isIosHomeScreenApp();
@@ -120,6 +121,8 @@ export function ScanPage() {
     async (file: File) => {
       setScanError(null);
       setIsPhotoScanning(true);
+      const preview = URL.createObjectURL(file);
+      setCapturePreviewUrl(preview);
       try {
         const upc = await scanBarcodeFromFile(file, FILE_SCANNER_ELEMENT_ID);
         applyUpc(upc);
@@ -131,6 +134,8 @@ export function ScanPage() {
             : 'Could not read barcode from photo. Try again or enter UPC manually.',
         );
       } finally {
+        URL.revokeObjectURL(preview);
+        setCapturePreviewUrl(null);
         setIsPhotoScanning(false);
       }
     },
@@ -363,85 +368,20 @@ export function ScanPage() {
           e.target.value = '';
         }}
       />
-      <div
-        className={cn(
-          'relative flex flex-1 flex-col',
-          isScanning ? 'fixed inset-0 z-50 bg-black' : 'p-4',
-        )}
-      >
-        {isScanning ? (
-          <>
-            <div id={SCANNER_ELEMENT_ID} className="h-full w-full" aria-label="Camera scanner" />
-            <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/90 to-transparent p-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
-              <p className="text-center text-sm text-white/90">Align UPC barcode in the frame</p>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-12 w-full border-white/30 bg-black/50 text-white hover:bg-black/70"
-                onClick={() => void stopScanner()}
-              >
-                Cancel scan
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 py-8">
-            <div className="flex h-48 w-full max-w-sm items-center justify-center rounded-2xl border-2 border-dashed border-hanger-amber/40 bg-muted">
-              <ScanLine className="h-20 w-20 text-muted-foreground" aria-hidden />
-            </div>
-            <p className="max-w-xs text-center text-muted-foreground">
-              {iosHomeScreen
-                ? 'iPhone Home Screen app: take a photo of the UPC barcode (recommended).'
-                : 'Point your camera at a beer, spirits, wine, or mixer UPC barcode.'}
-            </p>
-            {iosHomeScreen && (
-              <Alert className="max-w-sm border-hanger-amber/40 bg-hanger-amber/5" role="status">
-                <AlertDescription className="text-sm">
-                  <strong>iPhone tip:</strong> Live camera often fails in the installed app (Apple
-                  limitation). Use <strong>Take Photo of Barcode</strong> below, or{' '}
-                  <button
-                    type="button"
-                    className="font-semibold text-hanger-amber underline"
-                    onClick={() => void openSafariScanHelp()}
-                  >
-                    open in Safari
-                  </button>{' '}
-                  for live scanning.
-                </AlertDescription>
-              </Alert>
-            )}
-            <p className="text-center text-[10px] text-muted-foreground max-w-xs">
-              Catalog lookup fills name, category, and product photo automatically.
-            </p>
-            {!isOnline && (
-              <p className="text-center text-sm text-hanger-amber" role="status">
-                Offline — scans will queue until Wiley internet returns
-              </p>
-            )}
-            {scanError && (
-              <Alert className="max-w-sm border-destructive/30" role="alert">
-                <XCircle className="h-5 w-5 text-destructive" />
-                <AlertDescription>{scanError}</AlertDescription>
-              </Alert>
-            )}
-            <label
-              htmlFor={PHOTO_CAPTURE_INPUT_ID}
-              className={cn(
-                'inline-flex min-h-14 w-full max-w-sm cursor-pointer items-center justify-center rounded-lg px-4 text-lg font-bold touch-manipulation',
-                iosHomeScreen
-                  ? 'bg-gradient-to-r from-hanger-gold to-hanger-amber text-primary-foreground'
-                  : 'border-2 border-hanger-amber/50 bg-card text-foreground hover:bg-muted',
-                isPhotoScanning && 'pointer-events-none opacity-70',
-              )}
-            >
-              {isPhotoScanning ? (
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" aria-hidden />
-              ) : (
-                <Camera className="mr-2 h-6 w-6" aria-hidden />
-              )}
-              {isPhotoScanning ? 'Reading barcode…' : 'Take Photo of Barcode'}
-            </label>
-            {iosHomeScreen && (
+      <div className="relative flex flex-1 flex-col p-4">
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 py-6">
+          <BarcodeCaptureZone
+            photoOnly={iosHomeScreen}
+            isLiveScanning={isScanning}
+            isPhotoScanning={isPhotoScanning}
+            capturePreviewUrl={capturePreviewUrl}
+            scannerElementId={SCANNER_ELEMENT_ID}
+            onStartLiveScan={() => void startScanner()}
+            onStopLiveScan={() => void stopScanner()}
+          />
+
+          {iosHomeScreen && !isScanning && (
+            <>
               <label
                 htmlFor={PHOTO_LIBRARY_INPUT_ID}
                 className={cn(
@@ -451,31 +391,38 @@ export function ScanPage() {
               >
                 Choose photo from library
               </label>
-            )}
-            {canUseLiveCameraScan() && (
-              <Button
-                type="button"
-                size="lg"
-                variant="outline"
-                aria-label="Scan UPC barcode with live camera"
-                className="min-h-14 w-full max-w-sm text-lg font-bold border-hanger-amber/50"
-                onClick={() => void startScanner()}
-              >
-                <ScanLine className="mr-2 h-6 w-6" aria-hidden />
-                Live Camera Scan
-              </Button>
-            )}
-            {iosHomeScreen && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-12 w-full max-w-sm text-sm text-hanger-amber"
-                onClick={() => void openSafariScanHelp()}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
-                Copy link — open in Safari for live scan
-              </Button>
-            )}
+              <Alert className="max-w-sm border-hanger-amber/40 bg-hanger-amber/5" role="status">
+                <AlertDescription className="text-sm">
+                  <strong>iPhone tip:</strong> Tap the frame above to open your camera. Live scanning
+                  in the installed app is limited by Apple —{' '}
+                  <button
+                    type="button"
+                    className="font-semibold text-hanger-amber underline"
+                    onClick={() => void openSafariScanHelp()}
+                  >
+                    open in Safari
+                  </button>{' '}
+                  for continuous live scan.
+                </AlertDescription>
+              </Alert>
+            </>
+          )}
+
+          <p className="text-center text-[10px] text-muted-foreground max-w-xs">
+            Catalog lookup fills name, category, and product photo automatically.
+          </p>
+          {!isOnline && (
+            <p className="text-center text-sm text-hanger-amber" role="status">
+              Offline — scans will queue until Wiley internet returns
+            </p>
+          )}
+          {scanError && (
+            <Alert className="max-w-sm border-destructive/30" role="alert">
+              <XCircle className="h-5 w-5 text-destructive" />
+              <AlertDescription>{scanError}</AlertDescription>
+            </Alert>
+          )}
+          {!isScanning && (
             <div className="flex w-full max-w-sm gap-2">
               <Input
                 inputMode="numeric"
@@ -495,8 +442,19 @@ export function ScanPage() {
                 <Keyboard className="h-5 w-5" aria-hidden />
               </Button>
             </div>
-          </div>
-        )}
+          )}
+          {iosHomeScreen && !isScanning && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-12 w-full max-w-sm text-sm text-hanger-amber"
+              onClick={() => void openSafariScanHelp()}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
+              Copy link — open in Safari for live scan
+            </Button>
+          )}
+        </div>
       </div>
 
       {!isScanning && (scannedUpc || banner) && (

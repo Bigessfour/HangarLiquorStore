@@ -3,8 +3,8 @@ import { expect, test } from './fixtures';
 test('scan page loads with SCAN UPC button', async ({ page }) => {
   await page.goto('/scan');
 
-  await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: /live camera/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /start live camera/i })).toBeVisible();
+  await expect(page.getByText(/take photo instead/i)).toBeVisible();
   await expect(page.getByLabel('Enter UPC manually')).toBeVisible();
 });
 
@@ -47,8 +47,7 @@ test('scan page accepts upc query param from FAB handoff', async ({ page }) => {
 
 test('offline scan queues add action', async ({ page, context }) => {
   await page.goto('/scan');
-  await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: /live camera/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /start live camera/i })).toBeVisible();
   await context.setOffline(true);
   await expect(page.getByText(/Offline — scans will queue/)).toBeVisible();
 
