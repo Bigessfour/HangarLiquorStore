@@ -1,0 +1,23 @@
+{
+  "name": "browser_navigate",
+  "description": "Navigate to a URL",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The URL to navigate to"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "url",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

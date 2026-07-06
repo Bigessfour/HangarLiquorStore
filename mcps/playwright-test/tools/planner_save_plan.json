@@ -1,0 +1,96 @@
+{
+  "name": "planner_save_plan",
+  "description": "Save the test plan as a markdown file",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "overview": {
+        "type": "string",
+        "description": "A brief overview of the application to be tested"
+      },
+      "suites": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name of the suite"
+            },
+            "seedFile": {
+              "type": "string",
+              "description": "A seed file that was used to setup the page for testing."
+            },
+            "tests": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the test"
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "The file the test should be saved to, for example: \"tests/<suite-name>/<test-name>.spec.ts\"."
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "perform": {
+                          "description": "Action to perform. For example: 'Click on the \"Submit\" button'.",
+                          "type": "string"
+                        },
+                        "expect": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Expected result of the action where appropriate. For example: 'The page should show the \"Thank you for your submission\" message'"
+                        }
+                      },
+                      "required": [
+                        "expect"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "file",
+                  "steps"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "name",
+            "seedFile",
+            "tests"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "name": {
+        "type": "string",
+        "description": "The name of the test plan, for example: \"Test Plan\"."
+      },
+      "fileName": {
+        "type": "string",
+        "description": "The file to save the test plan to, for example: \"spec/test.plan.md\". Relative to the workspace root."
+      }
+    },
+    "required": [
+      "overview",
+      "suites",
+      "name",
+      "fileName"
+    ],
+    "additionalProperties": false
+  }
+}

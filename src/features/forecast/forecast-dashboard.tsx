@@ -38,7 +38,7 @@ export function ForecastDashboard() {
   }, [upcFromQuery, forecasts]);
 
   const reorderCount = useMemo(
-    () => forecasts.filter((item) => item.suggestedOrder > 0).length,
+    () => (forecasts as any[]).filter((item: any) => Number(item?.suggestedOrder ?? 0) > 0).length,
     [forecasts],
   );
 

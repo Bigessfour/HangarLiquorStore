@@ -1,0 +1,28 @@
+{
+  "name": "browser_localstorage_set",
+  "description": "Set a localStorage item",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "Key to set"
+      },
+      "value": {
+        "type": "string",
+        "description": "Value to set"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "key",
+      "value",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -12,3 +12,12 @@ dev-dist
 coverage
 *.log
 *.tsbuildinfo
+
+# AI session / personal artifacts (not project source)
+agent-tools/
+terminals/
+
+# Generated mermaid diagrams (source is in .md files)
+Docs/mermaid-diagram*.svg
+
+# Note: mcps/ is committed so other developers get the same MCP tool definitions.

@@ -1,0 +1,28 @@
+{
+  "name": "browser_verify_element_visible",
+  "description": "Verify element is visible on the page",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string",
+        "description": "ROLE of the element. Can be found in the snapshot like this: `- {ROLE} \"Accessible Name\":`"
+      },
+      "accessibleName": {
+        "type": "string",
+        "description": "ACCESSIBLE_NAME of the element. Can be found in the snapshot like this: `- role \"{ACCESSIBLE_NAME}\"`"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "role",
+      "accessibleName",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

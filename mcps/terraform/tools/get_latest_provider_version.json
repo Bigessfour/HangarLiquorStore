@@ -1,0 +1,21 @@
+{
+  "name": "get_latest_provider_version",
+  "description": "Fetches the latest version of a Terraform provider from the public registry",
+  "inputSchema": {
+    "properties": {
+      "name": {
+        "description": "The name of the Terraform provider, e.g., 'aws', 'azurerm', 'google', etc.",
+        "type": "string"
+      },
+      "namespace": {
+        "description": "The namespace of the Terraform provider, typically the name of the company, or their GitHub organization name that created the provider e.g., 'hashicorp'",
+        "type": "string"
+      }
+    },
+    "required": [
+      "namespace",
+      "name"
+    ],
+    "type": "object"
+  }
+}

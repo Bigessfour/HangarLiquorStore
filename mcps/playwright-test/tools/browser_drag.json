@@ -1,0 +1,36 @@
+{
+  "name": "browser_drag",
+  "description": "Perform drag and drop between two elements",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "startElement": {
+        "description": "Human-readable source element description used to obtain the permission to interact with the element",
+        "type": "string"
+      },
+      "startTarget": {
+        "type": "string",
+        "description": "Exact target element reference from the page snapshot, or a unique element selector"
+      },
+      "endElement": {
+        "description": "Human-readable target element description used to obtain the permission to interact with the element",
+        "type": "string"
+      },
+      "endTarget": {
+        "type": "string",
+        "description": "Exact target element reference from the page snapshot, or a unique element selector"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "startTarget",
+      "endTarget",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

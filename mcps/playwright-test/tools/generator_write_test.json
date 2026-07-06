@@ -1,0 +1,23 @@
+{
+  "name": "generator_write_test",
+  "description": "Write the generated test to the test file",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "fileName": {
+        "type": "string",
+        "description": "The file to write the test to"
+      },
+      "code": {
+        "type": "string",
+        "description": "The generated test code"
+      }
+    },
+    "required": [
+      "fileName",
+      "code"
+    ],
+    "additionalProperties": false
+  }
+}

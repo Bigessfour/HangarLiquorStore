@@ -1,0 +1,10 @@
+{
+  "name": "browser_network_clear",
+  "description": "Clear all network requests",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

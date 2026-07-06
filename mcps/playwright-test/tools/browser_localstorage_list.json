@@ -1,0 +1,10 @@
+{
+  "name": "browser_localstorage_list",
+  "description": "List all localStorage key-value pairs",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

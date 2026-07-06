@@ -1,0 +1,25 @@
+{
+  "name": "get_provider_capabilities",
+  "description": "Get the capabilities of a Terraform provider including the types of resources, data sources, functions, guides, and other features it supports.\nThis tool analyzes the provider documentation to determine what types of capabilities are available:\n- resources: Infrastructure resources that can be created/managed\n- data-sources: Read-only data sources for querying existing infrastructure  \n- functions: Provider-specific functions for data transformation\n- guides: Documentation guides and tutorials for using the provider\n- actions: Available provider actions (if any)\n- ephemeral resources: Temporary resources for credentials and tokens\n- list-resources: List resources for querying existing cloud resources (Terraform Search)\n\nReturns a summary with counts and examples for each capability type.",
+  "inputSchema": {
+    "properties": {
+      "name": {
+        "description": "The name of the Terraform provider, e.g., 'aws', 'azurerm', 'google', etc.",
+        "type": "string"
+      },
+      "namespace": {
+        "description": "The namespace of the Terraform provider, typically the name of the company, or their GitHub organization name that created the provider e.g., 'hashicorp'",
+        "type": "string"
+      },
+      "version": {
+        "description": "The version of the provider to analyze (defaults to 'latest')",
+        "type": "string"
+      }
+    },
+    "required": [
+      "namespace",
+      "name"
+    ],
+    "type": "object"
+  }
+}

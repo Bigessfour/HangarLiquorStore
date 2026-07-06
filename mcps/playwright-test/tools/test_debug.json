@@ -1,0 +1,32 @@
+{
+  "name": "test_debug",
+  "description": "Debug single test",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "test": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Test ID to debug."
+          },
+          "title": {
+            "type": "string",
+            "description": "Human readable test title for granting permission to debug the test."
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "test"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 
 export function SyncToast() {
   const isOnline = useOnlineStatus();
-  const { queueCount, isSyncing, lastSyncMessage, refreshCount, syncQueue } = useOfflineQueueStore();
+  const { queueCount, isSyncing, lastSyncMessage, refreshCount, syncQueue } =
+    useOfflineQueueStore();
 
   useEffect(() => {
     void refreshCount();

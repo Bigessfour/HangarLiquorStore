@@ -1,0 +1,45 @@
+{
+  "name": "browser_verify_value",
+  "description": "Verify element value",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "textbox",
+          "checkbox",
+          "radio",
+          "combobox",
+          "slider"
+        ],
+        "description": "Type of the element"
+      },
+      "element": {
+        "type": "string",
+        "description": "Human-readable element description"
+      },
+      "target": {
+        "type": "string",
+        "description": "Exact target element reference from the page snapshot"
+      },
+      "value": {
+        "type": "string",
+        "description": "Value to verify. For checkbox, use \"true\" or \"false\"."
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "type",
+      "element",
+      "target",
+      "value",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

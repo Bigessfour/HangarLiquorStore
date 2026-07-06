@@ -1,0 +1,57 @@
+{
+  "name": "browser_cookie_set",
+  "description": "Set a cookie with optional flags (domain, path, expires, httpOnly, secure, sameSite)",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Cookie name"
+      },
+      "value": {
+        "type": "string",
+        "description": "Cookie value"
+      },
+      "domain": {
+        "description": "Cookie domain",
+        "type": "string"
+      },
+      "path": {
+        "description": "Cookie path",
+        "type": "string"
+      },
+      "expires": {
+        "description": "Cookie expiration as Unix timestamp",
+        "type": "number"
+      },
+      "httpOnly": {
+        "description": "Whether the cookie is HTTP only",
+        "type": "boolean"
+      },
+      "secure": {
+        "description": "Whether the cookie is secure",
+        "type": "boolean"
+      },
+      "sameSite": {
+        "description": "Cookie SameSite attribute",
+        "type": "string",
+        "enum": [
+          "Strict",
+          "Lax",
+          "None"
+        ]
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "name",
+      "value",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

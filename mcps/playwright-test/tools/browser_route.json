@@ -1,0 +1,46 @@
+{
+  "name": "browser_route",
+  "description": "Set up a route to mock network requests matching a URL pattern",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "pattern": {
+        "type": "string",
+        "description": "URL pattern to match (e.g., \"**/api/users\", \"**/*.{png,jpg}\")"
+      },
+      "status": {
+        "description": "HTTP status code to return (default: 200)",
+        "type": "number"
+      },
+      "body": {
+        "description": "Response body (text or JSON string)",
+        "type": "string"
+      },
+      "contentType": {
+        "description": "Content-Type header (e.g., \"application/json\", \"text/html\")",
+        "type": "string"
+      },
+      "headers": {
+        "description": "Headers to add in \"Name: Value\" format",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "removeHeaders": {
+        "description": "Comma-separated list of header names to remove from request",
+        "type": "string"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "pattern",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -17,7 +17,9 @@ The forecast feature uses a lightweight statistical engine in AWS Lambda:
 - User-managed local events (Wiley festivals, sports weekends, etc.)
 - Suggested reorder quantities and confidence bands
 
-SageMaker Canvas is supported as an optional offline training path (`?model=canvas` when an endpoint is configured).
+SageMaker Canvas is supported as an **optional** offline training path (`?model=canvas` when an endpoint is configured). The primary forecast engine is a lightweight statistical model that runs inside Lambda with no extra services required.
+
+See [Docs/client-deployment.md](Docs/client-deployment.md) for how to deploy the backend into Hangar Liquor's own AWS account (they pay AWS bills directly) and the Canvas training workflow.
 
 ## Project Structure
 
@@ -35,27 +37,110 @@ backend/shared/types/      # Shared TypeScript contracts
 
 ## Getting Started
 
+### Full Development Environment Setup (Clone & Develop)
+
+This project uses **MCP (Model Context Protocol)** servers heavily for AI-assisted development (Terraform, Playwright, Chrome DevTools, GitHub, etc.). The `mcps/` directory contains the shared tool definitions so other developers get the same capabilities.
+
+**Prerequisites**
+- Node.js 20+ (LTS recommended)
+- Docker Desktop (required for terraform-mcp-server)
+- AWS CLI (configured with your profile)
+- Git
+
+**Steps**
+
 ```bash
+git clone https://github.com/Bigessfour/HangarLiquorStore.git
+cd HangarLiquorStore
+
+# One-command setup (recommended)
+./scripts/dev-setup.sh          # macOS / Linux
+# or on Windows PowerShell:
+# .\scripts\set-aws-profile.ps1 ; npm install ; npm --prefix backend install ; npx playwright install
+
+# Or manual steps
 npm install
 npm --prefix backend install
-
-# Frontend dev server
-npm run dev
-
-# Backend unit tests
-npm run test:backend
-
-# E2E tests
 npx playwright install
+```
+
+The `dev-setup.sh` script handles dependencies, Playwright, .env, and prints MCP/AWS hints.
+
+**Run the app**
+```bash
+npm run dev          # Frontend on http://localhost:5173
+npm run test:backend
 npm run test:e2e
 ```
 
-Copy `.env.example` to `.env` and set `VITE_API_URL` to your API Gateway base URL.
+### MCP / AI Development Tools
+
+The repo includes ready-to-use MCP configurations:
+
+- `.cursor/mcp.json` – For Cursor IDE
+- `.vscode/mcp.json` – For VS Code
+- `mcps/` – Shared tool definitions (commit this so everyone has the same tools)
+
+**On macOS (after cloning):**
+- Install Docker Desktop
+- Install recommended extensions (see .vscode/extensions.json)
+- Restart Cursor / VS Code so MCP servers load
+
+The MCP servers provide:
+- Terraform registry + HCP integration
+- Playwright browser control & testing
+- Chrome DevTools
+- GitHub operations (issues, PRs, etc.)
+
+See `Docs/` for architecture and flows.
+
+Copy `.env.example` to `.env` and set `VITE_API_URL` to your API Gateway base URL (or leave empty for mocks).
+
+### AWS & Environment Setup
+
+This project uses AWS (Lambda + API Gateway + DynamoDB).
+
+**Recommended (Mac / Linux):**
+```bash
+./scripts/dev-setup.sh
+```
+
+**Windows:**
+```powershell
+.\scripts\set-aws-profile.ps1
+npm install
+npm --prefix backend install
+npx playwright install
+```
+
+**Manual cross-platform:**
+```bash
+export AWS_PROFILE=hanger-personal   # macOS/Linux
+# $env:AWS_PROFILE = "hanger-personal"  # Windows PowerShell
+
+npm install
+npm --prefix backend install
+npx playwright install
+```
+
+Use the `hanger-personal` profile (your personal AWS account starting with 5). Never use the Code Platoon account.
+
+See:
+- `scripts/dev-setup.sh`
+- `scripts/set-aws-profile.sh` / `.ps1`
+- `Docs/client-deployment.md` for client AWS + invoicing details.
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/inventory?search=&category=` | List inventory items |
+| GET | `/api/inventory/{upc}` | Get single item |
+| POST | `/api/inventory` | Add or increment stock |
+| PATCH | `/api/inventory/{upc}` | Update item fields |
+| POST | `/api/inventory/scan` | Adjust stock by delta (sale scan) |
+| POST | `/api/inventory/import` | Bulk CSV import |
+| POST | `/api/inventory/sync` | Replay offline queued actions |
 | GET | `/api/forecast?horizon=14&upc=` | Demand forecasts |
 | GET | `/api/events` | Local events + static holidays |
 | POST | `/api/events` | Create local event multiplier |

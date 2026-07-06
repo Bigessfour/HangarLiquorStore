@@ -1,0 +1,10 @@
+{
+  "name": "browser_stop_video",
+  "description": "Stop video recording",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

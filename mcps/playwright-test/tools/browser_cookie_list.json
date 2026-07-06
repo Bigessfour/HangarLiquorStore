@@ -1,0 +1,19 @@
+{
+  "name": "browser_cookie_list",
+  "description": "List all cookies (optionally filtered by domain/path)",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "domain": {
+        "description": "Filter cookies by domain",
+        "type": "string"
+      },
+      "path": {
+        "description": "Filter cookies by path",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

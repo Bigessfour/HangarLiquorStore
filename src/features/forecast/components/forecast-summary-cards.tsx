@@ -5,10 +5,7 @@ interface ForecastSummaryCardsProps {
   reorderCount: number;
 }
 
-export function ForecastSummaryCards({
-  totalItems,
-  reorderCount,
-}: ForecastSummaryCardsProps) {
+export function ForecastSummaryCards({ totalItems, reorderCount }: ForecastSummaryCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-4">
       <Card>

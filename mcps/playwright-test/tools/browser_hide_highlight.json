@@ -1,0 +1,19 @@
+{
+  "name": "browser_hide_highlight",
+  "description": "Remove a highlight overlay previously added for the element.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "element": {
+        "description": "Human-readable element description used when adding the highlight; must match the value passed to browser_highlight.",
+        "type": "string"
+      },
+      "target": {
+        "description": "Exact target element reference from the page snapshot, or a unique element selector",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

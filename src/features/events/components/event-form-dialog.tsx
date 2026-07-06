@@ -2,12 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateEvent } from '@/features/events/api/use-local-events';
@@ -47,11 +42,7 @@ export function EventFormDialog({ open, onOpenChange }: EventFormDialogProps) {
   };
 
   return (
-    <>
-      <Button size="lg" className="h-12 px-6" onClick={() => onOpenChange(true)}>
-        + Add Local Event
-      </Button>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Local Event Multiplier</DialogTitle>
@@ -59,11 +50,7 @@ export function EventFormDialog({ open, onOpenChange }: EventFormDialogProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div>
             <Label htmlFor="name">Event Name</Label>
-            <Input
-              id="name"
-              {...form.register('name')}
-              placeholder="Wiley Harvest Festival"
-            />
+            <Input id="name" {...form.register('name')} placeholder="Wiley Harvest Festival" />
             {form.formState.errors.name && (
               <p className="mt-1 text-xs text-red-600">{form.formState.errors.name.message}</p>
             )}
@@ -80,12 +67,7 @@ export function EventFormDialog({ open, onOpenChange }: EventFormDialogProps) {
           </div>
           <div>
             <Label htmlFor="multiplier">Demand Multiplier</Label>
-            <Input
-              type="number"
-              step="0.1"
-              id="multiplier"
-              {...form.register('multiplier')}
-            />
+            <Input type="number" step="0.1" id="multiplier" {...form.register('multiplier')} />
             <p className="mt-1 text-xs text-slate-500">1.0 = normal • 2.5 = big boost</p>
           </div>
           <div>
@@ -101,7 +83,6 @@ export function EventFormDialog({ open, onOpenChange }: EventFormDialogProps) {
           </Button>
         </form>
       </DialogContent>
-      </Dialog>
-    </>
+    </Dialog>
   );
 }

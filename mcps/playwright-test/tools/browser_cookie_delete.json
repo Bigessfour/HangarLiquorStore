@@ -1,0 +1,23 @@
+{
+  "name": "browser_cookie_delete",
+  "description": "Delete a specific cookie",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Cookie name to delete"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "name",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

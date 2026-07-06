@@ -158,7 +158,9 @@ test('adding a local event refreshes boosted forecasts', async ({ page }) => {
   await page.getByLabel('Demand Multiplier').fill('2.5');
   await page.getByRole('button', { name: 'Save Event & Update Forecasts' }).click();
 
-  await expect.poll(async () => firstRow.locator('td').nth(2).textContent()).not.toBe(initialPredicted);
+  await expect
+    .poll(async () => firstRow.locator('td').nth(2).textContent())
+    .not.toBe(initialPredicted);
   expect(Number(await firstRow.locator('td').nth(2).textContent())).toBeGreaterThan(
     Number(initialPredicted),
   );

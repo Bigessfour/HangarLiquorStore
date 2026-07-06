@@ -1,0 +1,16 @@
+{
+  "name": "get_provider_details",
+  "description": "Fetches up-to-date documentation for a specific service from a Terraform provider. \nYou must call 'search_providers' tool first to obtain the exact tfprovider-compatible provider_doc_id required to use this tool.",
+  "inputSchema": {
+    "properties": {
+      "provider_doc_id": {
+        "description": "Exact tfprovider-compatible provider_doc_id, (e.g., '8894603', '8906901') retrieved from 'search_providers'",
+        "type": "string"
+      }
+    },
+    "required": [
+      "provider_doc_id"
+    ],
+    "type": "object"
+  }
+}
