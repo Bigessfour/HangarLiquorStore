@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAddInventoryItem, useInventoryList } from '@/lib/api';
 import { useCreateEvent, useLocalEvents } from '@/features/events/api/use-local-events';
+import { hasRole } from '@/lib/auth';
 import { useForecasts } from '@/features/forecast/api/use-forecasts';
 import TrendingSuggestions from './trending-suggestions';
 
@@ -177,21 +178,25 @@ export function DashboardPage() {
       <div className="space-y-3">
         <h3 className="font-semibold">Smart Suggestions • Hanger Liquor</h3>
 
-        <Button
-          onClick={handleReorder}
-          disabled={addInventory.isPending}
-          className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg active:scale-[0.985]"
-        >
-          Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || reorderSuggestions[0]?.name?.split(' ')[0] || 'Stock'} • from live data
-        </Button>
+        {hasRole('Manager') ? (
+          <Button
+            onClick={handleReorder}
+            disabled={addInventory.isPending}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg active:scale-[0.985]"
+          >
+            Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || reorderSuggestions[0]?.name?.split(' ')[0] || 'Stock'} • from live data
+          </Button>
+        ) : null}
 
-        <Button
-          onClick={handleApplyMultiplier}
-          disabled={createEvent.isPending}
-          className="w-full py-4 bg-amber-500 text-zinc-900 hover:bg-amber-400 rounded-xl text-lg active:scale-[0.985]"
-        >
-          Apply {activeMultiplier?.name || 'Event'} multiplier
-        </Button>
+        {hasRole('Manager') ? (
+          <Button
+            onClick={handleApplyMultiplier}
+            disabled={createEvent.isPending}
+            className="w-full py-4 bg-amber-500 text-zinc-900 hover:bg-amber-400 rounded-xl text-lg active:scale-[0.985]"
+          >
+            Apply {activeMultiplier?.name || 'Event'} multiplier
+          </Button>
+        ) : null}
 
         {reorderSuggestions.length > 0 && (
           <div className="space-y-2 pt-1">

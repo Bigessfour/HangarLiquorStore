@@ -6,6 +6,7 @@ import { useForecasts } from '@/features/forecast/api/use-forecasts';
 import { useInventoryList, useAddInventoryItem } from '@/lib/api';
 import { useCreateEvent } from '@/features/events/api/use-local-events';
 import { useState } from 'react';
+import { hasRole } from '@/lib/auth';
 
 export function SuggestionsPage() {
   const { data: forecasts = [] } = useForecasts(14);
@@ -102,23 +103,30 @@ export function SuggestionsPage() {
                 <Badge variant="warning" className="bg-hanger-amber/20 text-hanger-amber border-hanger-amber/30">{item.qty}</Badge>
               </div>
               <div className="mt-3 flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="flex-1 min-h-9 text-xs"
-                  onClick={() => handleAddToStock(item)}
-                  disabled={addInventory.isPending}
-                >
-                  <Plus className="h-3 w-3 mr-1" /> Add to Stock
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="flex-1 min-h-9 text-xs"
-                  onClick={handleCreateBoost}
-                >
-                  <Calendar className="h-3 w-3 mr-1" /> Boost Event
-                </Button>
+                {hasRole('Manager') && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1 min-h-9 text-xs"
+                    onClick={() => handleAddToStock(item)}
+                    disabled={addInventory.isPending}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Add to Stock
+                  </Button>
+                )}
+                {hasRole('Manager') && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1 min-h-9 text-xs"
+                    onClick={handleCreateBoost}
+                  >
+                    <Calendar className="h-3 w-3 mr-1" /> Boost Event
+                  </Button>
+                )}
+                {!hasRole('Manager') && (
+                  <span className="text-xs text-muted-foreground self-center">Use Scan page to input stock (Manager+ for shortcuts)</span>
+                )}
               </div>
             </div>
           )) : (

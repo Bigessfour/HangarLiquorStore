@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateEvent } from '@/features/events/api/use-local-events';
+import { hasRole } from '@/lib/auth';
 
 const eventSchema = z.object({
   name: z.string().min(3, 'Event name is required'),
@@ -24,6 +25,9 @@ interface EventFormDialogProps {
 
 export function EventFormDialog({ open, onOpenChange }: EventFormDialogProps) {
   const createEvent = useCreateEvent();
+  if (!hasRole('Manager')) {
+    return null;
+  }
 
   const form = useForm<EventForm>({
     resolver: zodResolver(eventSchema),

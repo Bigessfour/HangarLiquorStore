@@ -13,6 +13,7 @@ import { useForecasts } from '@/features/forecast/api/use-forecasts';
 import { ForecastChart } from '@/features/forecast/components/forecast-chart';
 import { ForecastItemTable } from '@/features/forecast/components/forecast-item-table';
 import { ForecastSummaryCards } from '@/features/forecast/components/forecast-summary-cards';
+import { trainHangerForecastModel } from '@/lib/sagemaker-train';
 import type { ItemForecast } from '@/types/forecast';
 
 export function ForecastDashboard() {
@@ -91,6 +92,17 @@ export function ForecastDashboard() {
             title="Toggle between statistical engine and AWS SageMaker Canvas (high-accuracy)"
           >
             {model === 'canvas' ? 'Switch to Statistical' : 'Use SageMaker Canvas'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="min-h-10 border-hanger-gold/60 text-hanger-gold hover:bg-hanger-gold/10 text-xs"
+            onClick={async () => {
+              await trainHangerForecastModel();
+            }}
+            title="Prepare data + launch SageMaker Canvas training workflow (the designed offline no-code path)"
+          >
+            Train Hanger Model (Canvas)
           </Button>
           <Button
             size="sm"

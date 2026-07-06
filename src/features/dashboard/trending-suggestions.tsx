@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTrendingSuggestions } from '@/features/forecast/api/use-trending-suggestions';
+import { hasRole } from '@/lib/auth';
 import { useAddInventoryItem } from '@/lib/api';
 import NewProductModal from '@/features/inventory/new-product-modal';
 import type { TrendingSuggestion } from '@/types/forecast';
@@ -93,15 +94,19 @@ export default function TrendingSuggestions() {
                   <div className="text-[10px] text-muted-foreground">+{trend.suggestedAdd} suggested</div>
                 </div>
                 <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 min-h-[44px] px-3 text-xs active:scale-[0.985]"
-                    onClick={() => handleAddSuggestion(trend)}
-                    disabled={addInventory.isPending}
-                  >
-                    + Add {trend.suggestedAdd}
-                  </Button>
+                  {hasRole('Manager') ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 min-h-[44px] px-3 text-xs active:scale-[0.985]"
+                      onClick={() => handleAddSuggestion(trend)}
+                      disabled={addInventory.isPending}
+                    >
+                      + Add {trend.suggestedAdd}
+                    </Button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground self-center">Use Scan to input</span>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"

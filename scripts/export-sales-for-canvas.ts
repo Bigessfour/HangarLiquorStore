@@ -3,7 +3,11 @@
  * Export sales history from DynamoDB as CSV for SageMaker Canvas training.
  *
  * Usage (after setting AWS_PROFILE or credentials for the target account):
+ *   node scripts/export-sales-for-canvas.ts --store-id=hanger --output=sales.csv
+ *   # or
  *   npx tsx scripts/export-sales-for-canvas.ts --store-id=hanger --output=sales.csv
+ *   # npm shortcut:
+ *   npm run export-sales-for-canvas -- --store-id=hanger --output=sales.csv
  *
  * Output format (recommended for Canvas time-series):
  *   date,upc,quantity,category,event_multiplier

@@ -125,14 +125,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     });
 
     return jsonResponse(200, upc ? forecasts[0] ?? null : forecasts);
-
-    const forecasts = buildForecastsForInventory(inventoryItems, salesByUpc, localEvents, {
-      horizon,
-      upc,
-      today,
-    });
-
-    return jsonResponse(200, upc ? forecasts[0] ?? null : forecasts);
   } catch (error) {
     console.error('get-forecast error', error);
     return errorResponse(500, 'Failed to generate forecasts');

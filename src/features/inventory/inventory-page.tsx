@@ -15,6 +15,7 @@ import {
 } from '@/types/inventory';
 import { ImportCSV } from '@/features/inventory/import-csv';
 import { InventoryEditDialog } from '@/features/inventory/components/inventory-edit-dialog';
+import { hasRole } from '@/lib/auth';
 
 type CategoryFilter = InventoryCategory | 'All';
 
@@ -52,17 +53,19 @@ export function InventoryPage() {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
-          <ImportCSV 
-            defaultIsShipment={true}
-            trigger={
-              <Button variant="outline" size="sm" className="min-h-9 text-xs bg-hanger-amber/10 border-hanger-amber/30">
-                Receive Shipment (Bulk)
-              </Button>
-            } 
-          />
-          <ImportCSV />
-        </div>
+        {hasRole('Manager') && (
+          <div className="flex gap-2">
+            <ImportCSV 
+              defaultIsShipment={true}
+              trigger={
+                <Button variant="outline" size="sm" className="min-h-9 text-xs bg-hanger-amber/10 border-hanger-amber/30">
+                  Receive Shipment (Bulk)
+                </Button>
+              } 
+            />
+            <ImportCSV />
+          </div>
+        )}
       </div>
 
       {!isOnline && (
@@ -191,16 +194,18 @@ export function InventoryPage() {
                           <p className="text-[10px] text-destructive font-medium">LOW / Shrink risk</p>
                         )}
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="min-h-12 min-w-12 shrink-0"
-                        aria-label={`Edit ${item.name}`}
-                        onClick={() => setEditingItem(item)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      {hasRole('Manager') && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="min-h-12 min-w-12 shrink-0"
+                          aria-label={`Edit ${item.name}`}
+                          onClick={() => setEditingItem(item)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

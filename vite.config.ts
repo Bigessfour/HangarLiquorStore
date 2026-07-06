@@ -18,12 +18,17 @@ export default defineConfig({
       manifest: {
         name: 'Hanger Liquor Store',
         short_name: 'Hanger',
-        description: 'Mobile inventory PWA for Hanger Liquor Store, Wiley CO',
-        theme_color: '#d97706',
-        background_color: '#fafaf9',
+        description: 'Inventory scanner + forecasts for Hanger Liquor Store, Wiley CO',
+        start_url: 'https://d1imxsgur21o71.cloudfront.net/',
         display: 'standalone',
-        orientation: 'portrait',
-        start_url: '/',
+        background_color: '#1e2937',
+        theme_color: '#d97706',
+        orientation: 'portrait-primary',
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],

@@ -1,5 +1,17 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 import {
+  CognitoIdentityProviderClient,
+  AdminCreateUserCommand,
+  AdminAddUserToGroupCommand,
+  AdminRemoveUserFromGroupCommand,
+  ListUsersCommand,
+  AdminGetUserCommand,
+  AdminDisableUserCommand,
+  AdminEnableUserCommand,
+  AdminSetUserPasswordCommand,
+  AdminResetUserPasswordCommand,
+} from '@aws-sdk/client-cognito-identity-provider';
+import {
   adjustInventoryStock,
   createOrAddInventory,
   getInventoryRecord,
@@ -18,13 +30,26 @@ import {
   validateUpdateInput,
 } from './lib/validators';
 
-type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product';
+type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product' | 'users';
 
-function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc?: string } {
-  const base = '/api/inventory';
+function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc?: string; username?: string } {
+  // Support both /api/inventory/* and top-level /api/users for admin
+  let base = '/api/inventory';
+  let suffix = '';
+
+  if (rawPath.startsWith('/api/users')) {
+    suffix = rawPath.slice('/api'.length); // treat /users as special
+    if (suffix === '/users') return { resource: 'users' };
+    if (suffix.startsWith('/users/')) {
+      const rest = suffix.slice('/users/'.length);
+      const parts = rest.split('/');
+      return { resource: 'users', username: parts[0] };
+    }
+  }
+
   if (rawPath === base) return { resource: 'list' };
 
-  const suffix = rawPath.startsWith(`${base}/`) ? rawPath.slice(base.length + 1) : '';
+  suffix = rawPath.startsWith(`${base}/`) ? rawPath.slice(base.length + 1) : '';
   if (!suffix) return { resource: 'list' };
   if (suffix === 'scan') return { resource: 'scan' };
   if (suffix === 'import') return { resource: 'import' };
@@ -35,8 +60,42 @@ function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc
     return { resource: 'product', upc: suffix.slice('products/'.length) };
   }
 
+  // User management under inventory too
+  if (suffix === 'users' || suffix.startsWith('users')) {
+    const parts = suffix.split('/');
+    if (parts[1]) {
+      return { resource: 'users', username: parts[1] };
+    }
+    return { resource: 'users' };
+  }
+
   return { resource: 'item', upc: suffix };
 }
+
+function getCallerGroups(event: any): string[] {
+  try {
+    const claims = event.requestContext?.authorizer?.jwt?.claims || {};
+    const groups = claims['cognito:groups'];
+    if (Array.isArray(groups)) return groups;
+    if (typeof groups === 'string') return groups.split(',');
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function requireRole(groups: string[], minRole: 'Manager' | 'Owner') {
+  const hasOwner = groups.includes('Owner');
+  const hasManager = groups.includes('Manager');
+  if (minRole === 'Owner' && !hasOwner) {
+    throw new Error('Owner role required');
+  }
+  if (minRole === 'Manager' && !hasManager && !hasOwner) {
+    throw new Error('Manager or Owner role required');
+  }
+}
+
+const cognitoClient = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   const method = event.requestContext.http.method;
@@ -97,6 +156,141 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const product = await getProductRecord(pathUpc);
       if (!product) return errorResponse(404, 'Product not found in catalog');
       return jsonResponse(200, product);
+    }
+
+    // ========== User Management (Owner/Manager only) ==========
+    const groups = getCallerGroups(event);
+    if (resource === 'users') {
+      const username = (event as any).pathParameters?.username;
+      const isOwnerUser = groups.includes('Owner');
+      const isManagerUser = groups.includes('Manager') || isOwnerUser;
+
+      if (method === 'GET') {
+        requireRole(groups, 'Manager');
+        const listRes = await cognitoClient.send(new ListUsersCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Limit: 60,
+        }));
+        const users = (listRes.Users || []).map(u => {
+          const attrs = Object.fromEntries((u.Attributes || []).map(a => [a.Name, a.Value]));
+          return {
+            username: u.Username,
+            email: attrs.email,
+            name: attrs.name || attrs.given_name,
+            status: u.UserStatus,
+            enabled: u.Enabled,
+          };
+        });
+        return jsonResponse(200, users);
+      }
+
+      if (method === 'POST' && !username) {
+        // Managers can ONLY create ReadOnly; Owners can create any
+        requireRole(groups, 'Manager');
+        const body = JSON.parse(event.body || '{}');
+        let { username: newUsername, tempPassword, name, role = 'ReadOnly' } = body;
+
+        if (!newUsername || !tempPassword) {
+          return errorResponse(400, 'username and tempPassword required');
+        }
+
+        if (!isOwnerUser && role !== 'ReadOnly') {
+          return errorResponse(403, 'Managers can only create ReadOnly users');
+        }
+
+        await cognitoClient.send(new AdminCreateUserCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Username: newUsername,
+          TemporaryPassword: tempPassword,
+          UserAttributes: [
+            { Name: 'email', Value: newUsername },
+            { Name: 'email_verified', Value: 'true' },
+            ...(name ? [{ Name: 'name', Value: name }] : []),
+          ],
+          MessageAction: 'SUPPRESS',
+        }));
+
+        await cognitoClient.send(new AdminAddUserToGroupCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Username: newUsername,
+          GroupName: role,
+        }));
+
+        return jsonResponse(201, { username: newUsername, role });
+      }
+
+      if (method === 'POST' && username && rawPath.includes('/role')) {
+        requireRole(groups, 'Owner'); // Only owner changes roles
+        const body = JSON.parse(event.body || '{}');
+        const { role } = body;
+        if (!role) return errorResponse(400, 'role required');
+
+        const currentGroups = ['ReadOnly', 'Manager', 'Owner'];
+        for (const g of currentGroups) {
+          try {
+            await cognitoClient.send(new AdminRemoveUserFromGroupCommand({
+              UserPoolId: process.env.COGNITO_USER_POOL_ID,
+              Username: username,
+              GroupName: g,
+            }));
+          } catch {}
+        }
+        await cognitoClient.send(new AdminAddUserToGroupCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Username: username,
+          GroupName: role,
+        }));
+        return jsonResponse(200, { username, role });
+      }
+
+      if (method === 'POST' && username && rawPath.includes('/disable')) {
+        requireRole(groups, 'Owner');
+        await cognitoClient.send(new AdminDisableUserCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Username: username,
+        }));
+        return jsonResponse(200, { username, disabled: true });
+      }
+
+      if (method === 'POST' && username && rawPath.includes('/enable')) {
+        requireRole(groups, 'Owner');
+        await cognitoClient.send(new AdminEnableUserCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Username: username,
+        }));
+        return jsonResponse(200, { username, enabled: true });
+      }
+
+      if (method === 'POST' && username && rawPath.includes('/reset-password')) {
+        requireRole(groups, 'Manager'); // Manager or Owner can trigger reset
+        // Set a new temporary password that forces change on next login
+        const newTemp = 'Temp' + Math.random().toString(36).slice(2, 10) + '1!';
+        await cognitoClient.send(new AdminSetUserPasswordCommand({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          Username: username,
+          Password: newTemp,
+          Permanent: false, // Forces change on login
+        }));
+        // Return the temp password so owner/manager can tell the employee
+        return jsonResponse(200, { username, temporaryPassword: newTemp, message: 'User must change password on next login.' });
+      }
+
+      if (method === 'POST' && username && rawPath.includes('/remove-groups')) {
+        requireRole(groups, 'Owner');
+        const currentGroups = ['ReadOnly', 'Manager', 'Owner'];
+        for (const g of currentGroups) {
+          try {
+            await cognitoClient.send(new AdminRemoveUserFromGroupCommand({
+              UserPoolId: process.env.COGNITO_USER_POOL_ID,
+              Username: username,
+              GroupName: g,
+            }));
+          } catch {}
+        }
+        return jsonResponse(200, { username, removedFromAllGroups: true });
+      }
+
+      return errorResponse(405, 'Method not allowed for users');
     }
 
     return errorResponse(405, `Method ${method} not allowed for ${rawPath}`);

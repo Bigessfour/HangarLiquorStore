@@ -1,6 +1,7 @@
 import { EventBadgeList } from '@/features/events/components/event-badge-list';
 import { EventFormDialog } from '@/features/events/components/event-form-dialog';
 import { useLocalEvents, useCreateEvent } from '@/features/events/api/use-local-events';
+import { hasRole } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,18 +46,24 @@ export function EventsPage() {
       </Card>
 
       <div className="space-y-2">
-        <Button
-          onClick={() => quickToggle('4th of July Boost', 1.35, 'Beer focus')}
-          className="w-full py-4 bg-violet-600 text-lg active:scale-[0.985]"
-        >
-          🎉 Enable 4th of July +35% (Beer)
-        </Button>
-        <Button
-          onClick={() => quickToggle('Denver Rodeo Weekend', 1.2, 'Whiskey boost')}
-          className="w-full py-4 bg-orange-600 text-lg active:scale-[0.985]"
-        >
-          🐎 Rodeo Weekend +20% (Spirits)
-        </Button>
+        {hasRole('Manager') ? (
+          <>
+            <Button
+              onClick={() => quickToggle('4th of July Boost', 1.35, 'Beer focus')}
+              className="w-full py-4 bg-violet-600 text-lg active:scale-[0.985]"
+            >
+              🎉 Enable 4th of July +35% (Beer)
+            </Button>
+            <Button
+              onClick={() => quickToggle('Denver Rodeo Weekend', 1.2, 'Whiskey boost')}
+              className="w-full py-4 bg-orange-600 text-lg active:scale-[0.985]"
+            >
+              🐎 Rodeo Weekend +20% (Spirits)
+            </Button>
+          </>
+        ) : (
+          <p className="text-xs text-center text-muted-foreground">Manager or Owner can enable multipliers</p>
+        )}
       </div>
 
       <p className="text-sm text-muted-foreground">

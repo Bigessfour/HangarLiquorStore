@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useAddInventoryItem, useInventoryItem, fetchProduct } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { hasRole } from '@/lib/auth';
+
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
 import { INVENTORY_CATEGORIES, scanAddItemSchema, type ScanAddItemInput } from '@/types/inventory';
 import { lookupUpc } from '@/lib/upc-lookup';
@@ -91,6 +93,9 @@ export function ScanPage() {
     reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
 
     try {
+      // Explicit permission request first (helps on iOS PWA)
+      await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+
       const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
       scannerRef.current = scanner;
       setIsScanning(true);
@@ -104,9 +109,15 @@ export function ScanPage() {
         },
       );
     } catch (err) {
-      setScanError(
-        err instanceof Error ? err.message : 'Camera access denied. Check permissions and retry.',
-      );
+      let msg = err instanceof Error ? err.message : 'Camera access denied. Check permissions and retry.';
+      
+      // iOS PWA specific guidance (common gotcha)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        msg = 'Camera access denied. On iPhone: 1) Open this site in Safari (not the installed app), 2) Allow camera when prompted, 3) Add to Home Screen again. Then try scanning.';
+      }
+      
+      setScanError(msg);
       setIsScanning(false);
     }
   }, [handleScanSuccess, reset]);
@@ -364,6 +375,7 @@ export function ScanPage() {
                   placeholder="e.g. Coors Light 12pk"
                   aria-invalid={Boolean(errors.name)}
                   {...register('name')}
+                  disabled={!!matchedItem && !hasRole('Manager')}
                 />
                 {errors.name && (
                   <p className="mt-1 text-sm text-destructive" role="alert">
@@ -373,7 +385,7 @@ export function ScanPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="scan-qty">Quantity (units)</Label>
+                  <Label htmlFor="scan-qty">Quantity (units) — all users can input via scan</Label>
                   <div className="flex gap-2">
                     <Input
                       id="scan-qty"
@@ -411,6 +423,7 @@ export function ScanPage() {
                     id="scan-category"
                     className="flex h-12 w-full rounded-lg border border-input bg-background px-3 text-base"
                     {...register('category')}
+                    disabled={!!matchedItem && !hasRole('Manager')}
                   >
                     {INVENTORY_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>

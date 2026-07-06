@@ -13,6 +13,9 @@
  *
  * This keeps only relevant entries for Hanger Liquor Store, dramatically reducing size and cost.
  *
+ * For day-to-day development we use a curated realistic small-town sample
+ * (scripts/table.csv) instead of the full multi-GB dump.
+ *
  * Liquor filter criteria (customize as needed):
  * - categories_tags containing "alcoholic-beverages", "beers", "wines", "spirits", "whiskies", etc.
  * - or product_name/brands containing liquor keywords.

@@ -18,36 +18,6 @@ provider "aws" {
   # profile = "hanger-liquor-client"
 }
 
-variable "region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-2"
-}
-
-variable "store_id" {
-  description = "Unique store identifier (e.g. hanger for Hangar Liquor)"
-  type        = string
-  default     = "hanger"
-}
-
-variable "environment" {
-  description = "Environment tag (dev/prod)"
-  type        = string
-  default     = "prod"
-}
-
-variable "lambda_memory" {
-  description = "Memory for Lambda functions in MB"
-  type        = number
-  default     = 512
-}
-
-variable "lambda_timeout" {
-  description = "Timeout for Lambda functions in seconds"
-  type        = number
-  default     = 30
-}
-
 # DynamoDB Tables - matching current backend
 resource "aws_dynamodb_table" "inventory" {
   name         = "HangerInventory"
@@ -203,6 +173,25 @@ data "aws_iam_policy_document" "dynamodb_access" {
   }
 }
 
+# Permissions for in-app user management via Cognito (Owner/Manager can create users, assign roles)
+data "aws_iam_policy_document" "cognito_admin" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "cognito-idp:AdminCreateUser",
+      "cognito-idp:AdminAddUserToGroup",
+      "cognito-idp:AdminRemoveUserFromGroup",
+      "cognito-idp:AdminSetUserPassword",
+      "cognito-idp:AdminDisableUser",
+      "cognito-idp:AdminEnableUser",
+      "cognito-idp:ListUsers",
+      "cognito-idp:ListUsersInGroup",
+      "cognito-idp:AdminGetUser"
+    ]
+    resources = [aws_cognito_user_pool.main.arn]
+  }
+}
+
 # S3 access for OFF data dumps
 data "aws_iam_policy_document" "s3_off_data" {
   statement {
@@ -223,6 +212,12 @@ resource "aws_iam_role_policy" "dynamodb" {
   name   = "${var.store_id}-dynamodb-access"
   role   = aws_iam_role.lambda_exec.id
   policy = data.aws_iam_policy_document.dynamodb_access.json
+}
+
+resource "aws_iam_role_policy" "cognito_admin" {
+  name   = "${var.store_id}-cognito-admin"
+  role   = aws_iam_role.lambda_exec.id
+  policy = data.aws_iam_policy_document.cognito_admin.json
 }
 
 resource "aws_iam_role_policy" "s3_off" {
@@ -279,14 +274,14 @@ resource "aws_budgets_budget" "monthly_cost" {
 # Current zips source dir (for dev; adjust for prod deploy).
 data "archive_file" "inventory_lambda" {
   type        = "zip"
-  source_dir  = "${path.module}/../backend/lambdas/inventory"
+  source_dir  = "${path.module}/../backend/lambda-dist/inventory"
   output_path = "${path.module}/inventory.zip"
   excludes    = ["node_modules", "tsconfig.json"]
 }
 
 data "archive_file" "forecast_lambda" {
   type        = "zip"
-  source_dir  = "${path.module}/../backend/lambdas/forecast"
+  source_dir  = "${path.module}/../backend/lambda-dist/forecast"
   output_path = "${path.module}/forecast.zip"
   excludes    = ["node_modules", "tsconfig.json"]
 }
@@ -310,6 +305,7 @@ resource "aws_lambda_function" "inventory" {
       LOCAL_EVENTS_TABLE     = aws_dynamodb_table.local_events.name
       PRODUCTS_TABLE         = aws_dynamodb_table.products.name
       SAGEMAKER_ENDPOINT_NAME = var.sagemaker_endpoint
+      COGNITO_USER_POOL_ID   = aws_cognito_user_pool.main.id
     }
   }
 
@@ -338,6 +334,7 @@ resource "aws_lambda_function" "forecast" {
       LOCAL_EVENTS_TABLE     = aws_dynamodb_table.local_events.name
       PRODUCTS_TABLE         = aws_dynamodb_table.products.name
       SAGEMAKER_ENDPOINT_NAME = var.sagemaker_endpoint
+      COGNITO_USER_POOL_ID   = aws_cognito_user_pool.main.id
     }
   }
 
@@ -385,57 +382,100 @@ resource "aws_apigatewayv2_integration" "forecast" {
 
 # Routes (matching current API)
 resource "aws_apigatewayv2_route" "inventory_list" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /api/inventory"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/inventory"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "inventory_item" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /api/inventory/{upc}"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/inventory/{upc}"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "inventory_post" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /api/inventory"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/inventory"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "inventory_patch" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "PATCH /api/inventory/{upc}"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "PATCH /api/inventory/{upc}"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "inventory_scan" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /api/inventory/scan"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/inventory/scan"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "inventory_import" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /api/inventory/import"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/inventory/import"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "inventory_sync" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /api/inventory/sync"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/inventory/sync"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "forecast" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /api/forecast"
-  target    = "integrations/${aws_apigatewayv2_integration.forecast.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/forecast"
+  target             = "integrations/${aws_apigatewayv2_integration.forecast.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "events" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /api/events"
-  target    = "integrations/${aws_apigatewayv2_integration.inventory.id}"  # reuse or separate
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/events"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"  # reuse or separate
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# User management routes (protected, role-checked in Lambda)
+resource "aws_apigatewayv2_route" "users_list" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/users"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "users_create" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/users"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "users_update_role" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/users/{username}/role"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # Lambda permissions
@@ -467,7 +507,233 @@ resource "aws_apigatewayv2_stage" "prod" {
   }
 }
 
+# =============================================================================
+# Frontend Hosting: S3 + CloudFront for PWA
+# Employees visit the CloudFront URL on their phones -> "Add to Home Screen"
+# Results in a native-like app icon, standalone mode, offline capable.
+# =============================================================================
+
+resource "aws_s3_bucket" "frontend" {
+  bucket = "${var.store_id}-frontend-${var.environment}"
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Project     = "HangarLiquorStore"
+    Purpose     = "PWA Frontend Hosting"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket                  = aws_s3_bucket.frontend.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Modern Origin Access Control (OAC) for CloudFront -> S3
+resource "aws_cloudfront_origin_access_control" "frontend" {
+  name                              = "${var.store_id}-frontend-oac"
+  description                       = "OAC for Hanger Liquor Store PWA"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "frontend" {
+  origin {
+    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+    origin_id                = "S3Frontend"
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+
+  # SPA/PWA routing: send all 404/403 to index.html so client router works
+  custom_error_response {
+    error_code         = 404
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3Frontend"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 3600
+    max_ttl                = 86400
+  }
+
+  # Do not cache the service worker aggressively
+  ordered_cache_behavior {
+    path_pattern     = "/sw.js"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3Frontend"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+  }
+
+  price_class = "PriceClass_100"
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Project     = "HangarLiquorStore"
+    Purpose     = "PWA Frontend"
+  }
+}
+
+# Allow CloudFront to read from the S3 bucket
+data "aws_iam_policy_document" "frontend_bucket_policy" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.frontend.arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.frontend.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  policy = data.aws_iam_policy_document.frontend_bucket_policy.json
+}
+
+# =============================================================================
+# Cognito User Pool for Authentication & Access Control
+# =============================================================================
+
+resource "aws_cognito_user_pool" "main" {
+  name = "${var.store_id}-users"
+
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = false
+    require_uppercase = true
+  }
+
+  auto_verified_attributes = ["email"]
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Project     = "HangarLiquorStore"
+  }
+}
+
+resource "aws_cognito_user_pool_client" "main" {
+  name         = "${var.store_id}-web-client"
+  user_pool_id = aws_cognito_user_pool.main.id
+
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
+  ]
+
+  generate_secret = false
+
+  # Token validity
+  id_token_validity  = 1 # hours
+  access_token_validity = 1
+  refresh_token_validity = 30 # days
+
+  token_validity_units {
+    access_token  = "hours"
+    id_token      = "hours"
+    refresh_token = "days"
+  }
+}
+
+# API Gateway JWT Authorizer using Cognito
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.main.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "${var.store_id}-cognito"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.main.id]
+    issuer   = "https://${aws_cognito_user_pool.main.endpoint}"
+  }
+}
+
 # Outputs
+output "frontend_url" {
+  description = "CloudFront URL for the PWA. Share this (or the QR from /more) with staff."
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+output "frontend_bucket" {
+  value = aws_s3_bucket.frontend.id
+}
+
+output "cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.frontend.id
+}
+
+output "cognito_user_pool_id" {
+  value = aws_cognito_user_pool.main.id
+}
+
+output "cognito_client_id" {
+  value = aws_cognito_user_pool_client.main.id
+}
+
+output "cognito_issuer" {
+  value = "https://${aws_cognito_user_pool.main.endpoint}"
+}
+
 output "api_url" {
   value = aws_apigatewayv2_api.main.api_endpoint
 }

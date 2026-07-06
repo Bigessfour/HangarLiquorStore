@@ -530,3 +530,44 @@ export function useScanDecrement() {
     },
   });
 }
+
+// ===== User Management (for Owner/Manager via app) =====
+export async function listUsers() {
+  return apiClient<any[]>('/api/users');
+}
+
+export async function createUser(data: {
+  username: string;
+  tempPassword: string;
+  name?: string;
+  role: 'ReadOnly' | 'Manager' | 'Owner';
+}) {
+  return apiClient('/api/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateUserRole(username: string, role: 'ReadOnly' | 'Manager' | 'Owner') {
+  return apiClient(`/api/users/${username}/role`, {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function disableUser(username: string) {
+  return apiClient(`/api/users/${username}/disable`, { method: 'POST' });
+}
+
+export async function enableUser(username: string) {
+  return apiClient(`/api/users/${username}/enable`, { method: 'POST' });
+}
+
+export async function resetUserPassword(username: string) {
+  // Backend will set a new temporary password and return it (or send via Cognito)
+  return apiClient(`/api/users/${username}/reset-password`, { method: 'POST' });
+}
+
+export async function removeUserFromAllGroups(username: string) {
+  return apiClient(`/api/users/${username}/remove-groups`, { method: 'POST' });
+}

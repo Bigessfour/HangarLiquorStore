@@ -141,10 +141,14 @@ For deploying to Hangar Liquor's AWS account and going live:
    - Deploy to Serverless endpoint, set `SAGEMAKER_ENDPOINT_NAME` in TF or Lambda env.
    - Load product catalog: filter OFF dump to liquor, load to HangerProducts table (scripts provided).
 
-4. **App & PWA**
+4. **App & PWA (now included in Terraform)**
    - Update frontend VITE_API_URL to the deployed API Gateway URL.
-   - Build and host PWA (S3+CloudFront recommended, or client CDN).
-   - Staff: Scan QR from More page or use URL. Install PWA for offline.
+   - `npm run build`
+   - `aws s3 sync dist/ s3://hanger-frontend-prod --delete` (bucket created by TF)
+   - (Optional) Invalidate CloudFront: `aws cloudfront create-invalidation --distribution-id <id from output> --paths "/*"`
+   - Staff visit the `frontend_url` output (or QR from /more page). 
+   - On phone: "Add to Home Screen" → gets a real app icon + standalone experience (PWA).
+   - Install prompt + QR code already built into the app.
    - Test: Scan, add stock, view live forecasts (toggle Canvas model), events, shipments via CSV import.
    - Offline: Queue works, syncs on reconnect.
 

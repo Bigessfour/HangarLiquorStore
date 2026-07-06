@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { BottomNav } from '@/components/common/bottom-nav';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { ScanBottleFab } from '@/components/common/scan-bottle-fab';
@@ -85,6 +86,7 @@ export function AppLayout() {
 
       <ScanBottleFab />
       <BottomNav />
+      <Toaster position="top-center" richColors closeButton />
     </div>
   );
 }

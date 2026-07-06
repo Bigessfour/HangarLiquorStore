@@ -7,10 +7,20 @@
  * - Run after filtering: npx tsx scripts/filter-off-liquor-dump.ts
  *
  * Usage:
- *   npx tsx scripts/load-filtered-products-to-ddb.ts --input=liquor-products.jsonl --table=HangerProducts --store-id=hanger
+ *   node scripts/load-filtered-products-to-ddb.ts   # (uses tsx under npm or npx)
+ *   npm run load-products
  *
- * This populates the products table from the OFF dump subset.
- * Only liquor entries are loaded (see filter script).
+ * Seeds DynamoDB HangerProducts with a realistic small-town liquor store sample.
+ * Current default (scripts/table.csv) is a curated ~56 item sample suitable for rural Colorado
+ * stores like Hanger Liquor (Wiley, CO). Heavy on everyday beer + popular spirits, basic wine,
+ * and mixers. Not exhaustive — edge cases can be added later via the app's inventory flows.
+ *
+ * For full production:
+ *   1. Download Open Food Facts dump from https://world.openfoodfacts.org/data/
+ *   2. npx tsx scripts/filter-off-liquor-dump.ts --input=... --output=liquor.jsonl
+ *   3. npx tsx scripts/load-filtered-products-to-ddb.ts --input=liquor.jsonl
+ *
+ * Supports both CSV (small town sample) and full OFF JSONL.
  *
  * For production: Run this periodically or on new dump, or use Glue/Step Functions.
  * Cost: DDB write capacity (on-demand is fine for one-time).
@@ -21,9 +31,10 @@ import { DynamoDBDocumentClient, BatchWriteCommand } from '@aws-sdk/lib-dynamodb
 import * as fs from 'fs';
 import * as readline from 'readline';
 import { program } from 'commander';
+import Papa from 'papaparse';
 
 program
-  .option('--input <file>', 'Filtered JSONL file', 'liquor-products.jsonl')
+  .option('--input <file>', 'Filtered JSONL or CSV file (CSV support for table.csv style seeds)', 'scripts/table.csv')
   .option('--table <name>', 'DynamoDB table name', 'HangerProducts')
   .option('--store-id <id>', 'Store ID for tags', 'hanger')
   .option('--batch-size <n>', 'Batch size for writes', '25')
@@ -35,53 +46,106 @@ const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const BATCH_SIZE = parseInt(opts.batchSize);
 
 async function loadProducts() {
-  const fileStream = fs.createReadStream(opts.input);
-  const rl = readline.createInterface({
-    input: fileStream,
-    crlfDelay: Infinity,
-  });
+  const inputFile = opts.input;
+  const isCsv = inputFile.toLowerCase().endsWith('.csv');
 
   let batch: any[] = [];
   let total = 0;
   let written = 0;
 
-  for await (const line of rl) {
-    if (!line.trim()) continue;
+  if (isCsv) {
+    // Support "table.csv" style liquor item seeds (or any CSV with compatible columns)
+    const csvContent = fs.readFileSync(inputFile, 'utf8');
+    const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
+    if (parsed.errors && parsed.errors.length) {
+      console.warn('CSV parse warnings:', parsed.errors.slice(0, 3));
+    }
+    for (const row of parsed.data as any[]) {
+      try {
+        // Flexible column mapping for table.csv / seed CSV
+        const code = row.code || row.upc || row.UPC || row['UPC-A'] || row.sku;
+        if (!code) continue;
+        const product_name = row.product_name || row.name || row.Name || row.title || 'Unknown Product';
+        const brands = row.brands || row.brand || row.Brand || null;
+        const quantity = row.quantity || row.size || row.pack || null;
+        const cats = row.categories_tags ? (Array.isArray(row.categories_tags) ? row.categories_tags : row.categories_tags.split(/[,|;]/)) : (row.categories || '').split(/[,|;]/);
 
-    try {
-      const product = JSON.parse(line);
+        const name = product_name || brands || 'Unknown Product';
+        const packSize = extractPackSize(quantity, name);
 
-      const name = product.product_name || product.brands || 'Unknown Product';
-      const packSize = extractPackSize(product.quantity, name);
+        const item = {
+          upc: String(code).replace(/\D/g, ''), // normalize to digits only like OFF
+          name,
+          category: mapCategory(cats, name),
+          photo: row.image_url || row.photo || row.image || null,
+          brands,
+          quantity,
+          packSize,
+          source: row.source || 'csv-seed',
+          updatedAt: new Date().toISOString(),
+        };
 
-      // Map OFF fields to our product schema - normalized for app
-      const item = {
-        upc: product.code,
-        name,
-        category: mapCategory(product.categories_tags || [], name),
-        photo: product.image_url || product.image_front_url || product.image_small_url || null,  // normalized to 'photo' for frontend
-        brands: product.brands || null,
-        quantity: product.quantity || null,
-        packSize,
-        // Add more fields as needed
-        source: 'openfoodfacts',
-        updatedAt: new Date().toISOString(),
-      };
+        if (!item.upc) continue;
 
-      batch.push({
-        PutRequest: { Item: item },
-      });
+        batch.push({ PutRequest: { Item: item } });
+        total++;
 
-      total++;
-
-      if (batch.length >= BATCH_SIZE) {
-        await writeBatch(batch);
-        written += batch.length;
-        batch = [];
-        if (total % 1000 === 0) console.log(`Processed ${total} entries...`);
+        if (batch.length >= BATCH_SIZE) {
+          await writeBatch(batch);
+          written += batch.length;
+          batch = [];
+          if (total % 100 === 0) console.log(`Processed ${total} CSV entries...`);
+        }
+      } catch (err) {
+        console.warn('Skipping bad CSV row:', err);
       }
-    } catch (err) {
-      console.warn('Skipping bad line:', err);
+    }
+  } else {
+    // Original JSONL path (from filter-off-liquor-dump.ts)
+    const fileStream = fs.createReadStream(inputFile);
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+
+      try {
+        const product = JSON.parse(line);
+
+        const name = product.product_name || product.brands || 'Unknown Product';
+        const packSize = extractPackSize(product.quantity, name);
+
+        // Map OFF fields to our product schema - normalized for app
+        const item = {
+          upc: product.code,
+          name,
+          category: mapCategory(product.categories_tags || [], name),
+          photo: product.image_url || product.image_front_url || product.image_small_url || null,  // normalized to 'photo' for frontend
+          brands: product.brands || null,
+          quantity: product.quantity || null,
+          packSize,
+          // Add more fields as needed
+          source: 'openfoodfacts',
+          updatedAt: new Date().toISOString(),
+        };
+
+        batch.push({
+          PutRequest: { Item: item },
+        });
+
+        total++;
+
+        if (batch.length >= BATCH_SIZE) {
+          await writeBatch(batch);
+          written += batch.length;
+          batch = [];
+          if (total % 1000 === 0) console.log(`Processed ${total} entries...`);
+        }
+      } catch (err) {
+        console.warn('Skipping bad line:', err);
+      }
     }
   }
 

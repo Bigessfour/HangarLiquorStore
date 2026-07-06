@@ -21,3 +21,32 @@ terminals/
 Docs/mermaid-diagram*.svg
 
 # Note: mcps/ is committed so other developers get the same MCP tool definitions.
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Lambda build artifacts
+backend/lambda-dist/
+terraform/*.zip
+
+# Generated data / temp scripts from dev sessions
+sales-for-canvas.csv
+response.json
+scripts/seed-*.ts
+scripts/table.csv
+scripts/dev-setup.cjs
+
+# Local env (already covered but explicit)
+.env.local
+.env.*.local

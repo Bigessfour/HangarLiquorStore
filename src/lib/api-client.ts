@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './auth';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 export class ApiError extends Error {
@@ -11,10 +13,13 @@ export class ApiError extends Error {
 }
 
 export async function apiClient<T>(path: string, options?: RequestInit): Promise<T> {
+  const authHeaders = getAuthHeaders();
+
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...options?.headers,
     },
   });
