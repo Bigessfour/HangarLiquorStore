@@ -2,7 +2,7 @@
 /**
  * Build Capacitor Android debug APK with native ML Kit barcode scanning.
  *
- * Prerequisites: JDK 17+, Android SDK (Android Studio or command-line tools).
+ * Prerequisites: JDK 21+, Android SDK (Android Studio or command-line tools).
  *
  * Usage:
  *   npm run build:android          # debug APK
