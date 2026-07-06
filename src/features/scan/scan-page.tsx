@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle2, Keyboard, Loader2, ScanLine, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, ExternalLink, Keyboard, Loader2, ScanLine, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,25 @@ import { cn } from '@/lib/utils';
 import { hasRole } from '@/lib/auth';
 
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
-import { INVENTORY_CATEGORIES, scanAddItemSchema, type ScanAddItemInput } from '@/types/inventory';
+import {
+  INVENTORY_CATEGORIES,
+  scanAddItemSchema,
+  type InventoryCategory,
+  type ScanAddItemInput,
+} from '@/types/inventory';
 import { lookupUpc } from '@/lib/upc-lookup';
+import {
+  canUseLiveCameraScan,
+  getCameraDeniedMessage,
+  getIosScanHelpUrl,
+  isIosHomeScreenApp,
+  prefersPhotoCaptureScan,
+} from '@/lib/device-scan';
 import NewProductModal from '@/features/inventory/new-product-modal';
+import { toast } from 'sonner';
 
 const SCANNER_ELEMENT_ID = 'hanger-upc-scanner';
+const FILE_SCANNER_ELEMENT_ID = 'hanger-upc-file-scanner';
 
 export function ScanPage() {
   const isOnline = useOnlineStatus();
@@ -32,8 +46,11 @@ export function ScanPage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [lookupResult, setLookupResult] = useState<null | { name: string; photo?: string; category?: string }>(null);
   const [showNewProductModal, setShowNewProductModal] = useState(false);
+  const [isPhotoScanning, setIsPhotoScanning] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const iosHomeScreen = isIosHomeScreenApp();
 
   const { data: matchedItem, isLoading: isLookingUp } = useInventoryItem(scannedUpc);
 
@@ -83,7 +100,50 @@ export function ScanPage() {
     [applyUpc, stopScanner],
   );
 
+  const handlePhotoScan = useCallback(
+    async (file: File) => {
+      setScanError(null);
+      setIsPhotoScanning(true);
+      try {
+        const scanner = new Html5Qrcode(FILE_SCANNER_ELEMENT_ID);
+        const decoded = await scanner.scanFile(file, false);
+        const upc = decoded.replace(/\D/g, '');
+        if (upc.length < 8) {
+          throw new Error('Barcode too short — try a closer photo of the UPC');
+        }
+        applyUpc(upc);
+        setBanner({ type: 'success', message: `Barcode read from photo: ${upc}` });
+      } catch (err) {
+        setScanError(
+          err instanceof Error
+            ? err.message
+            : 'Could not read barcode from photo. Try again or enter UPC manually.',
+        );
+      } finally {
+        setIsPhotoScanning(false);
+        if (photoInputRef.current) photoInputRef.current.value = '';
+      }
+    },
+    [applyUpc],
+  );
+
+  const openSafariScanHelp = useCallback(async () => {
+    const url = getIosScanHelpUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied — paste in Safari for live camera scan');
+    } catch {
+      toast.message(`Open in Safari: ${url}`);
+    }
+  }, []);
+
   const startScanner = useCallback(async () => {
+    if (prefersPhotoCaptureScan()) {
+      setScanError(getCameraDeniedMessage(new Error('ios-pwa')));
+      photoInputRef.current?.click();
+      return;
+    }
+
     setScanError(null);
     setBanner(null);
     setScannedUpc(null);
@@ -93,7 +153,6 @@ export function ScanPage() {
     reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
 
     try {
-      // Explicit permission request first (helps on iOS PWA)
       await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
 
       const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
@@ -109,15 +168,7 @@ export function ScanPage() {
         },
       );
     } catch (err) {
-      let msg = err instanceof Error ? err.message : 'Camera access denied. Check permissions and retry.';
-      
-      // iOS PWA specific guidance (common gotcha)
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if (isIOS) {
-        msg = 'Camera access denied. On iPhone: 1) Open this site in Safari (not the installed app), 2) Allow camera when prompted, 3) Add to Home Screen again. Then try scanning.';
-      }
-      
-      setScanError(msg);
+      setScanError(getCameraDeniedMessage(err));
       setIsScanning(false);
     }
   }, [handleScanSuccess, reset]);
@@ -145,53 +196,81 @@ export function ScanPage() {
     }
   }, [matchedItem, setValue]);
 
-  // Free/low-cost external UPC lookup (prefer backend product catalog from OFF dump, fallback to live OFF API)
-  // This auto-fills name/category/packSize + photo for live feel. Uses free data.
+  // Product catalog lookup (DDB / local JSON) + optional live Open Food Facts fallback.
   useEffect(() => {
     let cancelled = false;
-    if (scannedUpc && !matchedItem && !isLookingUp) {
-      setLookupResult(null);
-      if (isOnline) {
-        // Try backend first (AWS product catalog populated from OFF dump for low-cost/offline)
-        fetchProduct(scannedUpc).then(async (backendProduct) => {
-          if (cancelled) return;
-          if (backendProduct) {
-            const name = backendProduct.name || backendProduct.product_name;
-            const cat = backendProduct.category;
-            const ps = backendProduct.packSize || 1;
-            const photo = backendProduct.photo || backendProduct.imageUrl || backendProduct.image_url;
-            setLookupResult({ name, photo, category: cat });
-            setValue('name', name);
-            if (cat) setValue('category', cat);
-            setValue('packSize', ps);
-            setValue('quantity', ps);  // default to pack for case
-            setBanner({ type: 'success', message: `Found in catalog: ${name}` });
-            return;
-          }
-          // Fallback to free live OFF API
-          const result = await lookupUpc(scannedUpc);
-          if (cancelled || !result) {
-            setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory (or check spelling)' });
-            // Trigger quick add modal for new product (frictionless entry)
-            setShowNewProductModal(true);
-            return;
-          }
-          setLookupResult({ name: result.name, photo: result.photo, category: result.category });
-          setValue('name', result.name);
-          if (result.category) setValue('category', result.category);
-          if (result.packSize) {
-            setValue('packSize', result.packSize);
-            setValue('quantity', result.packSize);
-          }
-          setBanner({ type: 'success', message: `Looked up: ${result.name} (free via Open Food Facts)` });
-        }).catch(() => {
-          if (!cancelled) setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory' });
-        });
-      } else {
-        setBanner({ type: 'success', message: 'New UPC (offline) — enter product name to add to inventory' });
+    if (!scannedUpc || isLookingUp) return;
+
+    const applyCatalogProduct = (backendProduct: {
+      name?: string;
+      product_name?: string;
+      category?: InventoryCategory;
+      packSize?: number;
+      photo?: string;
+      imageUrl?: string;
+      image_url?: string;
+    }) => {
+      const name = backendProduct.name || backendProduct.product_name || '';
+      const cat = backendProduct.category;
+      const ps = backendProduct.packSize || 1;
+      const photo = backendProduct.photo || backendProduct.imageUrl || backendProduct.image_url;
+      if (name) {
+        setLookupResult({ name, photo, category: cat });
+        if (!matchedItem) {
+          setValue('name', name);
+          if (cat) setValue('category', cat);
+          setValue('packSize', ps);
+          setValue('quantity', ps);
+        }
+      } else if (photo && matchedItem) {
+        setLookupResult({ name: matchedItem.name, photo, category: matchedItem.category });
       }
+      const label = matchedItem ? 'In stock + catalog photo' : 'Found in product catalog';
+      setBanner({ type: 'success', message: `${label}: ${name || matchedItem?.name}` });
+    };
+
+    if (matchedItem) {
+      fetchProduct(scannedUpc).then((backendProduct) => {
+        if (cancelled || !backendProduct) return;
+        applyCatalogProduct(backendProduct);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
-    return () => { cancelled = true; };
+
+    setLookupResult(null);
+    fetchProduct(scannedUpc).then(async (backendProduct) => {
+      if (cancelled) return;
+      if (backendProduct) {
+        applyCatalogProduct(backendProduct);
+        return;
+      }
+      if (!isOnline) {
+        setBanner({ type: 'success', message: 'New UPC (offline) — enter product name to add to inventory' });
+        return;
+      }
+      const result = await lookupUpc(scannedUpc);
+      if (cancelled || !result) {
+        setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory (or check spelling)' });
+        setShowNewProductModal(true);
+        return;
+      }
+      setLookupResult({ name: result.name, photo: result.photo, category: result.category });
+      setValue('name', result.name);
+      if (result.category) setValue('category', result.category);
+      if (result.packSize) {
+        setValue('packSize', result.packSize);
+        setValue('quantity', result.packSize);
+      }
+      setBanner({ type: 'success', message: `Looked up: ${result.name} (Open Food Facts)` });
+    }).catch(() => {
+      if (!cancelled) setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory' });
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [scannedUpc, matchedItem, isLookingUp, isOnline, setValue]);
 
   useEffect(() => {
@@ -231,6 +310,19 @@ export function ScanPage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-8rem)] flex-col">
+      <div id={FILE_SCANNER_ELEMENT_ID} className="hidden" aria-hidden />
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-label="Choose barcode photo file"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handlePhotoScan(file);
+        }}
+      />
       <div
         className={cn(
           'relative flex flex-1 flex-col',
@@ -258,10 +350,28 @@ export function ScanPage() {
               <ScanLine className="h-20 w-20 text-muted-foreground" aria-hidden />
             </div>
             <p className="max-w-xs text-center text-muted-foreground">
-              Point your camera at a beer, spirits, wine, or mixer UPC barcode.
+              {iosHomeScreen
+                ? 'iPhone Home Screen app: take a photo of the UPC barcode (recommended).'
+                : 'Point your camera at a beer, spirits, wine, or mixer UPC barcode.'}
             </p>
+            {iosHomeScreen && (
+              <Alert className="max-w-sm border-hanger-amber/40 bg-hanger-amber/5" role="status">
+                <AlertDescription className="text-sm">
+                  <strong>iPhone tip:</strong> Live camera often fails in the installed app (Apple
+                  limitation). Use <strong>Take Photo of Barcode</strong> below, or{' '}
+                  <button
+                    type="button"
+                    className="font-semibold text-hanger-amber underline"
+                    onClick={() => void openSafariScanHelp()}
+                  >
+                    open in Safari
+                  </button>{' '}
+                  for live scanning.
+                </AlertDescription>
+              </Alert>
+            )}
             <p className="text-center text-[10px] text-muted-foreground max-w-xs">
-              New products auto-filled from <strong>Open Food Facts</strong> (free & open database)
+              Catalog lookup fills name, category, and product photo automatically.
             </p>
             {!isOnline && (
               <p className="text-center text-sm text-hanger-amber" role="status">
@@ -277,13 +387,47 @@ export function ScanPage() {
             <Button
               type="button"
               size="lg"
-              aria-label="Scan UPC barcode"
-              className="min-h-14 w-full max-w-sm bg-gradient-to-r from-hanger-gold to-hanger-amber text-lg font-bold"
-              onClick={() => void startScanner()}
+              aria-label="Take photo of barcode"
+              className={cn(
+                'min-h-14 w-full max-w-sm text-lg font-bold',
+                iosHomeScreen
+                  ? 'bg-gradient-to-r from-hanger-gold to-hanger-amber'
+                  : 'bg-card border-2 border-hanger-amber/50 text-foreground hover:bg-muted',
+              )}
+              disabled={isPhotoScanning}
+              onClick={() => photoInputRef.current?.click()}
             >
-              <ScanLine className="mr-2 h-6 w-6" aria-hidden />
-              SCAN UPC
+              {isPhotoScanning ? (
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" aria-hidden />
+              ) : (
+                <Camera className="mr-2 h-6 w-6" aria-hidden />
+              )}
+              {isPhotoScanning ? 'Reading barcode…' : 'Take Photo of Barcode'}
             </Button>
+            {canUseLiveCameraScan() && (
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                aria-label="Scan UPC barcode with live camera"
+                className="min-h-14 w-full max-w-sm text-lg font-bold border-hanger-amber/50"
+                onClick={() => void startScanner()}
+              >
+                <ScanLine className="mr-2 h-6 w-6" aria-hidden />
+                Live Camera Scan
+              </Button>
+            )}
+            {iosHomeScreen && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-12 w-full max-w-sm text-sm text-hanger-amber"
+                onClick={() => void openSafariScanHelp()}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
+                Copy link — open in Safari for live scan
+              </Button>
+            )}
             <div className="flex w-full max-w-sm gap-2">
               <Input
                 inputMode="numeric"
@@ -336,7 +480,7 @@ export function ScanPage() {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Photo: <a href={`https://world.openfoodfacts.org/product/${scannedUpc}`} target="_blank" rel="noopener noreferrer" className="underline">Open Food Facts</a> (CC BY-SA)
+                  Photo from Hanger product catalog
                 </p>
               </div>
             </div>

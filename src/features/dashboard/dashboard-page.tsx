@@ -9,6 +9,7 @@ import { useAddInventoryItem, useInventoryList } from '@/lib/api';
 import { useCreateEvent, useLocalEvents } from '@/features/events/api/use-local-events';
 import { hasRole } from '@/lib/auth';
 import { useForecasts } from '@/features/forecast/api/use-forecasts';
+import { SquareDashboardCard } from '@/components/common/square-dashboard-card';
 import TrendingSuggestions from './trending-suggestions';
 
 export function DashboardPage() {
@@ -133,6 +134,8 @@ export function DashboardPage() {
           </AlertDescription>
         </Alert>  
       )}
+
+      <SquareDashboardCard />
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4 bg-gradient-to-br from-card to-hanger-amber/5 border-hanger-amber/20 shadow-sm hover:shadow-md transition-all">

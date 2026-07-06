@@ -86,8 +86,10 @@ npm run test:e2e
 
 The repo includes ready-to-use MCP configurations:
 
-- `.cursor/mcp.json` – For Cursor IDE
-- `.vscode/mcp.json` – For VS Code
+- [`docs/mcp-setup.md`](docs/mcp-setup.md) – **Canonical server list + sync checklist** (start here)
+- `.cursor/mcp.json` – Cursor IDE
+- `.vscode/mcp.json` – VS Code
+- `.grok/config.toml` – Grok CLI
 - `mcps/` – Shared tool definitions (commit this so everyone has the same tools)
 
 **On macOS (after cloning):**

@@ -1,0 +1,82 @@
+[
+  {
+    "upc": "071984000012",
+    "name": "Coors Light 12pk 12oz Cans",
+    "category": "Beer",
+    "packSize": 12,
+    "photo": "/products/071984000012.svg",
+    "brands": "Coors"
+  },
+  {
+    "upc": "018200000103",
+    "name": "Bud Light 12pk 12oz Cans",
+    "category": "Beer",
+    "packSize": 12,
+    "photo": "/products/018200000103.svg",
+    "brands": "Anheuser-Busch"
+  },
+  {
+    "upc": "082184000012",
+    "name": "Jack Daniel's Tennessee Whiskey 750ml",
+    "category": "Spirits",
+    "packSize": 1,
+    "photo": "/products/082184000012.svg",
+    "brands": "Jack Daniel's"
+  },
+  {
+    "upc": "619947000011",
+    "name": "Tito's Handmade Vodka 1L",
+    "category": "Spirits",
+    "packSize": 1,
+    "photo": "/products/619947000011.svg",
+    "brands": "Tito's"
+  },
+  {
+    "upc": "85000029204",
+    "name": "Yellow Tail Cabernet Sauvignon 750ml",
+    "category": "Wine",
+    "packSize": 1,
+    "photo": "/products/85000029204.svg",
+    "brands": "Yellow Tail"
+  },
+  {
+    "upc": "012000161155",
+    "name": "Tonic Water 1L",
+    "category": "Mixers",
+    "packSize": 1,
+    "photo": "/products/012000161155.svg",
+    "brands": "Schweppes"
+  },
+  {
+    "upc": "0123456789012",
+    "name": "High Noon Hard Seltzer 8pk",
+    "category": "Beer",
+    "packSize": 8,
+    "photo": "/products/0123456789012.svg",
+    "brands": "High Noon"
+  },
+  {
+    "upc": "088076001389",
+    "name": "Modelo Especial 12pk 12oz Bottles",
+    "category": "Beer",
+    "packSize": 12,
+    "photo": "/products/088076001389.svg",
+    "brands": "Modelo"
+  },
+  {
+    "upc": "08068600210",
+    "name": "Fireball Cinnamon Whisky 750ml",
+    "category": "Spirits",
+    "packSize": 1,
+    "photo": "/products/08068600210.svg",
+    "brands": "Fireball"
+  },
+  {
+    "upc": "08317912345",
+    "name": "Angry Orchard Crisp Apple 6pk",
+    "category": "Beer",
+    "packSize": 6,
+    "photo": "/products/08317912345.svg",
+    "brands": "Angry Orchard"
+  }
+]

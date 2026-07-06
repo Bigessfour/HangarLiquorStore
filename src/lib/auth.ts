@@ -5,12 +5,21 @@ import {
   CognitoUserSession,
 } from 'amazon-cognito-identity-js';
 
-const poolData = {
-  UserPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || '',
-  ClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '',
-};
+let userPool: CognitoUserPool | null = null;
 
-export const userPool = new CognitoUserPool(poolData);
+function getUserPool(): CognitoUserPool | null {
+  const poolId = import.meta.env.VITE_COGNITO_USER_POOL_ID || '';
+  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID || '';
+  if (!poolId || !clientId) return null;
+  if (!userPool) {
+    userPool = new CognitoUserPool({ UserPoolId: poolId, ClientId: clientId });
+  }
+  return userPool;
+}
+
+export function isCognitoConfigured(): boolean {
+  return getUserPool() !== null;
+}
 
 export type UserRole = 'ReadOnly' | 'Manager' | 'Owner';
 
@@ -20,7 +29,24 @@ export interface AuthUser {
   role: UserRole;
 }
 
+export class NewPasswordRequiredError extends Error {
+  constructor() {
+    super('NEW_PASSWORD_REQUIRED');
+    this.name = 'NewPasswordRequiredError';
+  }
+}
+
 let currentUser: AuthUser | null = null;
+let pendingPasswordUser: CognitoUser | null = null;
+let pendingUsername = '';
+
+const ROLE_HIERARCHY: UserRole[] = ['ReadOnly', 'Manager', 'Owner'];
+
+function resolveRoleFromGroups(groups: string[]): UserRole {
+  if (groups.includes('Owner')) return 'Owner';
+  if (groups.includes('Manager')) return 'Manager';
+  return 'ReadOnly';
+}
 
 export function getCurrentUser(): AuthUser | null {
   if (currentUser) return currentUser;
@@ -29,13 +55,14 @@ export function getCurrentUser(): AuthUser | null {
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      // Backward compat for users without role
       if (!parsed.role) {
         parsed.role = 'ReadOnly';
       }
       currentUser = parsed;
       return currentUser;
-    } catch {}
+    } catch {
+      /* ignore corrupt storage */
+    }
   }
   return null;
 }
@@ -49,7 +76,7 @@ export function setCurrentUser(user: AuthUser | null) {
   }
 }
 
-function parseJwt(token: string): any {
+function parseJwt(token: string): Record<string, unknown> {
   try {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -57,7 +84,7 @@ function parseJwt(token: string): any {
       atob(base64)
         .split('')
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .join(''),
     );
     return JSON.parse(jsonPayload);
   } catch {
@@ -65,25 +92,41 @@ function parseJwt(token: string): any {
   }
 }
 
+function sessionToAuthUser(username: string, session: CognitoUserSession): AuthUser {
+  const idToken = session.getIdToken().getJwtToken();
+  const payload = parseJwt(idToken);
+  const groups = payload['cognito:groups'];
+  const groupList = Array.isArray(groups) ? groups.map(String) : [];
+  const role = resolveRoleFromGroups(groupList);
+  const authUser: AuthUser = { username, token: idToken, role };
+  setCurrentUser(authUser);
+  return authUser;
+}
+
 export function signIn(username: string, password: string): Promise<AuthUser> {
+  const pool = getUserPool();
+  if (!pool) {
+    return Promise.reject(
+      new Error(
+        'Cognito is not configured. Set VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_CLIENT_ID, or use VITE_DEMO_AUTH=true for local demos.',
+      ),
+    );
+  }
+
   return new Promise((resolve, reject) => {
-    const user = new CognitoUser({ Username: username, Pool: userPool });
+    const user = new CognitoUser({ Username: username, Pool: pool });
     const authDetails = new AuthenticationDetails({ Username: username, Password: password });
 
     user.authenticateUser(authDetails, {
-      onSuccess: (session: CognitoUserSession) => {
-        const idToken = session.getIdToken().getJwtToken();
-        const payload = parseJwt(idToken);
-        const groups: string[] = payload['cognito:groups'] || [];
-        
-        // Determine role from Cognito groups. Default to ReadOnly.
-        let role: UserRole = 'ReadOnly';
-        if (groups.includes('Owner')) role = 'Owner';
-        else if (groups.includes('Manager')) role = 'Manager';
-
-        const authUser: AuthUser = { username, token: idToken, role };
-        setCurrentUser(authUser);
-        resolve(authUser);
+      onSuccess: (session) => {
+        pendingPasswordUser = null;
+        pendingUsername = '';
+        resolve(sessionToAuthUser(username, session));
+      },
+      newPasswordRequired: () => {
+        pendingPasswordUser = user;
+        pendingUsername = username;
+        reject(new NewPasswordRequiredError());
       },
       onFailure: (err) => {
         reject(err);
@@ -92,11 +135,38 @@ export function signIn(username: string, password: string): Promise<AuthUser> {
   });
 }
 
-export function signOut() {
-  const user = userPool.getCurrentUser();
-  if (user) {
-    user.signOut();
+export function completeNewPassword(newPassword: string): Promise<AuthUser> {
+  if (!pendingPasswordUser || !pendingUsername) {
+    return Promise.reject(new Error('No pending password change'));
   }
+
+  return new Promise((resolve, reject) => {
+    pendingPasswordUser!.completeNewPasswordChallenge(
+      newPassword,
+      {},
+      {
+        onSuccess: (session) => {
+          const username = pendingUsername;
+          pendingPasswordUser = null;
+          pendingUsername = '';
+          resolve(sessionToAuthUser(username, session));
+        },
+        onFailure: (err) => reject(err),
+      },
+    );
+  });
+}
+
+export function signOut() {
+  const pool = getUserPool();
+  if (pool) {
+    const user = pool.getCurrentUser();
+    if (user) {
+      user.signOut();
+    }
+  }
+  pendingPasswordUser = null;
+  pendingUsername = '';
   setCurrentUser(null);
 }
 
@@ -105,10 +175,9 @@ export function getAuthToken(): string | null {
   return user ? user.token : null;
 }
 
-// Helper to get auth headers for API calls
 export function getAuthHeaders(): Record<string, string> {
   const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token && !token.startsWith('demo-') ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export function getUserRole(): UserRole {
@@ -118,8 +187,7 @@ export function getUserRole(): UserRole {
 
 export function hasRole(required: UserRole): boolean {
   const current = getUserRole();
-  const hierarchy: UserRole[] = ['ReadOnly', 'Manager', 'Owner'];
-  return hierarchy.indexOf(current) >= hierarchy.indexOf(required);
+  return ROLE_HIERARCHY.indexOf(current) >= ROLE_HIERARCHY.indexOf(required);
 }
 
 export function canEdit(): boolean {

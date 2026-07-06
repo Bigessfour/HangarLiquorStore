@@ -5,6 +5,7 @@ import { DashboardPage } from '@/features/dashboard/dashboard-page';
 import { EventsPage } from '@/features/events/events-page';
 import { InventoryPage } from '@/features/inventory/inventory-page';
 import { MorePage } from '@/features/more/more-page';
+import { SquareSetupPage } from '@/features/square/square-setup-page';
 import { SuggestionsPage } from '@/features/suggestions/suggestions-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoginPage } from '@/features/auth/login-page';
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
           { path: 'inventory', element: <InventoryPage /> },
           { path: 'suggestions', element: <SuggestionsPage /> },
           { path: 'more', element: <MorePage /> },
+          { path: 'square-setup', element: <SquareSetupPage /> },
           { path: 'events', element: <EventsPage /> },
           {
             path: 'reports',

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('inventory page loads with mock items', async ({ page }) => {
   await page.goto('/inventory');

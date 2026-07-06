@@ -3,13 +3,14 @@ import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { BottomNav } from '@/components/common/bottom-nav';
 import { ErrorBoundary } from '@/components/common/error-boundary';
+import { DemoPhoneBanner } from '@/components/common/demo-phone-banner';
 import { ScanBottleFab } from '@/components/common/scan-bottle-fab';
 import { SyncToast } from '@/components/common/sync-toast';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
-import { usePwaInstall } from '@/hooks/use-pwa-install';
+import { InstallAppBanner } from '@/components/common/install-app-banner';
 
 function PageFallback() {
   return (
@@ -24,8 +25,6 @@ function PageFallback() {
 export function AppLayout() {
   const isOnline = useOnlineStatus();
   const { queueCount, lastSyncMessage } = useOfflineQueueStore();
-  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-hanger-amber/20 bg-gradient-to-r from-background via-card to-background px-4 backdrop-blur">
@@ -62,17 +61,9 @@ export function AppLayout() {
         </div>
       </header>
 
-      {/* Global PWA Install Banner */}
-      {isInstallable && !isInstalled && (
-        <div className="sticky top-14 z-20 border-b border-hanger-gold/30 bg-gradient-to-r from-hanger-gold/10 to-hanger-amber/5 px-4 py-2 text-center">
-          <button
-            onClick={promptInstall}
-            className="text-sm font-medium text-hanger-gold hover:underline active:text-hanger-gold/80 flex items-center justify-center gap-1"
-          >
-            📱 <span>Install Hanger Liquor Store</span> <span className="text-[10px] opacity-70">(PWA - offline ready)</span>
-          </button>
-        </div>
-      )}
+      <DemoPhoneBanner />
+
+      <InstallAppBanner />
 
       <SyncToast />
 

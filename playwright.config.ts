@@ -12,10 +12,13 @@ export default defineConfig({
   webServer: {
     command: (() => {
       const node = `"${process.execPath}"`;
-      return `${node} node_modules/typescript/bin/tsc -b && ${node} node_modules/vite/bin/vite.js build && ${node} node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173`;
+      // Force mock API + demo auth — ignore synced .env production VITE_API_URL
+      const e2eEnv =
+        'VITE_DEMO_AUTH=true VITE_API_URL= VITE_COGNITO_USER_POOL_ID= VITE_COGNITO_CLIENT_ID=';
+      return `${e2eEnv} ${node} node_modules/typescript/bin/tsc -b && ${e2eEnv} ${node} node_modules/vite/bin/vite.js build && ${e2eEnv} ${node} node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173`;
     })(),
     port: 4173,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
   },
   projects: [
     {

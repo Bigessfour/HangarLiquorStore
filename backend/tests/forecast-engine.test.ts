@@ -57,24 +57,77 @@ describe('buildItemForecast', () => {
     expect(withEvent.suggestedOrder).toBeGreaterThanOrEqual(baseline.suggestedOrder);
   });
 
-  it('assigns confidence based on history depth', () => {
+  it.each([
+    [7, 'low'],
+    [14, 'medium'],
+    [30, 'high'],
+    [90, 'high'],
+  ] as const)('%s days history => %s confidence', (days, confidence) => {
     const today = new Date('2026-07-03T12:00:00.000Z');
-
-    const lowHistory = buildItemForecast({
+    const start = new Date(today);
+    start.setUTCDate(start.getUTCDate() - days);
+    const startStr = start.toISOString().slice(0, 10);
+    const result = buildItemForecast({
       inventory,
-      salesHistory: makeHistory(inventory.upc, '2026-06-25', 7, 5),
+      salesHistory: makeHistory(inventory.upc, startStr, days, 5),
       localEvents: [],
       today,
     });
+    expect(result.confidence).toBe(confidence);
+  });
 
-    const highHistory = buildItemForecast({
-      inventory,
-      salesHistory: makeHistory(inventory.upc, '2026-04-01', 90, 5),
+  it('suggested order is zero when stock exceeds demand', () => {
+    const highStock: InventoryRecord = { ...inventory, currentStock: 500 };
+    const result = buildItemForecast({
+      inventory: highStock,
+      salesHistory: makeHistory(inventory.upc, '2026-04-01', 30, 2),
       localEvents: [],
+      today: new Date('2026-07-03T12:00:00.000Z'),
+    });
+    expect(result.suggestedOrder).toBe(0);
+  });
+
+  it('suggested order increases when stock is low', () => {
+    const lowStock: InventoryRecord = { ...inventory, currentStock: 2 };
+    const result = buildItemForecast({
+      inventory: lowStock,
+      salesHistory: makeHistory(inventory.upc, '2026-04-01', 60, 8),
+      localEvents: [],
+      today: new Date('2026-07-03T12:00:00.000Z'),
+    });
+    expect(result.suggestedOrder).toBeGreaterThan(0);
+  });
+
+  it('includes chart data points', () => {
+    const result = buildItemForecast({
+      inventory,
+      salesHistory: makeHistory(inventory.upc, '2026-04-01', 30, 5),
+      localEvents: [],
+      today: new Date('2026-07-03T12:00:00.000Z'),
+    });
+    expect(result.chartData.length).toBeGreaterThan(0);
+    expect(result.chartData[0]).toHaveProperty('date');
+    expect(result.chartData[0]).toHaveProperty('predicted');
+  });
+
+  it.each([1.25, 1.5, 2.0, 3.0])('event multiplier %s boosts forecast', (multiplier) => {
+    const today = new Date('2026-07-03T12:00:00.000Z');
+    const history = makeHistory(inventory.upc, '2026-04-01', 60, 6);
+    const baseline = buildItemForecast({ inventory, salesHistory: history, localEvents: [], today });
+    const withEvent = buildItemForecast({
+      inventory,
+      salesHistory: history,
+      localEvents: [
+        {
+          id: 'e',
+          name: 'Event',
+          startDate: '2026-07-10',
+          endDate: '2026-07-12',
+          multiplier,
+        },
+      ],
       today,
     });
-
-    expect(lowHistory.confidence).toBe('low');
-    expect(highHistory.confidence).toBe('high');
+    expect(withEvent.predictedDemand14d).toBeGreaterThanOrEqual(baseline.predictedDemand14d);
   });
 });

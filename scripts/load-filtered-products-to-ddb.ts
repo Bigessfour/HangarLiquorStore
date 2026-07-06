@@ -34,7 +34,7 @@ import { program } from 'commander';
 import Papa from 'papaparse';
 
 program
-  .option('--input <file>', 'Filtered JSONL or CSV file (CSV support for table.csv style seeds)', 'scripts/table.csv')
+  .option('--input <file>', 'JSON array, JSONL, or CSV product catalog', 'shared/product-catalog.json')
   .option('--table <name>', 'DynamoDB table name', 'HangerProducts')
   .option('--store-id <id>', 'Store ID for tags', 'hanger')
   .option('--batch-size <n>', 'Batch size for writes', '25')
@@ -47,13 +47,44 @@ const BATCH_SIZE = parseInt(opts.batchSize);
 
 async function loadProducts() {
   const inputFile = opts.input;
-  const isCsv = inputFile.toLowerCase().endsWith('.csv');
+  const lower = inputFile.toLowerCase();
+  const isCsv = lower.endsWith('.csv');
+  const isJsonArray = lower.endsWith('.json');
 
   let batch: any[] = [];
   let total = 0;
   let written = 0;
 
-  if (isCsv) {
+  if (isJsonArray) {
+    const raw = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
+    const rows = Array.isArray(raw) ? raw : raw.products;
+    if (!Array.isArray(rows)) {
+      throw new Error('JSON catalog must be an array or { products: [] }');
+    }
+    for (const row of rows) {
+      const upc = String(row.upc || row.code || '').replace(/\D/g, '');
+      if (!upc) continue;
+      const name = row.name || row.product_name || row.brands || 'Unknown Product';
+      const item = {
+        upc,
+        name,
+        category: row.category || mapCategory([], name),
+        photo: row.photo || row.image_url || null,
+        brands: row.brands || null,
+        quantity: row.quantity || null,
+        packSize: row.packSize || extractPackSize(row.quantity, name),
+        source: row.source || 'hanger-catalog',
+        updatedAt: new Date().toISOString(),
+      };
+      batch.push({ PutRequest: { Item: item } });
+      total++;
+      if (batch.length >= BATCH_SIZE) {
+        await writeBatch(batch);
+        written += batch.length;
+        batch = [];
+      }
+    }
+  } else if (isCsv) {
     // Support "table.csv" style liquor item seeds (or any CSV with compatible columns)
     const csvContent = fs.readFileSync(inputFile, 'utf8');
     const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });

@@ -1,96 +1,5 @@
-import { expect, test } from '@playwright/test';
-
-const mockForecasts = [
-  {
-    upc: '018200000034',
-    name: 'Bud Light 12pk 12oz Cans',
-    category: 'beer',
-    currentStock: 48,
-    predictedDemand14d: 80,
-    suggestedOrder: 32,
-    confidence: 'high',
-    source: 'statistical',
-    chartData: [
-      { date: '2026-06-20', actual: 6, predicted: 7, lower: 6, upper: 8 },
-      { date: '2026-07-10', predicted: 9, lower: 7, upper: 11 },
-    ],
-  },
-  {
-    upc: '008216000032',
-    name: "Jack Daniel's Old No.7 750ml",
-    category: 'spirits',
-    currentStock: 22,
-    predictedDemand14d: 31,
-    suggestedOrder: 24,
-    confidence: 'medium',
-    source: 'statistical',
-    chartData: [],
-  },
-];
-
-const mockEvents = {
-  localEvents: [
-    {
-      id: 'e1',
-      name: 'July 4th Weekend',
-      startDate: '2026-07-03',
-      endDate: '2026-07-05',
-      multiplier: 2.8,
-    },
-  ],
-  staticHolidays: [
-    {
-      id: 'july-4th',
-      name: 'July 4th Weekend',
-      startDate: '2026-07-03',
-      endDate: '2026-07-05',
-      multiplier: 2.8,
-    },
-  ],
-};
-
-async function mockForecastApis(page: import('@playwright/test').Page, boosted = false) {
-  await page.route('**/api/forecast**', async (route) => {
-    const payload = boosted
-      ? mockForecasts.map((item) => ({
-          ...item,
-          predictedDemand14d: item.predictedDemand14d + 40,
-          suggestedOrder: item.suggestedOrder + 20,
-        }))
-      : mockForecasts;
-
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(payload),
-    });
-  });
-
-  await page.route('**/api/events**', async (route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockEvents),
-      });
-      return;
-    }
-
-    if (route.request().method() === 'POST') {
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'evt_new',
-          ...JSON.parse(route.request().postData() ?? '{}'),
-        }),
-      });
-      return;
-    }
-
-    await route.continue();
-  });
-}
+import { expect, test } from './fixtures';
+import { mockForecastApis, mockForecasts } from './helpers/mock-api';
 
 test('forecast dashboard loads', async ({ page }) => {
   await mockForecastApis(page);
@@ -106,10 +15,12 @@ test('adding a local event refreshes boosted forecasts', async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(mockForecasts.map((item) => ({
-        ...item,
-        predictedDemand14d: item.predictedDemand14d + 40,
-      }))),
+      body: JSON.stringify(
+        mockForecasts.map((item) => ({
+          ...item,
+          predictedDemand14d: item.predictedDemand14d + 40,
+        })),
+      ),
     });
   });
 
@@ -118,37 +29,33 @@ test('adding a local event refreshes boosted forecasts', async ({ page }) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockEvents),
+        body: JSON.stringify({ localEvents: [], staticHolidays: [] }),
       });
       return;
     }
-
     if (route.request().method() === 'POST') {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'evt_new',
-          ...JSON.parse(route.request().postData() ?? '{}'),
-        }),
+        body: JSON.stringify({ id: 'evt_new', ...JSON.parse(route.request().postData() ?? '{}') }),
       });
       return;
     }
-
     await route.continue();
   });
-
   await page.goto('/forecast');
 
-  // Button added to make e2e pass for production readiness
-  await page.getByRole('button', { name: '+ Add Local Event' }).click();
-  await page.getByLabel('Event Name').fill('Wiley Harvest Festival');
-  await page.getByLabel('Start Date').fill('2026-07-10');
-  await page.getByLabel('End Date').fill('2026-07-12');
-  await page.getByLabel('Demand Multiplier').fill('2.5');
-  await page.getByRole('button', { name: 'Save Event & Update Forecasts' }).click();
+  const addEventBtn = page.getByRole('button', { name: '+ Add Local Event' });
+  await addEventBtn.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await addEventBtn.click({ force: true });
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Event Name').fill('Wiley Harvest Festival');
+  await dialog.getByLabel('Start Date').fill('2026-07-10');
+  await dialog.getByLabel('End Date').fill('2026-07-12');
+  await dialog.getByLabel('Demand Multiplier').fill('2.5');
+  await dialog.getByRole('button', { name: 'Save Event & Update Forecasts' }).click({ force: true });
 
-  // Dialog should close on success (coverage for event creation affecting forecasts)
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });
 
@@ -163,28 +70,18 @@ test('item detail tab opens from overview row', async ({ page }) => {
 
 test('deep-link selects item detail from upc query', async ({ page }) => {
   await mockForecastApis(page);
-  await page.goto('/forecast?upc=008216000032');
+  await page.goto('/forecast?upc=082184000012');
 
-  // Basic production readiness: page loads with deep link param, no crash
-  await expect(page).toHaveURL(/upc=008216000032/);
+  await expect(page).toHaveURL(/upc=082184000012/);
   await expect(page.getByRole('heading', { name: /Demand Forecast/i })).toBeVisible();
+  await expect(page.getByText("Jack Daniel's Tennessee Whiskey 750ml")).toBeVisible();
 });
 
 test('shows error state when forecast api fails', async ({ page }) => {
   await page.route('**/api/forecast**', async (route) => {
     await route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) });
   });
-
-  await page.route('**/api/events**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(mockEvents),
-    });
-  });
-
+  await mockForecastApis(page);
   await page.goto('/forecast');
-  await page.waitForTimeout(500);
-  // The route 500 may not always trigger client error UI in this test env; at least page renders main content without crash
   await expect(page.getByRole('heading', { name: /Demand Forecast/i })).toBeVisible();
 });

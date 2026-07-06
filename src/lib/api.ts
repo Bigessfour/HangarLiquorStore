@@ -13,6 +13,7 @@ import type {
   InventoryUpdateInput,
   ScanAddItemInput,
 } from '@/types/inventory';
+import { getCatalogProduct } from '@/lib/product-catalog';
 
 export const inventoryKeys = {
   all: ['inventory'] as const,
@@ -196,10 +197,19 @@ async function fetchInventoryItem(upc: string): Promise<InventoryItem | null> {
 }
 
 export async function fetchProduct(upc: string): Promise<any | null> {
+  const normalized = upc.replace(/\D/g, '');
+
   if (useMockApi()) {
-    // In mock, fall back to OFF or local
     await new Promise((r) => setTimeout(r, 100));
-    return mockStore.find((i) => i.upc === upc) ?? null;
+    const catalog = getCatalogProduct(normalized);
+    if (catalog) {
+      return {
+        ...catalog,
+        source: 'hanger-catalog',
+      };
+    }
+    const inv = mockStore.find((i) => i.upc === normalized);
+    return inv ? { ...inv, photo: inv.photo ?? null } : null;
   }
   try {
     // Try backend product catalog (populated from OFF dump - only liquor entries)

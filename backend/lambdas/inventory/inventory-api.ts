@@ -105,7 +105,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   }
 
   const rawPath = event.rawPath ?? event.requestContext.http.path;
-  const { resource, upc: pathUpc } = parseInventoryPath(rawPath);
+  const { resource, upc: pathUpc, username: pathUsername } = parseInventoryPath(rawPath);
 
   try {
     if (resource === 'list' && method === 'GET') {
@@ -161,7 +161,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     // ========== User Management (Owner/Manager only) ==========
     const groups = getCallerGroups(event);
     if (resource === 'users') {
-      const username = (event as any).pathParameters?.username;
+      const username = pathUsername ?? event.pathParameters?.username;
       const isOwnerUser = groups.includes('Owner');
       const isManagerUser = groups.includes('Manager') || isOwnerUser;
 

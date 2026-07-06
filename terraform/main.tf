@@ -86,6 +86,24 @@ resource "aws_dynamodb_table" "local_events" {
 # We ONLY keep liquor/alcohol entries (see scripts/filter-off-liquor-dump.ts) to keep table tiny & cheap.
 # Uses on-demand billing (PAY_PER_REQUEST) - pay only for actual low-volume lookups.
 # No provisioned capacity, no extra services like Glue/Athena unless you want analytics.
+resource "aws_dynamodb_table" "square_connection" {
+  name         = "HangerSquareConnection"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "storeId"
+
+  attribute {
+    name = "storeId"
+    type = "S"
+  }
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Project     = "HangarLiquorStore"
+    Purpose     = "Square POS OAuth metadata - Owner only"
+  }
+}
+
 resource "aws_dynamodb_table" "products" {
   name         = "HangerProducts"
   billing_mode = "PAY_PER_REQUEST"
@@ -168,7 +186,23 @@ data "aws_iam_policy_document" "dynamodb_access" {
       aws_dynamodb_table.inventory.arn,
       aws_dynamodb_table.sales_history.arn,
       aws_dynamodb_table.local_events.arn,
-      aws_dynamodb_table.products.arn
+      aws_dynamodb_table.products.arn,
+      aws_dynamodb_table.square_connection.arn
+    ]
+  }
+}
+
+# Square OAuth tokens + application credentials (Owner-managed connection)
+data "aws_iam_policy_document" "ssm_square" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:PutParameter"
+    ]
+    resources = [
+      "arn:aws:ssm:${var.region}:*:parameter/${var.store_id}/${var.environment}/square/*"
     ]
   }
 }
@@ -224,6 +258,12 @@ resource "aws_iam_role_policy" "s3_off" {
   name   = "${var.store_id}-s3-off-data"
   role   = aws_iam_role.lambda_exec.id
   policy = data.aws_iam_policy_document.s3_off_data.json
+}
+
+resource "aws_iam_role_policy" "ssm_square" {
+  name   = "${var.store_id}-ssm-square"
+  role   = aws_iam_role.lambda_exec.id
+  policy = data.aws_iam_policy_document.ssm_square.json
 }
 
 # SageMaker Canvas inference (for high-accuracy model)
@@ -286,6 +326,20 @@ data "archive_file" "forecast_lambda" {
   excludes    = ["node_modules", "tsconfig.json"]
 }
 
+data "archive_file" "events_lambda" {
+  type        = "zip"
+  source_dir  = "${path.module}/../backend/lambda-dist/events"
+  output_path = "${path.module}/events.zip"
+  excludes    = ["node_modules", "tsconfig.json"]
+}
+
+data "archive_file" "square_lambda" {
+  type        = "zip"
+  source_dir  = "${path.module}/../backend/lambda-dist/square"
+  output_path = "${path.module}/square.zip"
+  excludes    = ["node_modules", "tsconfig.json"]
+}
+
 # Inventory Lambda
 resource "aws_lambda_function" "inventory" {
   filename         = data.archive_file.inventory_lambda.output_path
@@ -344,6 +398,79 @@ resource "aws_lambda_function" "forecast" {
   }
 }
 
+# Square POS OAuth (Owner only — connects Chris Emick's Square account)
+resource "aws_lambda_function" "square" {
+  filename         = data.archive_file.square_lambda.output_path
+  function_name    = "${var.store_id}-square"
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "square-api.handler"
+  runtime          = "nodejs20.x"
+  source_code_hash = data.archive_file.square_lambda.output_base64sha256
+  memory_size      = var.lambda_memory
+  timeout          = var.lambda_timeout
+
+  environment {
+    variables = {
+      STORE_ID                 = var.store_id
+      SQUARE_CONNECTION_TABLE  = aws_dynamodb_table.square_connection.name
+      SQUARE_SSM_PREFIX        = "/${var.store_id}/${var.environment}/square"
+      SQUARE_REDIRECT_URI      = "${aws_apigatewayv2_api.main.api_endpoint}/api/square/callback"
+      FRONTEND_URL             = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+      SQUARE_SANDBOX           = "false"
+    }
+  }
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+  }
+}
+
+resource "aws_ssm_parameter" "square_application_id" {
+  name  = "/${var.store_id}/${var.environment}/square/application_id"
+  type  = "String"
+  value = "REPLACE_WITH_SQUARE_APPLICATION_ID"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "square_application_secret" {
+  name  = "/${var.store_id}/${var.environment}/square/application_secret"
+  type  = "SecureString"
+  value = "REPLACE_WITH_SQUARE_APPLICATION_SECRET"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+# Events Lambda (local events CRUD + static holidays)
+resource "aws_lambda_function" "events" {
+  filename         = data.archive_file.events_lambda.output_path
+  function_name    = "${var.store_id}-events"
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "manage-events.handler"
+  runtime          = "nodejs20.x"
+  source_code_hash = data.archive_file.events_lambda.output_base64sha256
+  memory_size      = var.lambda_memory
+  timeout          = var.lambda_timeout
+
+  environment {
+    variables = {
+      STORE_ID            = var.store_id
+      LOCAL_EVENTS_TABLE  = aws_dynamodb_table.local_events.name
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.main.id
+    }
+  }
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+  }
+}
+
 # API Gateway HTTP API
 resource "aws_apigatewayv2_api" "main" {
   name          = "${var.store_id}-api"
@@ -380,6 +507,22 @@ resource "aws_apigatewayv2_integration" "forecast" {
   payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_integration" "events" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.events.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_integration" "square" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.square.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
 # Routes (matching current API)
 resource "aws_apigatewayv2_route" "inventory_list" {
   api_id             = aws_apigatewayv2_api.main.id
@@ -392,6 +535,14 @@ resource "aws_apigatewayv2_route" "inventory_list" {
 resource "aws_apigatewayv2_route" "inventory_item" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "GET /api/inventory/{upc}"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "inventory_product" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/inventory/products/{upc}"
   target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
@@ -445,10 +596,26 @@ resource "aws_apigatewayv2_route" "forecast" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
-resource "aws_apigatewayv2_route" "events" {
+resource "aws_apigatewayv2_route" "events_get" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "GET /api/events"
-  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"  # reuse or separate
+  target             = "integrations/${aws_apigatewayv2_integration.events.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "events_post" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/events"
+  target             = "integrations/${aws_apigatewayv2_integration.events.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "events_delete" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "DELETE /api/events/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.events.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
@@ -478,6 +645,77 @@ resource "aws_apigatewayv2_route" "users_update_role" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+resource "aws_apigatewayv2_route" "users_disable" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/users/{username}/disable"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "users_enable" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/users/{username}/enable"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "users_reset_password" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/users/{username}/reset-password"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "users_remove_groups" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/users/{username}/remove-groups"
+  target             = "integrations/${aws_apigatewayv2_integration.inventory.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# Square POS — Owner only (JWT), except OAuth callback (public redirect from Square)
+resource "aws_apigatewayv2_route" "square_status" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/square/status"
+  target             = "integrations/${aws_apigatewayv2_integration.square.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "square_authorize" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/square/authorize"
+  target             = "integrations/${aws_apigatewayv2_integration.square.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "square_disconnect" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/square/disconnect"
+  target             = "integrations/${aws_apigatewayv2_integration.square.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "square_locations" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/square/locations"
+  target             = "integrations/${aws_apigatewayv2_integration.square.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "square_callback" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /api/square/callback"
+  target    = "integrations/${aws_apigatewayv2_integration.square.id}"
+}
+
 # Lambda permissions
 resource "aws_lambda_permission" "apigw_inventory" {
   statement_id  = "AllowAPIGatewayInvokeInventory"
@@ -491,6 +729,22 @@ resource "aws_lambda_permission" "apigw_forecast" {
   statement_id  = "AllowAPIGatewayInvokeForecast"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.forecast.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "apigw_events" {
+  statement_id  = "AllowAPIGatewayInvokeEvents"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.events.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "apigw_square" {
+  statement_id  = "AllowAPIGatewayInvokeSquare"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.square.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
 }
@@ -695,6 +949,27 @@ resource "aws_cognito_user_pool_client" "main" {
   }
 }
 
+resource "aws_cognito_user_group" "owner" {
+  name         = "Owner"
+  user_pool_id = aws_cognito_user_pool.main.id
+  precedence   = 1
+  description  = "Store owner — full access including user management"
+}
+
+resource "aws_cognito_user_group" "manager" {
+  name         = "Manager"
+  user_pool_id = aws_cognito_user_pool.main.id
+  precedence   = 2
+  description  = "Manager — inventory edits and ReadOnly user creation"
+}
+
+resource "aws_cognito_user_group" "readonly" {
+  name         = "ReadOnly"
+  user_pool_id = aws_cognito_user_pool.main.id
+  precedence   = 3
+  description  = "Clerk — view inventory and forecasts"
+}
+
 # API Gateway JWT Authorizer using Cognito
 resource "aws_apigatewayv2_authorizer" "cognito" {
   api_id           = aws_apigatewayv2_api.main.id
@@ -742,6 +1017,10 @@ output "inventory_table" {
   value = aws_dynamodb_table.inventory.name
 }
 
+output "products_table" {
+  value = aws_dynamodb_table.products.name
+}
+
 output "sales_table" {
   value = aws_dynamodb_table.sales_history.name
 }
@@ -752,4 +1031,14 @@ output "events_table" {
 
 output "lambda_role_arn" {
   value = aws_iam_role.lambda_exec.arn
+}
+
+output "square_oauth_redirect_uri" {
+  description = "Register this exact Redirect URL in the Square Developer Console OAuth settings."
+  value       = "${aws_apigatewayv2_api.main.api_endpoint}/api/square/callback"
+}
+
+output "square_ssm_prefix" {
+  description = "SSM path prefix for Square Application ID / Secret (Owner credentials stay server-side)."
+  value       = "/${var.store_id}/${var.environment}/square"
 }
