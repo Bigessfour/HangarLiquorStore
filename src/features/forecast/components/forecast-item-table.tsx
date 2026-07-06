@@ -25,13 +25,14 @@ export function ForecastItemTable({ forecasts, onSelect }: ForecastItemTableProp
           <TableHead className="text-right">Current</TableHead>
           <TableHead className="text-right">Predicted</TableHead>
           <TableHead className="text-right">Order</TableHead>
+          <TableHead className="text-right">Source</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {sorted.map((item) => (
           <TableRow
             key={item.upc}
-            className="cursor-pointer hover:bg-slate-50"
+            className="cursor-pointer hover:bg-slate-50 transition-colors"
             onClick={() => onSelect(item)}
           >
             <TableCell className="font-medium">{item.name}</TableCell>
@@ -40,6 +41,16 @@ export function ForecastItemTable({ forecasts, onSelect }: ForecastItemTableProp
             <TableCell className="text-right">
               <Badge variant={item.suggestedOrder > 30 ? 'destructive' : 'default'}>
                 {item.suggestedOrder}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-right">
+              <Badge 
+                variant="outline" 
+                className={item.source === 'sagemaker' 
+                  ? 'border-hanger-gold/60 text-hanger-gold bg-hanger-gold/5 text-[10px]' 
+                  : 'text-[10px]'}
+              >
+                {item.source === 'sagemaker' ? 'SageMaker' : 'Statistical'}
               </Badge>
             </TableCell>
           </TableRow>

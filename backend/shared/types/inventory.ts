@@ -9,6 +9,7 @@ export interface InventoryRecord {
   currentStock: number;
   reorderPoint?: number;
   updatedAt?: string;
+  packSize?: number; // case-break support (12 for 12pk, 1 for singles)
 }
 
 export interface CreateInventoryInput {
@@ -17,6 +18,7 @@ export interface CreateInventoryInput {
   category: InventoryCategory;
   quantity: number;
   reorderPoint?: number;
+  packSize?: number; // optional case size
 }
 
 export interface UpdateInventoryInput {
@@ -25,6 +27,7 @@ export interface UpdateInventoryInput {
   category?: InventoryCategory;
   currentStock?: number;
   reorderPoint?: number;
+  packSize?: number;
 }
 
 export interface ScanInventoryInput {
@@ -38,6 +41,7 @@ export interface CsvImportRow {
   category: InventoryCategory;
   currentStock: number;
   reorderPoint?: number;
+  packSize?: number;
 }
 
 export interface QueuedSyncAction {

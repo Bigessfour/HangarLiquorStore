@@ -30,6 +30,7 @@ import {
 
 interface ImportCSVProps {
   trigger?: ReactNode;
+  defaultIsShipment?: boolean;
 }
 
 function normalizeCategory(value: string): InventoryCategory {
@@ -63,11 +64,12 @@ function parseCsvRows(results: Papa.ParseResult<Record<string, string>>): CsvImp
   return parsed;
 }
 
-export function ImportCSV({ trigger }: ImportCSVProps) {
+export function ImportCSV({ trigger, defaultIsShipment = false }: ImportCSVProps) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<CsvImportRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [isShipment, setIsShipment] = useState(defaultIsShipment); // for bulk shipment / receiving: add instead of replace
 
   const importMutation = useImportInventory({
     onSuccess: (result) => {
@@ -130,11 +132,19 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
       setParseError(`${invalid.length} row(s) have validation errors. Fix before importing.`);
       return;
     }
-    importMutation.mutate(rows);
+    importMutation.mutate({ rows, isShipment });
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => {
+      setOpen(o);
+      if (!o) {
+        setIsShipment(false);
+        setRows([]);
+        setParseError(null);
+        setImportMessage(null);
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger ?? (
           <Button type="button" variant="outline" className="min-h-12 gap-2">
@@ -166,8 +176,17 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
             {isDragActive ? 'Drop CSV here' : 'Drag & drop a CSV file, or tap to browse'}
           </p>
           <p className="text-center text-xs text-muted-foreground">
-            Columns: upc, name, category, currentStock, reorderPoint (optional)
+            Columns: upc, name, category, currentStock, reorderPoint (optional), packSize (optional, default 1 for case-break)
           </p>
+          <label className="flex items-center gap-2 text-xs mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isShipment}
+              onChange={(e) => setIsShipment(e.target.checked)}
+              className="h-4 w-4"
+            />
+            This is a shipment / receiving (ADD the quantities to current stock)
+          </label>
         </div>
 
         {parseError && (
@@ -185,6 +204,7 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
                   <TableHead>Name</TableHead>
                   <TableHead>Cat.</TableHead>
                   <TableHead>Stock</TableHead>
+                  <TableHead>Pack</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -229,6 +249,16 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
                         value={row.currentStock}
                         onChange={(e) => updateRow(index, 'currentStock', Number(e.target.value))}
                         aria-label={`Row ${index + 1} stock`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        className="h-10 w-12 text-xs"
+                        type="number"
+                        min={1}
+                        value={row.packSize ?? 1}
+                        onChange={(e) => updateRow(index, 'packSize', Number(e.target.value))}
+                        aria-label={`Row ${index + 1} packSize`}
                       />
                     </TableCell>
                     <TableCell>

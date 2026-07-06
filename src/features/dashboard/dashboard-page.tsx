@@ -1,101 +1,177 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Package, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useInventoryList } from '@/lib/api';
+import { Card, CardContent } from '@/components/ui/card';
+import { useAddInventoryItem, useInventoryList } from '@/lib/api';
+import { useCreateEvent, useLocalEvents } from '@/features/events/api/use-local-events';
 import { useForecasts } from '@/features/forecast/api/use-forecasts';
-
-// Demo movers (Phase 3 exact per user spec + real data fusion)
-const movers = [
-  { item: 'Bud Light', sold: 47, stock: 12, forecast: '4th July' },
-  { item: 'Jack Daniels', sold: 8, stock: 3, forecast: 'REORDER NOW' },
-  { item: 'Titos', sold: 31, stock: 19, forecast: 'Stable' },
-];
+import TrendingSuggestions from './trending-suggestions';
 
 export function DashboardPage() {
   const { data: inventory = [] } = useInventoryList();
   const { data: forecasts = [] } = useForecasts(14);
-  const [multiplierApplied, setMultiplierApplied] = useState(false);
+  const { data: eventsData } = useLocalEvents();
+  const addInventory = useAddInventoryItem();
+  const createEvent = useCreateEvent();
+
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const lowStockAlerts = useMemo(
     () => inventory.filter((item) => item.currentStock < (item.reorderPoint ?? 10)).slice(0, 3),
-    [inventory]
+    [inventory],
   );
 
   const totalStock = useMemo(
     () => inventory.reduce((sum, i) => sum + i.currentStock, 0),
-    [inventory]
+    [inventory],
   );
   const lowStockCount = lowStockAlerts.length;
 
-  const chartData = movers.map((m) => ({
-    item: m.item,
-    sold: m.sold,
-    stock: m.stock,
-  }));
+  // Fully live Top Movers from forecast reports + current inventory.
+  // Uses predicted demand (from API / statistical engine) as the movement metric.
+  const chartData = useMemo(() => {
+    if (!forecasts.length) return [];
+    return [...forecasts]
+      .sort((a, b) => b.predictedDemand14d - a.predictedDemand14d)
+      .slice(0, 3)
+      .map((f) => {
+        const inv = inventory.find((i) => i.upc === f.upc);
+        const shortName = f.name.replace(/\s(12pk.*|750ml|1L).*$/, '').trim();
+        return {
+          item: shortName,
+          demand: f.predictedDemand14d,
+          stock: inv?.currentStock ?? 0,
+        };
+      });
+  }, [forecasts, inventory]);
 
   const reorderSuggestions = useMemo(
     () =>
-      (forecasts as any[])
-        .filter((f: any) => Number(f?.suggestedOrder ?? 0) > 0)
+      forecasts
+        .filter((f) => f.suggestedOrder > 0)
         .slice(0, 3)
-        .map((f: any) => ({
+        .map((f) => ({
           name: f.name,
-          qty: `${Number(f.suggestedOrder)} units`,
-          reason: (f.confidence ?? '') > 'medium' ? 'High confidence forecast' : 'Based on trends + events',
+          qty: `${f.suggestedOrder} units`,
+          reason: f.confidence === 'high' ? 'High confidence forecast' : 'Based on trends + events',
         })),
-    [forecasts]
+    [forecasts],
+  );
+
+  const activeMultiplier = (eventsData?.localEvents ?? []).find((e) =>
+    /july|4th|boost|rodeo/i.test(e.name),
   );
 
   const handleReorder = () => {
-    alert('Reorder 6 Jack Daniels — $89.94 queued (demo)');
+    // Real action: use first low stock or reorder suggestion (fully dynamic)
+    const target = lowStockAlerts[0] || reorderSuggestions[0];
+    if (!target) return;
+    const upc = (target as any).upc;
+    const name = (target as any).name;
+    const qty = (target as any).suggestedOrder || (target as any).currentStock ? 1 : 6;
+    if (!upc || !name) return;
+    addInventory.mutate(
+      {
+        upc,
+        name,
+        quantity: qty,
+        category: (target as any).category || 'Spirits',
+        packSize: (target as any).packSize || 1,
+      } as any,
+      {
+        onSuccess: () => {
+          setActionMessage(`Added ${qty} × ${name} to stock`);
+          setTimeout(() => setActionMessage(null), 2200);
+        },
+      },
+    );
   };
 
   const handleApplyMultiplier = () => {
-    setMultiplierApplied(true);
-    alert('4th of July +35% multiplier applied to forecast 🔥');
+    // Real action: create event based on active or default
+    const eventName = activeMultiplier?.name || 'Demand Boost';
+    const mult = activeMultiplier?.multiplier || 1.35;
+    createEvent.mutate(
+      {
+        name: eventName,
+        startDate: new Date().toISOString().slice(0, 10),
+        endDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+        multiplier: mult,
+        notes: 'From dashboard action',
+      },
+      {
+        onSuccess: () => {
+          setActionMessage(`${eventName} event created`);
+          setTimeout(() => setActionMessage(null), 2200);
+        },
+      },
+    );
   };
 
   return (
     <div className="p-4 space-y-6 pb-24">
       <div>
         <h1 className="text-3xl font-bold">Hanger Liquor Store • Wiley, CO • Today</h1>
-        <p className="text-sm text-muted-foreground">TanStack Query • 4th of July boost ready</p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>TanStack Query • Live forecast API</span>
+          {activeMultiplier && (
+            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
+              {activeMultiplier.name} active
+            </span>
+          )}
+        </div>
       </div>
 
+      {actionMessage && (
+        <Alert className="border-green-500/40 bg-green-500/5">
+          <AlertDescription className="font-medium text-green-600">
+            {actionMessage}
+          </AlertDescription>
+        </Alert>  
+      )}
+
       <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 bg-zinc-900 border-hanger-amber/30">
-          <p className="text-amber-400 text-sm">Total Stock</p>
-          <p className="text-5xl font-bold">{totalStock || 184}</p>
-          <p className="text-green-400 text-sm">↑ 12 since yesterday</p>
+        <Card className="p-4 bg-gradient-to-br from-card to-hanger-amber/5 border-hanger-amber/20 shadow-sm hover:shadow-md transition-all">
+          <p className="text-sm text-hanger-amber">Total Stock</p>
+          <p className="text-5xl font-bold">{totalStock}</p>
+          <p className="text-sm text-green-600">Live inventory</p>
         </Card>
-        <Card className="p-4 bg-zinc-900 border-hanger-amber/30">
-          <p className="text-rose-400 text-sm">Low Items</p>
-          <p className="text-5xl font-bold text-rose-400">{lowStockCount || 3}</p>
+        <Card className="p-4 bg-gradient-to-br from-card to-destructive/5 border-destructive/20 shadow-sm hover:shadow-md transition-all">
+          <p className="text-sm text-destructive">Low Items</p>
+          <p className="text-5xl font-bold text-destructive">{lowStockCount}</p>
           <Button
             size="sm"
             variant="destructive"
             className="mt-2 text-xs"
-            onClick={() => alert('Opening reorder for Jack Daniels')}
+            onClick={handleReorder}
+            disabled={addInventory.isPending}
           >
-            Reorder Jack Daniels
+            Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || 'Low Stock'}
           </Button>
         </Card>
       </div>
 
       <div>
-        <h3 className="font-semibold mb-2">Top Movers • Real-time</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">Top Movers • Live from Forecast</h3>
+          <Link to="/forecast" className="text-xs text-hanger-amber hover:underline">
+            View full report →
+          </Link>
+        </div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData}>
-            <XAxis dataKey="item" stroke="#ddd" />
+            <XAxis dataKey="item" stroke="#888" />
             <YAxis />
-            <Bar dataKey="sold" fill="#eab308" name="Sold" />
-            <Bar dataKey="stock" fill="#666" name="Stock" />
+            <Bar dataKey="demand" fill="#eab308" name="Expected Demand (14d)" />
+            <Bar dataKey="stock" fill="#666" name="Current Stock" />
           </BarChart>
         </ResponsiveContainer>
+        <p className="text-[10px] text-muted-foreground mt-1 text-center">
+          Data from forecast API (statistical + events)
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -103,26 +179,41 @@ export function DashboardPage() {
 
         <Button
           onClick={handleReorder}
+          disabled={addInventory.isPending}
           className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg active:scale-[0.985]"
         >
-          Reorder 6 Jack Daniels • $89.94
+          Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || reorderSuggestions[0]?.name?.split(' ')[0] || 'Stock'} • from live data
         </Button>
 
         <Button
           onClick={handleApplyMultiplier}
-          disabled={multiplierApplied}
+          disabled={createEvent.isPending}
           className="w-full py-4 bg-amber-500 text-zinc-900 hover:bg-amber-400 rounded-xl text-lg active:scale-[0.985]"
         >
-          {multiplierApplied ? '✓ 4th of July +35% multiplier active' : 'Apply 4th of July +35% multiplier'}
+          Apply {activeMultiplier?.name || 'Event'} multiplier
         </Button>
 
+        {reorderSuggestions.length > 0 && (
+          <div className="space-y-2 pt-1">
+            {reorderSuggestions.map((sug, idx) => (
+              <div key={idx} className="rounded-lg border border-border bg-card p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{sug.name}</span>
+                  <span className="text-hanger-amber">{sug.qty}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{sug.reason}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {lowStockAlerts.length > 0 && (
-          <div className="pt-2">
+          <div className="pt-1">
             {lowStockAlerts.map((item) => (
               <Alert key={item.upc} className="border-rose-500/40 mb-2">
                 <AlertTriangle className="h-4 w-4 text-rose-400" />
                 <AlertDescription>
-                  {item.name} — <strong>{item.currentStock} left</strong> (reorder at {item.reorderPoint ?? 10})
+                  {item.name} — <strong>{item.currentStock} left</strong>
                 </AlertDescription>
               </Alert>
             ))}
@@ -130,17 +221,28 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="pt-2">
-        <Card className="bg-zinc-950">
-          <CardContent className="pt-4 text-sm opacity-80">
-            <p>📦 Bud Light 12pk: 47 sold this week • +4th July boost expected</p>
-            <p className="mt-1">🥃 Jack Daniels: 3 left — reorder triggered</p>
-          </CardContent>
-        </Card>
-      </div>
+      <TrendingSuggestions />
+
+      <Card className="bg-card border-hanger-gold/20">
+        <CardContent className="pt-4 text-sm text-muted-foreground">
+          {chartData[0] && (
+            <p>
+              📦 {chartData[0].item}: {chartData[0].demand} expected demand (14d)
+            </p>
+          )}
+          <p className="mt-1">
+            {activeMultiplier
+              ? `🔥 ${activeMultiplier.name} active (+${Math.round((activeMultiplier.multiplier - 1) * 100)}% boost)`
+              : '🥃 Low stock items flagged by forecast — apply event multiplier to boost'}
+          </p>
+          <p className="mt-2 text-[10px] text-hanger-gold">
+            Premium: Optional AWS SageMaker Canvas for ML-powered forecasts (see /forecast toggle)
+          </p>
+        </CardContent>
+      </Card>
 
       <p className="text-center text-xs opacity-60">
-        TanStack Query loaded • Amazon Forecast synced • Offline ready • 4thOfJulyBoost
+        Live from forecast API • TanStack Query • Events drive multipliers • AWS-ready
       </p>
     </div>
   );

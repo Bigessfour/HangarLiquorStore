@@ -1,6 +1,6 @@
 import { EventBadgeList } from '@/features/events/components/event-badge-list';
 import { EventFormDialog } from '@/features/events/components/event-form-dialog';
-import { useLocalEvents } from '@/features/events/api/use-local-events';
+import { useLocalEvents, useCreateEvent } from '@/features/events/api/use-local-events';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,6 +9,17 @@ import { useState } from 'react';
 export function EventsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data, isLoading } = useLocalEvents();
+  const createEvent = useCreateEvent();
+
+  const quickToggle = (name: string, multiplier: number, notes: string) => {
+    createEvent.mutate({
+      name,
+      startDate: new Date().toISOString().slice(0, 10),
+      endDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      multiplier,
+      notes,
+    });
+  };
 
   return (
     <div className="space-y-4 p-4">
@@ -32,6 +43,21 @@ export function EventsPage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="space-y-2">
+        <Button
+          onClick={() => quickToggle('4th of July Boost', 1.35, 'Beer focus')}
+          className="w-full py-4 bg-violet-600 text-lg active:scale-[0.985]"
+        >
+          🎉 Enable 4th of July +35% (Beer)
+        </Button>
+        <Button
+          onClick={() => quickToggle('Denver Rodeo Weekend', 1.2, 'Whiskey boost')}
+          className="w-full py-4 bg-orange-600 text-lg active:scale-[0.985]"
+        >
+          🐎 Rodeo Weekend +20% (Spirits)
+        </Button>
+      </div>
 
       <p className="text-sm text-muted-foreground">
         July 4th boosts beer +40%. Wiley football season boosts spirits +25%.

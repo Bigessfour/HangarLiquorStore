@@ -9,10 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
-import { useAddInventoryItem, useInventoryItem } from '@/lib/api';
+import { useAddInventoryItem, useInventoryItem, fetchProduct } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
 import { INVENTORY_CATEGORIES, scanAddItemSchema, type ScanAddItemInput } from '@/types/inventory';
+import { lookupUpc } from '@/lib/upc-lookup';
+import NewProductModal from '@/features/inventory/new-product-modal';
 
 const SCANNER_ELEMENT_ID = 'hanger-upc-scanner';
 
@@ -26,6 +28,8 @@ export function ScanPage() {
   const [scannedUpc, setScannedUpc] = useState<string | null>(null);
   const [manualUpc, setManualUpc] = useState('');
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [lookupResult, setLookupResult] = useState<null | { name: string; photo?: string; category?: string }>(null);
+  const [showNewProductModal, setShowNewProductModal] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -82,6 +86,8 @@ export function ScanPage() {
     setBanner(null);
     setScannedUpc(null);
     setManualUpc('');
+    setLookupResult(null);
+    setShowNewProductModal(false);
     reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
 
     try {
@@ -115,17 +121,67 @@ export function ScanPage() {
     if (matchedItem) {
       setValue('name', matchedItem.name);
       setValue('category', matchedItem.category);
+      // Case-break: default quantity to packSize if >1 (e.g. 12 for 12pk)
+      const defaultQty = (matchedItem as any).packSize && (matchedItem as any).packSize > 1
+        ? (matchedItem as any).packSize
+        : 1;
+      setValue('quantity', defaultQty);
+      setValue('packSize', (matchedItem as any).packSize ?? 1);
       setBanner({
         type: 'success',
         message: `Found: ${matchedItem.name} (${matchedItem.currentStock} in stock)`,
       });
-    } else if (scannedUpc && !isLookingUp) {
-      setBanner({
-        type: 'success',
-        message: 'New UPC — enter product name to add to inventory',
-      });
     }
-  }, [matchedItem, scannedUpc, isLookingUp, setValue]);
+  }, [matchedItem, setValue]);
+
+  // Free/low-cost external UPC lookup (prefer backend product catalog from OFF dump, fallback to live OFF API)
+  // This auto-fills name/category/packSize + photo for live feel. Uses free data.
+  useEffect(() => {
+    let cancelled = false;
+    if (scannedUpc && !matchedItem && !isLookingUp) {
+      setLookupResult(null);
+      if (isOnline) {
+        // Try backend first (AWS product catalog populated from OFF dump for low-cost/offline)
+        fetchProduct(scannedUpc).then(async (backendProduct) => {
+          if (cancelled) return;
+          if (backendProduct) {
+            const name = backendProduct.name || backendProduct.product_name;
+            const cat = backendProduct.category;
+            const ps = backendProduct.packSize || 1;
+            const photo = backendProduct.photo || backendProduct.imageUrl || backendProduct.image_url;
+            setLookupResult({ name, photo, category: cat });
+            setValue('name', name);
+            if (cat) setValue('category', cat);
+            setValue('packSize', ps);
+            setValue('quantity', ps);  // default to pack for case
+            setBanner({ type: 'success', message: `Found in catalog: ${name}` });
+            return;
+          }
+          // Fallback to free live OFF API
+          const result = await lookupUpc(scannedUpc);
+          if (cancelled || !result) {
+            setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory (or check spelling)' });
+            // Trigger quick add modal for new product (frictionless entry)
+            setShowNewProductModal(true);
+            return;
+          }
+          setLookupResult({ name: result.name, photo: result.photo, category: result.category });
+          setValue('name', result.name);
+          if (result.category) setValue('category', result.category);
+          if (result.packSize) {
+            setValue('packSize', result.packSize);
+            setValue('quantity', result.packSize);
+          }
+          setBanner({ type: 'success', message: `Looked up: ${result.name} (free via Open Food Facts)` });
+        }).catch(() => {
+          if (!cancelled) setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory' });
+        });
+      } else {
+        setBanner({ type: 'success', message: 'New UPC (offline) — enter product name to add to inventory' });
+      }
+    }
+    return () => { cancelled = true; };
+  }, [scannedUpc, matchedItem, isLookingUp, isOnline, setValue]);
 
   useEffect(() => {
     return () => {
@@ -151,6 +207,8 @@ export function ScanPage() {
       }
       setScannedUpc(null);
       setManualUpc('');
+      setLookupResult(null);
+      setShowNewProductModal(false);
       reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
     } catch (err) {
       setBanner({
@@ -190,6 +248,9 @@ export function ScanPage() {
             </div>
             <p className="max-w-xs text-center text-muted-foreground">
               Point your camera at a beer, spirits, wine, or mixer UPC barcode.
+            </p>
+            <p className="text-center text-[10px] text-muted-foreground max-w-xs">
+              New products auto-filled from <strong>Open Food Facts</strong> (free & open database)
             </p>
             {!isOnline && (
               <p className="text-center text-sm text-hanger-amber" role="status">
@@ -254,6 +315,27 @@ export function ScanPage() {
             </Alert>
           )}
 
+          {lookupResult?.photo && (
+            <div className="flex justify-center mb-3">
+              <div className="text-center">
+                <img 
+                  src={lookupResult.photo} 
+                  alt={lookupResult.name || 'Product'} 
+                  className="w-24 h-24 rounded-xl object-cover border border-border shadow-sm mx-auto"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Photo: <a href={`https://world.openfoodfacts.org/product/${scannedUpc}`} target="_blank" rel="noopener noreferrer" className="underline">Open Food Facts</a> (CC BY-SA)
+                </p>
+              </div>
+            </div>
+          )}
+          {lookupResult && !lookupResult.photo && (
+            <p className="text-center text-[10px] text-muted-foreground -mt-2 mb-2">
+              Data from <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener" className="underline">Open Food Facts</a> (free open data)
+            </p>
+          )}
+
           {isLookingUp ? (
             <div className="space-y-2" aria-busy="true" aria-label="Looking up product">
               <Skeleton className="h-12 w-full" />
@@ -291,19 +373,36 @@ export function ScanPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="scan-qty">Quantity</Label>
-                  <Input
-                    id="scan-qty"
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    aria-invalid={Boolean(errors.quantity)}
-                    {...register('quantity', { valueAsNumber: true })}
-                  />
+                  <Label htmlFor="scan-qty">Quantity (units)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="scan-qty"
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      aria-invalid={Boolean(errors.quantity)}
+                      {...register('quantity', { valueAsNumber: true })}
+                    />
+                    {matchedItem && (matchedItem as any).packSize > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-12 shrink-0"
+                        onClick={() => setValue('quantity', (matchedItem as any).packSize)}
+                        aria-label={`Set to full case of ${(matchedItem as any).packSize}`}
+                      >
+                        Case x{(matchedItem as any).packSize}
+                      </Button>
+                    )}
+                  </div>
                   {errors.quantity && (
                     <p className="mt-1 text-sm text-destructive" role="alert">
                       {errors.quantity.message}
                     </p>
+                  )}
+                  {matchedItem && (matchedItem as any).packSize > 1 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">Pack of {(matchedItem as any).packSize} • qty = units added</p>
                   )}
                 </div>
                 <div>
@@ -320,6 +419,8 @@ export function ScanPage() {
                     ))}
                   </select>
                 </div>
+                {/* Hidden packSize for case-break tracking (set via lookup or toggle) */}
+                <input type="hidden" {...register('packSize', { valueAsNumber: true })} />
               </div>
               <Button type="submit" className="min-h-12 w-full" disabled={addMutation.isPending}>
                 {addMutation.isPending ? (
@@ -334,6 +435,18 @@ export function ScanPage() {
             </form>
           )}
         </div>
+      )}
+
+      {/* New product quick add modal - triggered for unknown UPCs */}
+      {scannedUpc && (
+        <NewProductModal
+          open={showNewProductModal}
+          onClose={() => setShowNewProductModal(false)}
+          scannedUPC={scannedUpc}
+          initialName={lookupResult?.name}
+          initialPackSize={(lookupResult as any)?.packSize || 1}
+          initialPhoto={lookupResult?.photo}
+        />
       )}
     </div>
   );

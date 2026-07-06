@@ -7,6 +7,8 @@ import { SyncToast } from '@/components/common/sync-toast';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { useOfflineQueueStore } from '@/stores/offline-queue-store';
+import { usePwaInstall } from '@/hooks/use-pwa-install';
 
 function PageFallback() {
   return (
@@ -20,15 +22,17 @@ function PageFallback() {
 
 export function AppLayout() {
   const isOnline = useOnlineStatus();
+  const { queueCount, lastSyncMessage } = useOfflineQueueStore();
+  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-hanger-amber/20 bg-gradient-to-r from-background via-card to-background px-4 backdrop-blur">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Wiley, CO
           </p>
-          <h1 className="text-base font-bold leading-tight">Hanger Liquor Store</h1>
+          <h1 className="text-base font-bold leading-tight bg-gradient-to-r from-hanger-amber to-hanger-gold bg-clip-text text-transparent">Hanger Liquor Store</h1>
         </div>
         <div className="flex items-center gap-2">
           {!isOnline && (
@@ -39,9 +43,35 @@ export function AppLayout() {
               Offline
             </span>
           )}
+          {queueCount > 0 && (
+            <span
+              className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-600"
+              role="status"
+              title={lastSyncMessage || undefined}
+            >
+              Queued {queueCount}
+            </span>
+          )}
+          {queueCount === 0 && isOnline && lastSyncMessage?.includes('Synced') && (
+            <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-green-600" role="status">
+              Synced
+            </span>
+          )}
           <ThemeToggle />
         </div>
       </header>
+
+      {/* Global PWA Install Banner */}
+      {isInstallable && !isInstalled && (
+        <div className="sticky top-14 z-20 border-b border-hanger-gold/30 bg-gradient-to-r from-hanger-gold/10 to-hanger-amber/5 px-4 py-2 text-center">
+          <button
+            onClick={promptInstall}
+            className="text-sm font-medium text-hanger-gold hover:underline active:text-hanger-gold/80 flex items-center justify-center gap-1"
+          >
+            📱 <span>Install Hanger Liquor Store</span> <span className="text-[10px] opacity-70">(PWA - offline ready)</span>
+          </button>
+        </div>
+      )}
 
       <SyncToast />
 

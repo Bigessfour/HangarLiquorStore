@@ -27,6 +27,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Beer',
     currentStock: 48,
     reorderPoint: 24,
+    packSize: 12, // case-break support
   },
   {
     upc: '082184000012',
@@ -34,6 +35,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Spirits',
     currentStock: 3,
     reorderPoint: 12,
+    packSize: 1,
   },
   {
     upc: '619947000011',
@@ -41,6 +43,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Spirits',
     currentStock: 22,
     reorderPoint: 10,
+    packSize: 1,
   },
   {
     upc: '018200000103',
@@ -48,6 +51,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Beer',
     currentStock: 5,
     reorderPoint: 24,
+    packSize: 12,
   },
   {
     upc: '85000029204',
@@ -55,6 +59,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Wine',
     currentStock: 18,
     reorderPoint: 8,
+    packSize: 1,
   },
   {
     upc: '012000161155',
@@ -62,6 +67,32 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Mixers',
     currentStock: 14,
     reorderPoint: 6,
+    packSize: 1,
+  },
+  // Demo real-style UPCs for free lookup testing (will be overridden by live OFF API if not matched)
+  {
+    upc: '0123456789012',
+    name: 'Bud Light 12pk Cans',
+    category: 'Beer',
+    currentStock: 24,
+    reorderPoint: 10,
+    packSize: 12,
+  },
+  {
+    upc: '049000042566',
+    name: 'Jack Daniels Old No.7 750ml',
+    category: 'Spirits',
+    currentStock: 12,
+    reorderPoint: 5,
+    packSize: 1,
+  },
+  {
+    upc: '088470000123',
+    name: 'Titos Handmade Vodka 1L',
+    category: 'Spirits',
+    currentStock: 18,
+    reorderPoint: 8,
+    packSize: 1,
   },
 ];
 
@@ -69,6 +100,63 @@ let mockStore = [...MOCK_INVENTORY];
 
 function useMockApi(): boolean {
   return !import.meta.env.VITE_API_URL;
+}
+
+/**
+ * Resets the in-memory demo catalog to a rich realistic Hanger Liquor set.
+ * Safe no-op when using real backend (VITE_API_URL set).
+ * Used for staff demo / testing "live" product data + photos feel.
+ */
+export function resetToDemoData(): void {
+  if (!useMockApi()) return;
+
+  mockStore = [
+    {
+      upc: '071984000012',
+      name: 'Coors Light 12pk 12oz Cans',
+      category: 'Beer',
+      currentStock: 48,
+      reorderPoint: 24,
+      packSize: 12,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '018200000103',
+      name: 'Bud Light 12pk 12oz Cans',
+      category: 'Beer',
+      currentStock: 36,
+      reorderPoint: 30,
+      packSize: 12,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '082184000012',
+      name: "Jack Daniel's Tennessee Whiskey 750ml",
+      category: 'Spirits',
+      currentStock: 5,
+      reorderPoint: 6,
+      packSize: 1,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '619947000011',
+      name: "Tito's Handmade Vodka 1L",
+      category: 'Spirits',
+      currentStock: 22,
+      reorderPoint: 12,
+      packSize: 1,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      upc: '0123456789012',
+      name: 'High Noon Hard Seltzer 8pk',
+      category: 'Beer',
+      currentStock: 14,
+      reorderPoint: 10,
+      packSize: 8,
+      updatedAt: new Date().toISOString(),
+    },
+  ];
 }
 
 function filterInventory(items: InventoryItem[], params: InventoryListParams): InventoryItem[] {
@@ -107,6 +195,29 @@ async function fetchInventoryItem(upc: string): Promise<InventoryItem | null> {
   }
 }
 
+export async function fetchProduct(upc: string): Promise<any | null> {
+  if (useMockApi()) {
+    // In mock, fall back to OFF or local
+    await new Promise((r) => setTimeout(r, 100));
+    return mockStore.find((i) => i.upc === upc) ?? null;
+  }
+  try {
+    // Try backend product catalog (populated from OFF dump - only liquor entries)
+    const product = await apiClient<any>(`/api/inventory/products/${upc}`);
+    if (product) {
+      // Normalize for frontend (dump uses 'photo', 'packSize')
+      return {
+        ...product,
+        photo: product.photo || product.imageUrl || product.image_url || null,
+        packSize: product.packSize || 1,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function createInventoryItem(input: ScanAddItemInput): Promise<InventoryItem> {
   if (useMockApi()) {
     await new Promise((r) => setTimeout(r, 400));
@@ -122,6 +233,8 @@ async function createInventoryItem(input: ScanAddItemInput): Promise<InventoryIt
       category: input.category,
       currentStock: input.quantity,
       reorderPoint: 6,
+      packSize: input.packSize ?? 1,
+      photo: input.photo,
       updatedAt: new Date().toISOString(),
     };
     mockStore = [...mockStore, created];
@@ -148,20 +261,27 @@ async function updateInventoryItem(input: InventoryUpdateInput): Promise<Invento
   });
 }
 
-async function importInventoryRows(rows: CsvImportRow[]): Promise<{ imported: number }> {
+async function importInventoryRows(payload: { rows: CsvImportRow[]; isShipment?: boolean } | CsvImportRow[]): Promise<{ imported: number }> {
+  const rows = Array.isArray(payload) ? payload : payload.rows;
+  const isShipment = !Array.isArray(payload) && !!payload.isShipment;
+
   if (useMockApi()) {
     await new Promise((r) => setTimeout(r, 800));
     for (const row of rows) {
       const existing = mockStore.find((i) => i.upc === row.upc);
       if (existing) {
+        const newStock = isShipment
+          ? existing.currentStock + row.currentStock
+          : row.currentStock;
         mockStore = mockStore.map((i) =>
           i.upc === row.upc
             ? {
                 ...i,
                 name: row.name,
                 category: row.category,
-                currentStock: row.currentStock,
+                currentStock: Math.max(0, newStock),
                 reorderPoint: row.reorderPoint ?? i.reorderPoint,
+                packSize: row.packSize ?? i.packSize ?? 1,
                 updatedAt: new Date().toISOString(),
               }
             : i,
@@ -180,7 +300,7 @@ async function importInventoryRows(rows: CsvImportRow[]): Promise<{ imported: nu
   }
   return apiClient<{ imported: number }>('/api/inventory/import', {
     method: 'POST',
-    body: JSON.stringify({ rows }),
+    body: JSON.stringify({ rows, isShipment }),
   });
 }
 
@@ -248,6 +368,8 @@ export function useAddInventoryItem(
             name: input.name,
             category: input.category,
             currentStock: input.quantity,
+            packSize: input.packSize ?? 1,
+            photo: input.photo,
           },
         ];
       });
@@ -298,7 +420,7 @@ export function useUpdateInventoryItem(
 }
 
 export function useImportInventory(
-  options?: UseMutationOptions<{ imported: number }, Error, CsvImportRow[]>,
+  options?: UseMutationOptions<{ imported: number }, Error, { rows: CsvImportRow[]; isShipment?: boolean } | CsvImportRow[]>,
 ) {
   const queryClient = useQueryClient();
 
@@ -327,6 +449,7 @@ function applyQueuedActionToMock(action: QueuedAction): void {
               currentStock: i.currentStock + quantity,
               name,
               category,
+              packSize: (action.payload as any).packSize ?? i.packSize ?? 1,
               updatedAt: new Date().toISOString(),
             }
           : i,
@@ -340,6 +463,7 @@ function applyQueuedActionToMock(action: QueuedAction): void {
           category,
           currentStock: quantity,
           reorderPoint: 6,
+          packSize: (action.payload as any).packSize ?? 1,
           updatedAt: new Date().toISOString(),
         },
       ];

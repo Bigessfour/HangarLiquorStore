@@ -16,6 +16,7 @@ const editFormSchema = inventoryItemSchema.pick({
   category: true,
   currentStock: true,
   reorderPoint: true,
+  packSize: true,
 });
 
 type EditFormValues = z.infer<typeof editFormSchema>;
@@ -48,6 +49,7 @@ export function InventoryEditDialog({ item, open, onOpenChange }: InventoryEditD
         category: item.category,
         currentStock: item.currentStock,
         reorderPoint: item.reorderPoint ?? 0,
+        packSize: (item as any).packSize ?? 1,
       });
     }
   }, [item, reset]);
@@ -59,7 +61,8 @@ export function InventoryEditDialog({ item, open, onOpenChange }: InventoryEditD
       category: values.category,
       currentStock: values.currentStock,
       reorderPoint: values.reorderPoint,
-    });
+      packSize: values.packSize,
+    } as any);
   };
 
   return (
@@ -121,6 +124,16 @@ export function InventoryEditDialog({ item, open, onOpenChange }: InventoryEditD
                 min={0}
                 inputMode="numeric"
                 {...register('reorderPoint', { valueAsNumber: true })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-pack">Pack size (case-break)</Label>
+              <Input
+                id="edit-pack"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                {...register('packSize', { valueAsNumber: true })}
               />
             </div>
           </div>
