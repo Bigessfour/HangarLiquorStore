@@ -39,6 +39,40 @@ test('iOS home screen PWA prefers photo scan over live camera', async ({ browser
   await context.close();
 });
 
+test('iOS home screen FAB modal hides live camera', async ({ browser }) => {
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'standalone', { value: true, configurable: true });
+    window.matchMedia = (query: string) => ({
+      matches: query.includes('standalone'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+    localStorage.setItem(
+      'hanger_auth_user',
+      JSON.stringify({ username: 'demo-owner', token: 'demo-token', role: 'Owner' }),
+    );
+  });
+  const page = await context.newPage();
+  await mockForecastApis(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Scan Bottle' }).click();
+
+  await expect(page.getByRole('dialog', { name: 'Scan bottle barcode' })).toBeVisible();
+  await expect(page.getByText('Take Photo of Barcode')).toBeVisible();
+  await expect(page.getByRole('button', { name: /live camera/i })).toHaveCount(0);
+
+  await context.close();
+});
+
 test('iOS Safari browser shows both photo and live camera scan', async ({ browser }) => {
   const context = await browser.newContext({
     userAgent:

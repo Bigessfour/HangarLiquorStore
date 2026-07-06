@@ -290,6 +290,20 @@ export function ScanPage() {
     };
   }, [stopScanner]);
 
+  useEffect(() => {
+    const releaseCamera = () => {
+      if (document.visibilityState === 'hidden') {
+        void stopScanner();
+      }
+    };
+    document.addEventListener('visibilitychange', releaseCamera);
+    window.addEventListener('pagehide', releaseCamera);
+    return () => {
+      document.removeEventListener('visibilitychange', releaseCamera);
+      window.removeEventListener('pagehide', releaseCamera);
+    };
+  }, [stopScanner]);
+
   const onSubmit = async (values: ScanAddItemInput) => {
     setBanner(null);
     const payload: ScanAddItemInput = {

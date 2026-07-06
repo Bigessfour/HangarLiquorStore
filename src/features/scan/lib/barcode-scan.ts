@@ -1,4 +1,4 @@
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import {
   canUseLiveCameraScan,
   getCameraDeniedMessage,
@@ -10,21 +10,61 @@ export const FILE_SCANNER_ELEMENT_ID = 'hanger-file-barcode-scanner';
 export const PHOTO_CAPTURE_INPUT_ID = 'hanger-photo-capture';
 export const PHOTO_LIBRARY_INPUT_ID = 'hanger-photo-library';
 
+/** Liquor-store UPC/EAN formats only — faster decode, fewer false positives. */
+export const UPC_BARCODE_FORMATS = [
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.CODE_128,
+] as const;
+
+const LIVE_CAMERA_CONFIG = {
+  fps: 10,
+  qrbox: { width: 280, height: 140 },
+  aspectRatio: 1.5,
+  disableFlip: true,
+  videoConstraints: { facingMode: 'environment' as const },
+};
+
+function createBarcodeScanner(elementId: string): Html5Qrcode {
+  return new Html5Qrcode(elementId, {
+    formatsToSupport: [...UPC_BARCODE_FORMATS],
+    verbose: false,
+  });
+}
+
 export function normalizeUpc(raw: string): string | null {
   const upc = raw.replace(/\D/g, '');
   if (upc.length < 8) return null;
   return upc;
 }
 
+function formatPhotoScanError(err: unknown): string {
+  if (err instanceof Error && err.message) {
+    if (/no barcode|not found|decode failed/i.test(err.message)) {
+      return 'No UPC found in photo — fill the frame with the barcode and try again.';
+    }
+    return err.message;
+  }
+  return 'Could not read barcode from photo. Try again or enter UPC manually.';
+}
+
 export async function scanBarcodeFromFile(
   file: File,
   elementId = FILE_SCANNER_ELEMENT_ID,
 ): Promise<string> {
-  const scanner = new Html5Qrcode(elementId);
-  const decoded = await scanner.scanFile(file, false);
-  const upc = normalizeUpc(decoded);
-  if (!upc) throw new Error('Barcode too short — try a closer photo of the UPC');
-  return upc;
+  const scanner = createBarcodeScanner(elementId);
+  try {
+    const result = await scanner.scanFileV2(file, false);
+    const upc = normalizeUpc(result.decodedText);
+    if (!upc) {
+      throw new Error('Barcode too short — try a closer photo of the UPC');
+    }
+    return upc;
+  } catch (err) {
+    throw new Error(formatPhotoScanError(err));
+  }
 }
 
 export type LiveScannerHandle = {
@@ -45,30 +85,28 @@ export async function startLiveBarcodeScanner(
     return { stop: async () => {} };
   }
 
+  const scanner = createBarcodeScanner(elementId);
+  let stopped = false;
+
   try {
-    await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    await scanner.start(
+      { facingMode: 'environment' },
+      LIVE_CAMERA_CONFIG,
+      (decodedText) => {
+        if (stopped) return;
+        const upc = normalizeUpc(decodedText);
+        if (!upc) return;
+        stopped = true;
+        void scanner.stop().finally(() => onSuccess(upc));
+      },
+      () => {
+        /* per-frame miss */
+      },
+    );
   } catch (err) {
     onError(getCameraDeniedMessage(err));
     return { stop: async () => {} };
   }
-
-  const scanner = new Html5Qrcode(elementId);
-  let stopped = false;
-
-  await scanner.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 280, height: 140 }, aspectRatio: 1.5 },
-    (decodedText) => {
-      if (stopped) return;
-      const upc = normalizeUpc(decodedText);
-      if (!upc) return;
-      stopped = true;
-      void scanner.stop().finally(() => onSuccess(upc));
-    },
-    () => {
-      /* per-frame miss */
-    },
-  );
 
   return {
     stop: async () => {

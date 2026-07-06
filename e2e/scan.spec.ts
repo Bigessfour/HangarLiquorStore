@@ -37,6 +37,14 @@ test('bottom nav includes scan and inventory', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Inventory/i })).toBeVisible();
 });
 
+test('scan page accepts upc query param from FAB handoff', async ({ page }) => {
+  await page.goto('/scan?upc=071984000012');
+
+  await expect(page).toHaveURL('/scan');
+  await expect(page.locator('#scan-upc')).toHaveValue('071984000012');
+  await expect(page.getByRole('button', { name: 'Add to inventory' })).toBeVisible();
+});
+
 test('offline scan queues add action', async ({ page, context }) => {
   await page.goto('/scan');
   await expect(page.locator('label[for="hanger-photo-capture"]')).toBeVisible();

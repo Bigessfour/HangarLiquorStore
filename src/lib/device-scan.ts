@@ -1,5 +1,12 @@
 /** iOS / PWA camera helpers for barcode scanning (WebKit limitations). */
 
+/** Release camera/mic tracks — required after preflight getUserMedia or on background. */
+export function stopMediaStreamTracks(stream: MediaStream | null | undefined): void {
+  stream?.getTracks().forEach((track) => {
+    track.stop();
+  });
+}
+
 export function isIOSDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /iPad|iPhone|iPod/.test(navigator.userAgent);

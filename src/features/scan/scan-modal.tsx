@@ -99,6 +99,21 @@ export function ScanModal({ onClose }: ScanModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // WebKit PWA: release camera when app backgrounds (avoids stuck black feed on resume).
+  useEffect(() => {
+    const releaseCamera = () => {
+      if (document.visibilityState === 'hidden') {
+        void stopLive();
+      }
+    };
+    document.addEventListener('visibilitychange', releaseCamera);
+    window.addEventListener('pagehide', releaseCamera);
+    return () => {
+      document.removeEventListener('visibilitychange', releaseCamera);
+      window.removeEventListener('pagehide', releaseCamera);
+    };
+  }, [stopLive]);
+
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-black/95 text-white"

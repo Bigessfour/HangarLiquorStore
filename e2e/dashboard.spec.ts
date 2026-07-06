@@ -69,6 +69,18 @@ test('scan FAB is visible on dashboard', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Scan Bottle' })).toBeVisible();
 });
 
+test('scan FAB opens modal with photo capture and manual fallback', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Scan Bottle' }).click();
+
+  await expect(page.getByRole('dialog', { name: 'Scan bottle barcode' })).toBeVisible();
+  await expect(page.getByText('Take Photo of Barcode')).toBeVisible();
+  await expect(page.getByRole('button', { name: /live camera/i })).toBeVisible();
+
+  await page.getByRole('button', { name: /enter UPC manually/i }).click();
+  await expect(page).toHaveURL(/\/scan$/);
+});
+
 test('bottom nav visible on dashboard', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
