@@ -201,3 +201,21 @@ export async function processSyncActions(
 
   return { synced: actions.length, results };
 }
+
+function productsTableName(): string {
+  return requiredEnv('PRODUCTS_TABLE');
+}
+
+export async function getProductRecord(upc: string): Promise<any | null> {
+  const result = await client.send(
+    new GetCommand({ TableName: productsTableName(), Key: { upc } }),
+  );
+  const item = result.Item;
+  if (!item) return null;
+  // Normalize for consistency (dump load uses 'photo', 'packSize')
+  return {
+    ...item,
+    photo: item.photo || item.imageUrl || null,
+    packSize: item.packSize || 1,
+  };
+}

@@ -166,7 +166,7 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
             {isDragActive ? 'Drop CSV here' : 'Drag & drop a CSV file, or tap to browse'}
           </p>
           <p className="text-center text-xs text-muted-foreground">
-            Columns: upc, name, category, currentStock, reorderPoint (optional)
+            Columns: upc, name, category, currentStock, reorderPoint (optional), packSize (optional, default 1 for case-break)
           </p>
         </div>
 
@@ -185,6 +185,7 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
                   <TableHead>Name</TableHead>
                   <TableHead>Cat.</TableHead>
                   <TableHead>Stock</TableHead>
+                  <TableHead>Pack</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -229,6 +230,16 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
                         value={row.currentStock}
                         onChange={(e) => updateRow(index, 'currentStock', Number(e.target.value))}
                         aria-label={`Row ${index + 1} stock`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        className="h-10 w-12 text-xs"
+                        type="number"
+                        min={1}
+                        value={row.packSize ?? 1}
+                        onChange={(e) => updateRow(index, 'packSize', Number(e.target.value))}
+                        aria-label={`Row ${index + 1} packSize`}
                       />
                     </TableCell>
                     <TableCell>

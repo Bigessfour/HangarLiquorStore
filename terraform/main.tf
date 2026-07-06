@@ -112,6 +112,48 @@ resource "aws_dynamodb_table" "local_events" {
   }
 }
 
+# Open Food Facts product catalog (populated from FILTERED database dump for low-cost UPC lookup)
+# We ONLY keep liquor/alcohol entries (see scripts/filter-off-liquor-dump.ts) to keep table tiny & cheap.
+# Uses on-demand billing (PAY_PER_REQUEST) - pay only for actual low-volume lookups.
+# No provisioned capacity, no extra services like Glue/Athena unless you want analytics.
+resource "aws_dynamodb_table" "products" {
+  name         = "HangerProducts"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "upc"
+
+  attribute {
+    name = "upc"
+    type = "S"
+  }
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Project     = "HangarLiquorStore"
+    Source      = "OpenFoodFacts-filtered-liquor-only"
+  }
+}
+
+# S3 bucket for storing OFF database dumps / processed data (filtered to liquor only)
+# Use lifecycle policy later if needed to move to cheaper storage classes after load.
+resource "aws_s3_bucket" "off_data" {
+  bucket = "${var.store_id}-off-data-${var.environment}"
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+    Project     = "HangarLiquorStore"
+    Purpose     = "OpenFoodFactsDumps-liquor-filtered"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "off_data" {
+  bucket = aws_s3_bucket.off_data.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 # IAM Role for Lambdas
 data "aws_iam_policy_document" "assume_role" {
   statement {
@@ -155,7 +197,24 @@ data "aws_iam_policy_document" "dynamodb_access" {
     resources = [
       aws_dynamodb_table.inventory.arn,
       aws_dynamodb_table.sales_history.arn,
-      aws_dynamodb_table.local_events.arn
+      aws_dynamodb_table.local_events.arn,
+      aws_dynamodb_table.products.arn
+    ]
+  }
+}
+
+# S3 access for OFF data dumps
+data "aws_iam_policy_document" "s3_off_data" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:ListBucket"
+    ]
+    resources = [
+      aws_s3_bucket.off_data.arn,
+      "${aws_s3_bucket.off_data.arn}/*"
     ]
   }
 }
@@ -164,6 +223,12 @@ resource "aws_iam_role_policy" "dynamodb" {
   name   = "${var.store_id}-dynamodb-access"
   role   = aws_iam_role.lambda_exec.id
   policy = data.aws_iam_policy_document.dynamodb_access.json
+}
+
+resource "aws_iam_role_policy" "s3_off" {
+  name   = "${var.store_id}-s3-off-data"
+  role   = aws_iam_role.lambda_exec.id
+  policy = data.aws_iam_policy_document.s3_off_data.json
 }
 
 # Lambda code packaging
@@ -203,6 +268,7 @@ resource "aws_lambda_function" "inventory" {
       INVENTORY_TABLE        = aws_dynamodb_table.inventory.name
       SALES_HISTORY_TABLE    = aws_dynamodb_table.sales_history.name
       LOCAL_EVENTS_TABLE     = aws_dynamodb_table.local_events.name
+      PRODUCTS_TABLE         = aws_dynamodb_table.products.name
       SAGEMAKER_ENDPOINT_NAME = var.sagemaker_endpoint
     }
   }
@@ -230,6 +296,7 @@ resource "aws_lambda_function" "forecast" {
       INVENTORY_TABLE        = aws_dynamodb_table.inventory.name
       SALES_HISTORY_TABLE    = aws_dynamodb_table.sales_history.name
       LOCAL_EVENTS_TABLE     = aws_dynamodb_table.local_events.name
+      PRODUCTS_TABLE         = aws_dynamodb_table.products.name
       SAGEMAKER_ENDPOINT_NAME = var.sagemaker_endpoint
     }
   }

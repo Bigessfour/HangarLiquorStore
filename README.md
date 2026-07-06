@@ -21,6 +21,13 @@ SageMaker Canvas is supported as an **optional** offline training path (`?model=
 
 See [Docs/client-deployment.md](Docs/client-deployment.md) for how to deploy the backend into Hangar Liquor's own AWS account (they pay AWS bills directly) and the Canvas training workflow.
 
+### UPC Lookup (Free)
+UPC product metadata uses Open Food Facts (free open data). We comply with their terms:
+- 1 API call per real user scan
+- Proper User-Agent and attribution (visible in UI)
+- For bulk/offline: Use full data exports loaded into AWS (see terraform/README.md for S3 + DynamoDB product catalog from dump)
+- Notify re-use: reuse@openfoodfacts.org (recommended)
+
 ## Project Structure
 
 ```

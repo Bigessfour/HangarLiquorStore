@@ -57,8 +57,54 @@ Use AWS Cost Explorer + Budgets in their account for transparency.
 - Improve dashboard live data
 - Full suggestions (forecast-driven reorders)
 - PWA QR/install prompt
+- OFF data dump integration for product catalog (see below)
 
 See root `Docs/client-deployment.md` for full context.
+
+## Open Food Facts Product Catalog (Free UPC Lookup Data)
+
+To support free/low-cost UPC lookup with offline capability, we integrate data from Open Food Facts (https://world.openfoodfacts.org/data).
+
+### Database Dump Format
+OFF provides nightly full dumps (use filtered subset for liquor store to keep costs low):
+- MongoDB dump (gzipped JSON lines of product objects)
+- JSONL / Parquet / CSV exports
+
+Example product record (simplified):
+```json
+{
+  "code": "049000042566",
+  "product_name": "Jack Daniel's Old No.7 Tennessee Whiskey",
+  "brands": "Jack Daniel's",
+  "categories": "Alcoholic beverages, Whiskies",
+  "image_url": "https://images.openfoodfacts.org/...jpg",
+  "quantity": "750 ml",
+  "packaging": "Bottle",
+  ...
+}
+```
+
+Key fields we use: code (UPC), product_name, brands, categories (for mapping), image_url, quantity (parse packSize).
+
+### Loading into AWS (Terraform resources added)
+- S3 bucket: `${store_id}-off-data-${environment}` for storing (filtered) dumps.
+- DynamoDB table: `HangerProducts` (upc hash key) for fast lookup. Populated from filtered dump.
+- IAM policies attached to Lambda role for S3 + the products table.
+
+### How to populate (one-time or periodic)
+1. Download filtered data (e.g. use OFF export tool or script to select alcohol/beverage categories only; full dump is large).
+2. Convert to items with upc, name, category, image_url, packSize (parsed), etc.
+3. Use AWS CLI, SDK script, or Glue job to batch-write to DynamoDB (or upload Parquet to S3 + query via Athena).
+4. Example script (Node): Use @aws-sdk/client-dynamodb to PutItem in batches.
+5. Schedule via EventBridge + Lambda if you want periodic refresh from latest dump.
+
+### Using in the app
+- Backend Lambda now supports GET /api/inventory/products/{upc} (returns data from the products table).
+- Frontend UPC lookup (src/lib/upc-lookup.ts) prefers local/backend data; falls back to live OFF API for new items.
+- This enables low-cost (DDB on-demand) + offline-capable product info.
+- Complies with OFF: Use dumps for bulk, live API only for 1:1 user scans, proper attribution in UI.
+
+Update frontend .env or code to use the deployed API for lookups when available.
 
 ## Planned TF Updates (MCP latest 2026)
 Using terraform MCP (get_latest_*, search_modules, get_provider_details):

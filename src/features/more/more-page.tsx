@@ -55,6 +55,11 @@ export function MorePage() {
           <ThemeToggle />
         </CardContent>
       </Card>
+
+      <div className="mt-6 text-center text-xs text-muted-foreground">
+        <p>UPC product data (when available) provided by <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline">Open Food Facts</a> under free open licenses.</p>
+        <p className="mt-1">We comply with their terms: proper attribution, User-Agent, and 1 API call per real user scan.</p>
+      </div>
     </div>
   );
 }

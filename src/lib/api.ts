@@ -69,6 +69,31 @@ const MOCK_INVENTORY: InventoryItem[] = [
     reorderPoint: 6,
     packSize: 1,
   },
+  // Demo real-style UPCs for free lookup testing (will be overridden by live OFF API if not matched)
+  {
+    upc: '0123456789012',
+    name: 'Bud Light 12pk Cans',
+    category: 'Beer',
+    currentStock: 24,
+    reorderPoint: 10,
+    packSize: 12,
+  },
+  {
+    upc: '049000042566',
+    name: 'Jack Daniels Old No.7 750ml',
+    category: 'Spirits',
+    currentStock: 12,
+    reorderPoint: 5,
+    packSize: 1,
+  },
+  {
+    upc: '088470000123',
+    name: 'Titos Handmade Vodka 1L',
+    category: 'Spirits',
+    currentStock: 18,
+    reorderPoint: 8,
+    packSize: 1,
+  },
 ];
 
 let mockStore = [...MOCK_INVENTORY];
@@ -108,6 +133,29 @@ async function fetchInventoryItem(upc: string): Promise<InventoryItem | null> {
   }
   try {
     return await apiClient<InventoryItem>(`/api/inventory/${upc}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchProduct(upc: string): Promise<any | null> {
+  if (useMockApi()) {
+    // In mock, fall back to OFF or local
+    await new Promise((r) => setTimeout(r, 100));
+    return mockStore.find((i) => i.upc === upc) ?? null;
+  }
+  try {
+    // Try backend product catalog (populated from OFF dump - only liquor entries)
+    const product = await apiClient<any>(`/api/inventory/products/${upc}`);
+    if (product) {
+      // Normalize for frontend (dump uses 'photo', 'packSize')
+      return {
+        ...product,
+        photo: product.photo || product.imageUrl || product.image_url || null,
+        packSize: product.packSize || 1,
+      };
+    }
+    return null;
   } catch {
     return null;
   }

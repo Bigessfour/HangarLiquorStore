@@ -3,6 +3,7 @@ import {
   adjustInventoryStock,
   createOrAddInventory,
   getInventoryRecord,
+  getProductRecord,
   importInventoryRows,
   listInventoryRecords,
   processSyncActions,
@@ -17,7 +18,7 @@ import {
   validateUpdateInput,
 } from './lib/validators';
 
-type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync';
+type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product';
 
 function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc?: string } {
   const base = '/api/inventory';
@@ -28,6 +29,11 @@ function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc
   if (suffix === 'scan') return { resource: 'scan' };
   if (suffix === 'import') return { resource: 'import' };
   if (suffix === 'sync') return { resource: 'sync' };
+
+  // Support product lookup e.g. /api/inventory/products/{upc} or treat as product for now
+  if (suffix.startsWith('products/')) {
+    return { resource: 'product', upc: suffix.slice('products/'.length) };
+  }
 
   return { resource: 'item', upc: suffix };
 }
@@ -84,6 +90,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const actions = validateSyncActions(JSON.parse(event.body ?? '{}'));
       const result = await processSyncActions(actions);
       return jsonResponse(200, result);
+    }
+
+    if (resource === 'product' && method === 'GET' && pathUpc) {
+      // Product info from OFF dump data in products table (for free/low-cost offline lookup)
+      const product = await getProductRecord(pathUpc);
+      if (!product) return errorResponse(404, 'Product not found in catalog');
+      return jsonResponse(200, product);
     }
 
     return errorResponse(405, `Method ${method} not allowed for ${rawPath}`);
