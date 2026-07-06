@@ -154,6 +154,9 @@ export function InventoryPage() {
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">{item.category}</Badge>
                         <span className="font-mono text-xs text-muted-foreground">{item.upc}</span>
+                        {(item as any).packSize && (item as any).packSize > 1 && (
+                          <Badge variant="outline" className="text-[10px]">pack of {(item as any).packSize}</Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -167,6 +170,9 @@ export function InventoryPage() {
                           {item.currentStock}
                         </p>
                         <p className="text-xs text-muted-foreground">in stock</p>
+                        {isLow && (
+                          <p className="text-[10px] text-destructive font-medium">LOW / Shrink risk</p>
+                        )}
                       </div>
                       <Button
                         type="button"

@@ -7,6 +7,7 @@ import { SyncToast } from '@/components/common/sync-toast';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { useOfflineQueueStore } from '@/stores/offline-queue-store';
 
 function PageFallback() {
   return (
@@ -20,6 +21,7 @@ function PageFallback() {
 
 export function AppLayout() {
   const isOnline = useOnlineStatus();
+  const { queueCount, lastSyncMessage } = useOfflineQueueStore();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -37,6 +39,20 @@ export function AppLayout() {
               role="status"
             >
               Offline
+            </span>
+          )}
+          {queueCount > 0 && (
+            <span
+              className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-600"
+              role="status"
+              title={lastSyncMessage || undefined}
+            >
+              Queued {queueCount}
+            </span>
+          )}
+          {queueCount === 0 && isOnline && lastSyncMessage?.includes('Synced') && (
+            <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-green-600" role="status">
+              Synced
             </span>
           )}
           <ThemeToggle />

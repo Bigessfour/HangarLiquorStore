@@ -17,6 +17,7 @@ export const inventoryItemSchema = z.object({
   currentStock: z.number().int().min(0, 'Stock cannot be negative'),
   reorderPoint: z.number().int().min(0).optional(),
   updatedAt: z.string().optional(),
+  packSize: z.number().int().min(1).optional().default(1), // case-break support: 12 for 12pk, 1 for single bottle
 });
 
 export type InventoryItem = z.infer<typeof inventoryItemSchema>;
@@ -30,6 +31,7 @@ export const scanAddItemSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
   category: inventoryCategorySchema.default('Beer'),
+  packSize: z.number().int().min(1).optional().default(1), // for case-break (e.g. qty=1 but packSize=12 means +12 units)
 });
 
 export type ScanAddItemInput = z.infer<typeof scanAddItemSchema>;
@@ -44,6 +46,7 @@ export const csvImportRowSchema = z.object({
   category: inventoryCategorySchema,
   currentStock: z.coerce.number().int().min(0),
   reorderPoint: z.coerce.number().int().min(0).optional(),
+  packSize: z.coerce.number().int().min(1).optional().default(1),
 });
 
 export type CsvImportRow = z.infer<typeof csvImportRowSchema>;
@@ -61,6 +64,7 @@ export interface HangerItem {
   upc: string;
   name: string; // e.g. "Bud Light 12pk"
   stock: number;
+  packSize?: number; // 12 = case, 1 = single (case-break)
   lastSold: string;
   forecast: string; // "4th July" | "REORDER NOW" | "Rodeo Weekend"
   category: 'Beer' | 'Whiskey' | 'Vodka' | 'Spirits' | 'Wine' | 'Mixers';

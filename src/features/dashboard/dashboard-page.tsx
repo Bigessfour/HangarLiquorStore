@@ -74,7 +74,8 @@ export function DashboardPage() {
         name: "Jack Daniel's Tennessee Whiskey 750ml",
         quantity: 6,
         category: 'Spirits',
-      },
+        packSize: 1,
+      } as any,
       {
         onSuccess: () => {
           setActionMessage('Added 6 × Jack Daniels to stock');

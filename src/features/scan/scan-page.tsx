@@ -115,6 +115,12 @@ export function ScanPage() {
     if (matchedItem) {
       setValue('name', matchedItem.name);
       setValue('category', matchedItem.category);
+      // Case-break: default quantity to packSize if >1 (e.g. 12 for 12pk)
+      const defaultQty = (matchedItem as any).packSize && (matchedItem as any).packSize > 1
+        ? (matchedItem as any).packSize
+        : 1;
+      setValue('quantity', defaultQty);
+      setValue('packSize', (matchedItem as any).packSize ?? 1);
       setBanner({
         type: 'success',
         message: `Found: ${matchedItem.name} (${matchedItem.currentStock} in stock)`,
@@ -291,19 +297,36 @@ export function ScanPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="scan-qty">Quantity</Label>
-                  <Input
-                    id="scan-qty"
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    aria-invalid={Boolean(errors.quantity)}
-                    {...register('quantity', { valueAsNumber: true })}
-                  />
+                  <Label htmlFor="scan-qty">Quantity (units)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="scan-qty"
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      aria-invalid={Boolean(errors.quantity)}
+                      {...register('quantity', { valueAsNumber: true })}
+                    />
+                    {matchedItem && (matchedItem as any).packSize > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-12 shrink-0"
+                        onClick={() => setValue('quantity', (matchedItem as any).packSize)}
+                        aria-label={`Set to full case of ${(matchedItem as any).packSize}`}
+                      >
+                        Case x{(matchedItem as any).packSize}
+                      </Button>
+                    )}
+                  </div>
                   {errors.quantity && (
                     <p className="mt-1 text-sm text-destructive" role="alert">
                       {errors.quantity.message}
                     </p>
+                  )}
+                  {matchedItem && (matchedItem as any).packSize > 1 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">Pack of {(matchedItem as any).packSize} • qty = units added</p>
                   )}
                 </div>
                 <div>
@@ -320,6 +343,8 @@ export function ScanPage() {
                     ))}
                   </select>
                 </div>
+                {/* Hidden packSize for case-break tracking (set via lookup or toggle) */}
+                <input type="hidden" {...register('packSize', { valueAsNumber: true })} />
               </div>
               <Button type="submit" className="min-h-12 w-full" disabled={addMutation.isPending}>
                 {addMutation.isPending ? (

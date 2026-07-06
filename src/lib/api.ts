@@ -27,6 +27,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Beer',
     currentStock: 48,
     reorderPoint: 24,
+    packSize: 12, // case-break support
   },
   {
     upc: '082184000012',
@@ -34,6 +35,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Spirits',
     currentStock: 3,
     reorderPoint: 12,
+    packSize: 1,
   },
   {
     upc: '619947000011',
@@ -41,6 +43,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Spirits',
     currentStock: 22,
     reorderPoint: 10,
+    packSize: 1,
   },
   {
     upc: '018200000103',
@@ -48,6 +51,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Beer',
     currentStock: 5,
     reorderPoint: 24,
+    packSize: 12,
   },
   {
     upc: '85000029204',
@@ -55,6 +59,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Wine',
     currentStock: 18,
     reorderPoint: 8,
+    packSize: 1,
   },
   {
     upc: '012000161155',
@@ -62,6 +67,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
     category: 'Mixers',
     currentStock: 14,
     reorderPoint: 6,
+    packSize: 1,
   },
 ];
 
@@ -122,6 +128,7 @@ async function createInventoryItem(input: ScanAddItemInput): Promise<InventoryIt
       category: input.category,
       currentStock: input.quantity,
       reorderPoint: 6,
+      packSize: input.packSize ?? 1,
       updatedAt: new Date().toISOString(),
     };
     mockStore = [...mockStore, created];
@@ -162,6 +169,7 @@ async function importInventoryRows(rows: CsvImportRow[]): Promise<{ imported: nu
                 category: row.category,
                 currentStock: row.currentStock,
                 reorderPoint: row.reorderPoint ?? i.reorderPoint,
+                packSize: row.packSize ?? i.packSize ?? 1,
                 updatedAt: new Date().toISOString(),
               }
             : i,
@@ -248,6 +256,7 @@ export function useAddInventoryItem(
             name: input.name,
             category: input.category,
             currentStock: input.quantity,
+            packSize: input.packSize ?? 1,
           },
         ];
       });
@@ -327,6 +336,7 @@ function applyQueuedActionToMock(action: QueuedAction): void {
               currentStock: i.currentStock + quantity,
               name,
               category,
+              packSize: (action.payload as any).packSize ?? i.packSize ?? 1,
               updatedAt: new Date().toISOString(),
             }
           : i,
@@ -340,6 +350,7 @@ function applyQueuedActionToMock(action: QueuedAction): void {
           category,
           currentStock: quantity,
           reorderPoint: 6,
+          packSize: (action.payload as any).packSize ?? 1,
           updatedAt: new Date().toISOString(),
         },
       ];
