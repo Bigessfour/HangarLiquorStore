@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
 import { INVENTORY_CATEGORIES, scanAddItemSchema, type ScanAddItemInput } from '@/types/inventory';
 import { lookupUpc } from '@/lib/upc-lookup';
+import NewProductModal from '@/features/inventory/new-product-modal';
 
 const SCANNER_ELEMENT_ID = 'hanger-upc-scanner';
 
@@ -28,6 +29,7 @@ export function ScanPage() {
   const [manualUpc, setManualUpc] = useState('');
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [lookupResult, setLookupResult] = useState<null | { name: string; photo?: string; category?: string }>(null);
+  const [showNewProductModal, setShowNewProductModal] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -85,6 +87,7 @@ export function ScanPage() {
     setScannedUpc(null);
     setManualUpc('');
     setLookupResult(null);
+    setShowNewProductModal(false);
     reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
 
     try {
@@ -158,6 +161,8 @@ export function ScanPage() {
           const result = await lookupUpc(scannedUpc);
           if (cancelled || !result) {
             setBanner({ type: 'success', message: 'New UPC — enter product name to add to inventory (or check spelling)' });
+            // Trigger quick add modal for new product (frictionless entry)
+            setShowNewProductModal(true);
             return;
           }
           setLookupResult({ name: result.name, photo: result.photo, category: result.category });
@@ -203,6 +208,7 @@ export function ScanPage() {
       setScannedUpc(null);
       setManualUpc('');
       setLookupResult(null);
+      setShowNewProductModal(false);
       reset({ quantity: 1, category: 'Beer', upc: '', name: '' });
     } catch (err) {
       setBanner({
@@ -429,6 +435,17 @@ export function ScanPage() {
             </form>
           )}
         </div>
+      )}
+
+      {/* New product quick add modal - triggered for unknown UPCs */}
+      {scannedUpc && (
+        <NewProductModal
+          open={showNewProductModal}
+          onClose={() => setShowNewProductModal(false)}
+          scannedUPC={scannedUpc}
+          initialName={lookupResult?.name}
+          initialPackSize={(lookupResult as any)?.packSize || 1}
+        />
       )}
     </div>
   );

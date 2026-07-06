@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAddInventoryItem, useInventoryList } from '@/lib/api';
 import { useCreateEvent, useLocalEvents } from '@/features/events/api/use-local-events';
 import { useForecasts } from '@/features/forecast/api/use-forecasts';
+import TrendingSuggestions from './trending-suggestions';
 
 export function DashboardPage() {
   const { data: inventory = [] } = useInventoryList();
@@ -211,6 +212,8 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      <TrendingSuggestions />
 
       <Card className="bg-card">
         <CardContent className="pt-4 text-sm text-muted-foreground">

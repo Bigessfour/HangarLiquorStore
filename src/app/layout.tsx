@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
+import { usePwaInstall } from '@/hooks/use-pwa-install';
 
 function PageFallback() {
   return (
@@ -22,6 +23,7 @@ function PageFallback() {
 export function AppLayout() {
   const isOnline = useOnlineStatus();
   const { queueCount, lastSyncMessage } = useOfflineQueueStore();
+  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -58,6 +60,18 @@ export function AppLayout() {
           <ThemeToggle />
         </div>
       </header>
+
+      {/* Global PWA Install Banner */}
+      {isInstallable && !isInstalled && (
+        <div className="sticky top-14 z-20 border-b border-hanger-amber/20 bg-hanger-amber/10 px-4 py-2 text-center">
+          <button
+            onClick={promptInstall}
+            className="text-sm font-medium text-hanger-amber hover:underline active:text-hanger-amber/80"
+          >
+            📱 Install Hanger Liquor Store App for offline use
+          </button>
+        </div>
+      )}
 
       <SyncToast />
 
