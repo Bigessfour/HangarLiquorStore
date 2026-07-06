@@ -13,10 +13,11 @@ coverage
 *.log
 *.tsbuildinfo
 
-# AI session / MCP / tool artifacts (not project source)
+# AI session / personal artifacts (not project source)
 agent-tools/
-mcps/
 terminals/
 
 # Generated mermaid diagrams (source is in .md files)
 Docs/mermaid-diagram*.svg
+
+# Note: mcps/ is committed so other developers get the same MCP tool definitions.

@@ -1,0 +1,34 @@
+{
+  "name": "browser_start_video",
+  "description": "Start video recording",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "filename": {
+        "description": "Filename to save the video.",
+        "type": "string"
+      },
+      "size": {
+        "description": "Video size",
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "number",
+            "description": "Video width"
+          },
+          "height": {
+            "type": "number",
+            "description": "Video height"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  }
+}

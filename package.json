@@ -12,7 +12,8 @@
     "lint:fix": "trunk fmt",
     "test:e2e": "playwright test",
     "test:backend": "npm --prefix backend test",
-    "aws:profile": "powershell -ExecutionPolicy Bypass -File scripts/set-aws-profile.ps1",
+    "aws:profile": "node -e \"const isWin = process.platform === 'win32'; console.log(isWin ? 'Run: npm run aws:profile:win' : 'source scripts/set-aws-profile.sh')\"",
+    "aws:profile:win": "powershell -ExecutionPolicy Bypass -File scripts/set-aws-profile.ps1",
     "deploy:terraform": "cd terraform && terraform init && terraform apply -var=\"store_id=hanger\""
   },
   "dependencies": {

@@ -1,0 +1,15 @@
+{
+  "name": "browser_storage_state",
+  "description": "Save storage state (cookies, local storage) to a file for later reuse",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "filename": {
+        "description": "File name to save the storage state to. Defaults to `storage-state-{timestamp}.json` if not specified.",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

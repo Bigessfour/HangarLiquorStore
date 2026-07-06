@@ -1,0 +1,26 @@
+{
+  "name": "browser_video_chapter",
+  "description": "Add a chapter marker to the video recording. Shows a full-screen chapter card with blurred backdrop.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Chapter title"
+      },
+      "description": {
+        "description": "Chapter description",
+        "type": "string"
+      },
+      "duration": {
+        "description": "Duration in milliseconds to show the chapter card",
+        "type": "number"
+      }
+    },
+    "required": [
+      "title"
+    ],
+    "additionalProperties": false
+  }
+}

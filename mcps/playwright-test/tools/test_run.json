@@ -1,0 +1,25 @@
+{
+  "name": "test_run",
+  "description": "Run tests",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "locations": {
+        "description": "Folder, file or location to run: \"test/e2e\" or \"test/e2e/file.spec.ts\" or \"test/e2e/file.spec.ts:20\"",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "projects": {
+        "description": "Projects to run, projects from playwright.config.ts, by default runs all projects. Running with \"chromium\" is a good start",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "browser_sessionstorage_delete",
+  "description": "Delete a sessionStorage item",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "Key to delete"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "key",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

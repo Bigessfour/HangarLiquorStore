@@ -1,0 +1,26 @@
+{
+  "name": "browser_resume",
+  "description": "Resume script execution after it was paused. When called with step set to true, execution will pause again before the next action.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "step": {
+        "description": "When true, execution will pause again before the next action, allowing step-by-step debugging.",
+        "type": "boolean"
+      },
+      "location": {
+        "description": "Pause execution at a specific <file>:<line>, e.g. \"example.spec.ts:42\".",
+        "type": "string"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

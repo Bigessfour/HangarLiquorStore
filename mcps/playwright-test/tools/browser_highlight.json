@@ -1,0 +1,26 @@
+{
+  "name": "browser_highlight",
+  "description": "Show a persistent highlight overlay around the element on the page.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "element": {
+        "description": "Human-readable element description used to obtain permission to interact with the element",
+        "type": "string"
+      },
+      "target": {
+        "type": "string",
+        "description": "Exact target element reference from the page snapshot, or a unique element selector"
+      },
+      "style": {
+        "description": "Additional inline CSS applied to the highlight overlay, e.g. \"outline: 2px dashed red\".",
+        "type": "string"
+      }
+    },
+    "required": [
+      "target"
+    ],
+    "additionalProperties": false
+  }
+}

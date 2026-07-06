@@ -1,0 +1,10 @@
+{
+  "name": "browser_video_hide_actions",
+  "description": "Stop annotating actions performed on the page.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "browser_network_state_set",
+  "description": "Sets the browser network state to online or offline. When offline, all network requests will fail.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "state": {
+        "type": "string",
+        "enum": [
+          "online",
+          "offline"
+        ],
+        "description": "Set to \"offline\" to simulate offline mode, \"online\" to restore network connectivity"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "state",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

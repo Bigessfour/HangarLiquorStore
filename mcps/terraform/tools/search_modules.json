@@ -1,0 +1,22 @@
+{
+  "name": "search_modules",
+  "description": "Resolves a Terraform module name to obtain a compatible module_id for the get_module_details tool and returns a list of matching Terraform modules.\nYou MUST call this function before 'get_module_details' to obtain a valid and compatible module_id.\nWhen selecting the best match, consider the following:\n\t- Name similarity to the query\n\t- Description relevance\n\t- Verification status (verified)\n\t- Download counts (popularity)\nReturn the selected module_id and explain your choice. If there are multiple good matches, mention this but proceed with the most relevant one.\nIf no modules were found, reattempt the search with a new moduleName query.",
+  "inputSchema": {
+    "properties": {
+      "current_offset": {
+        "default": 0,
+        "description": "Current offset for pagination",
+        "minimum": 0,
+        "type": "number"
+      },
+      "module_query": {
+        "description": "The query to search for Terraform modules.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "module_query"
+    ],
+    "type": "object"
+  }
+}

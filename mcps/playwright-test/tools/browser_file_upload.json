@@ -1,0 +1,25 @@
+{
+  "name": "browser_file_upload",
+  "description": "Upload one or multiple files",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "paths": {
+        "description": "The absolute paths to the files to upload. Can be single file or multiple files. If omitted, file chooser is cancelled.",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

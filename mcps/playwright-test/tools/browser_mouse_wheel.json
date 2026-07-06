@@ -1,0 +1,30 @@
+{
+  "name": "browser_mouse_wheel",
+  "description": "Scroll mouse wheel",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "deltaX": {
+        "default": 0,
+        "description": "X delta",
+        "type": "number"
+      },
+      "deltaY": {
+        "default": 0,
+        "description": "Y delta",
+        "type": "number"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "deltaX",
+      "deltaY",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "browser_video_show_actions",
+  "description": "Annotate subsequent actions performed on the page with a callout that names the action and highlights the target element. Useful while video recording or screencasting.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "duration": {
+        "description": "How long each action annotation stays on screen, in milliseconds. Defaults to 500.",
+        "type": "number"
+      },
+      "position": {
+        "description": "Where to place the action title relative to the page. Defaults to top-right.",
+        "type": "string",
+        "enum": [
+          "top-left",
+          "top",
+          "top-right",
+          "bottom-left",
+          "bottom",
+          "bottom-right"
+        ]
+      },
+      "cursor": {
+        "description": "Cursor decoration for pointer actions. \"pointer\" (default) animates a mouse pointer from the previous action point to the next one; \"none\" disables the cursor decoration.",
+        "type": "string",
+        "enum": [
+          "none",
+          "pointer"
+        ]
+      }
+    },
+    "additionalProperties": false
+  }
+}

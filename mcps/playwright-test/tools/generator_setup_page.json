@@ -1,0 +1,26 @@
+{
+  "name": "generator_setup_page",
+  "description": "Setup the page for test.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "plan": {
+        "type": "string",
+        "description": "The plan for the test. This should be the actual test plan with all the steps."
+      },
+      "project": {
+        "description": "Project to use for setup. For example: \"chromium\", if no project is provided uses the first project in the config.",
+        "type": "string"
+      },
+      "seedFile": {
+        "description": "A seed file contains a single test that is used to setup the page for testing, for example: \"tests/seed.spec.ts\". If no seed file is provided, a default seed file is created.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "plan"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "get_latest_module_version",
+  "description": "Fetches the latest version of a Terraform module from the public registry",
+  "inputSchema": {
+    "properties": {
+      "module_name": {
+        "description": "The name of the module, this is usually the service or group of service the user is deploying e.g., 'security-group', 'secrets-manager' etc.",
+        "type": "string"
+      },
+      "module_provider": {
+        "description": "The name of the Terraform provider for the module, e.g., 'aws', 'google', 'azurerm' etc.",
+        "type": "string"
+      },
+      "module_publisher": {
+        "description": "The publisher of the module, e.g., 'hashicorp', 'aws-ia', 'terraform-google-modules', 'Azure' etc.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "module_publisher",
+      "module_name",
+      "module_provider"
+    ],
+    "type": "object"
+  }
+}

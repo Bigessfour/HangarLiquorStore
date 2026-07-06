@@ -1,0 +1,23 @@
+{
+  "name": "browser_keyup",
+  "description": "Press a key up on the keyboard",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "Name of the key to press or a character to generate, such as `ArrowLeft` or `a`"
+      },
+      "intent": {
+        "type": "string",
+        "description": "The intent of the call, for example the test step description plan idea"
+      }
+    },
+    "required": [
+      "key",
+      "intent"
+    ],
+    "additionalProperties": false
+  }
+}

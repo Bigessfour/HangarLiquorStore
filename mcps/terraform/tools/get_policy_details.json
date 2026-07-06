@@ -1,0 +1,16 @@
+{
+  "name": "get_policy_details",
+  "description": "Fetches up-to-date documentation for a specific policy from the Terraform registry. You must call 'search_policies' first to obtain the exact terraform_policy_id required to use this tool.",
+  "inputSchema": {
+    "properties": {
+      "terraform_policy_id": {
+        "description": "Matching terraform_policy_id retrieved from the 'search_policies' tool (e.g., 'policies/hashicorp/CIS-Policy-Set-for-AWS-Terraform/1.0.1')",
+        "type": "string"
+      }
+    },
+    "required": [
+      "terraform_policy_id"
+    ],
+    "type": "object"
+  }
+}
