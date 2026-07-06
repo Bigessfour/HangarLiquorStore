@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly VITE_PWA_URL: string;
   /** Optional sideload APK hosted on S3/CloudFront after npm run package:android */
   readonly VITE_ANDROID_APK_URL: string;
+  /** Capacitor native APK with ML Kit live scanning (npm run build:android + upload:android-apk) */
+  readonly VITE_NATIVE_ANDROID_APK_URL: string;
 }
 
 interface ImportMeta {

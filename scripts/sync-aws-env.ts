@@ -36,6 +36,8 @@ function main() {
     `VITE_COGNITO_USER_POOL_ID=${poolId}`,
     `VITE_COGNITO_CLIENT_ID=${clientId}`,
     `VITE_PWA_URL=${pwaUrl}`,
+    `# Native APK URL (set after: npm run build:android && npm run upload:android-apk)`,
+    `# VITE_NATIVE_ANDROID_APK_URL=${pwaUrl.replace(/\/$/, '')}/hanger-liquor-native.apk`,
     '# VITE_DEMO_AUTH is intentionally unset for production',
     '',
     '# Backend / CLI (bootstrap-owner, prep:aws)',

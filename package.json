@@ -32,6 +32,7 @@
     "cap:open:android": "npx cap open android",
     "build:android": "node scripts/build-android-apk.mjs",
     "build:android:release": "node scripts/build-android-apk.mjs --release",
+    "upload:android-apk": "node scripts/upload-android-apk.mjs",
     "prep:aws": "npm run generate:product-images && npx tsx scripts/prep-aws-demo.ts",
     "demo": "npm run generate:product-images && VITE_DEMO_AUTH=true VITE_DEMO_NETWORK_URL=$(node scripts/get-lan-url.mjs) vite --host",
     "seed-inventory": "npx tsx scripts/seed-small-town-inventory.ts",

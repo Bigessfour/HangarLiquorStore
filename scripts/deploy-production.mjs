@@ -75,7 +75,8 @@ function main() {
   console.log(`   App URL:  ${frontendUrl}`);
   console.log('   Login:    use Cognito owner account (or bootstrap with --bootstrap-owner)');
   console.log('   Install:  open URL on phone → More → follow install steps');
-  console.log(`   Android:  npm run package:android -- ${frontendUrl}`);
+  console.log(`   Android native (ML Kit):  npm run build:android && npm run upload:android-apk && npm run deploy:frontend`);
+  console.log(`   Android legacy (PWABuilder): npm run package:android -- ${frontendUrl}`);
 }
 
 main();

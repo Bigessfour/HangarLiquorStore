@@ -1,0 +1,52 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'src/features/scan/**'
+      - 'src/lib/capacitor-platform.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build-android-apk.mjs'
+
+jobs:
+  build-apk:
+    name: Build native Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build debug APK
+        run: npm run build:android
+        env:
+          VITE_DEMO_AUTH: 'true'
+          VITE_API_URL: ''
+          VITE_COGNITO_USER_POOL_ID: ''
+          VITE_COGNITO_CLIENT_ID: ''
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanger-liquor-native-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
