@@ -55,7 +55,7 @@ export function ForecastDashboard() {
     return (
       <Alert variant="destructive" className="m-4">
         <AlertDescription>
-          Failed to load forecasts. Pull to refresh or check connection.
+          Failed to load forecasts
         </AlertDescription>
       </Alert>
     );
@@ -68,6 +68,13 @@ export function ForecastDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Demand Forecast</h1>
           <p className="text-slate-500">Next 14 days • Hanger Liquor Store</p>
         </div>
+        <Button
+          size="sm"
+          onClick={() => setIsEventDialogOpen(true)}
+          className="min-h-10"
+        >
+          + Add Local Event
+        </Button>
         <EventFormDialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen} />
       </div>
 

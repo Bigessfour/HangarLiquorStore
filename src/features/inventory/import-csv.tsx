@@ -68,6 +68,7 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
   const [rows, setRows] = useState<CsvImportRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [isShipment, setIsShipment] = useState(false); // for bulk shipment / receiving: add instead of replace
 
   const importMutation = useImportInventory({
     onSuccess: (result) => {
@@ -130,11 +131,19 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
       setParseError(`${invalid.length} row(s) have validation errors. Fix before importing.`);
       return;
     }
-    importMutation.mutate(rows);
+    importMutation.mutate({ rows, isShipment });
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => {
+      setOpen(o);
+      if (!o) {
+        setIsShipment(false);
+        setRows([]);
+        setParseError(null);
+        setImportMessage(null);
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger ?? (
           <Button type="button" variant="outline" className="min-h-12 gap-2">
@@ -168,6 +177,15 @@ export function ImportCSV({ trigger }: ImportCSVProps) {
           <p className="text-center text-xs text-muted-foreground">
             Columns: upc, name, category, currentStock, reorderPoint (optional), packSize (optional, default 1 for case-break)
           </p>
+          <label className="flex items-center gap-2 text-xs mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isShipment}
+              onChange={(e) => setIsShipment(e.target.checked)}
+              className="h-4 w-4"
+            />
+            This is a shipment / receiving (ADD the quantities to current stock)
+          </label>
         </div>
 
         {parseError && (

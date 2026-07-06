@@ -261,19 +261,25 @@ async function updateInventoryItem(input: InventoryUpdateInput): Promise<Invento
   });
 }
 
-async function importInventoryRows(rows: CsvImportRow[]): Promise<{ imported: number }> {
+async function importInventoryRows(payload: { rows: CsvImportRow[]; isShipment?: boolean } | CsvImportRow[]): Promise<{ imported: number }> {
+  const rows = Array.isArray(payload) ? payload : payload.rows;
+  const isShipment = !Array.isArray(payload) && !!payload.isShipment;
+
   if (useMockApi()) {
     await new Promise((r) => setTimeout(r, 800));
     for (const row of rows) {
       const existing = mockStore.find((i) => i.upc === row.upc);
       if (existing) {
+        const newStock = isShipment
+          ? existing.currentStock + row.currentStock
+          : row.currentStock;
         mockStore = mockStore.map((i) =>
           i.upc === row.upc
             ? {
                 ...i,
                 name: row.name,
                 category: row.category,
-                currentStock: row.currentStock,
+                currentStock: Math.max(0, newStock),
                 reorderPoint: row.reorderPoint ?? i.reorderPoint,
                 packSize: row.packSize ?? i.packSize ?? 1,
                 updatedAt: new Date().toISOString(),
@@ -294,7 +300,7 @@ async function importInventoryRows(rows: CsvImportRow[]): Promise<{ imported: nu
   }
   return apiClient<{ imported: number }>('/api/inventory/import', {
     method: 'POST',
-    body: JSON.stringify({ rows }),
+    body: JSON.stringify({ rows, isShipment }),
   });
 }
 
@@ -414,7 +420,7 @@ export function useUpdateInventoryItem(
 }
 
 export function useImportInventory(
-  options?: UseMutationOptions<{ imported: number }, Error, CsvImportRow[]>,
+  options?: UseMutationOptions<{ imported: number }, Error, { rows: CsvImportRow[]; isShipment?: boolean } | CsvImportRow[]>,
 ) {
   const queryClient = useQueryClient();
 
