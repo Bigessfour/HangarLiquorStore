@@ -29,6 +29,8 @@ Docs/mermaid-diagram*.svg
 *.tfstate.*
 *.tfplan
 *.tfplan.*
+*.tfvars
+!terraform/terraform.tfvars.example
 crash.log
 crash.*.log
 override.tf
@@ -40,6 +42,7 @@ override.tf.json
 # Lambda build artifacts
 backend/lambda-dist/
 terraform/*.zip
+terraform/tfplan
 
 # Generated data / temp scripts from dev sessions
 sales-for-canvas.csv
