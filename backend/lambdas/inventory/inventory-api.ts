@@ -29,6 +29,11 @@ import {
   validateSyncActions,
   validateUpdateInput,
 } from './lib/validators';
+import {
+  callerHasManagerAccess,
+  callerIsOwner,
+  groupsFromJwtClaims,
+} from '../../shared/auth/roles';
 
 type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product' | 'users';
 
@@ -72,25 +77,17 @@ function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc
   return { resource: 'item', upc: suffix };
 }
 
-function getCallerGroups(event: any): string[] {
-  try {
-    const claims = event.requestContext?.authorizer?.jwt?.claims || {};
-    const groups = claims['cognito:groups'];
-    if (Array.isArray(groups)) return groups;
-    if (typeof groups === 'string') return groups.split(',');
-    return [];
-  } catch {
-    return [];
-  }
+function getCallerGroups(event: {
+  requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+}): string[] {
+  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
 }
 
 function requireRole(groups: string[], minRole: 'Manager' | 'Owner') {
-  const hasOwner = groups.includes('Owner');
-  const hasManager = groups.includes('Manager');
-  if (minRole === 'Owner' && !hasOwner) {
+  if (minRole === 'Owner' && !callerIsOwner(groups)) {
     throw new Error('Owner role required');
   }
-  if (minRole === 'Manager' && !hasManager && !hasOwner) {
+  if (minRole === 'Manager' && !callerHasManagerAccess(groups)) {
     throw new Error('Manager or Owner role required');
   }
 }
@@ -162,8 +159,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const groups = getCallerGroups(event);
     if (resource === 'users') {
       const username = pathUsername ?? event.pathParameters?.username;
-      const isOwnerUser = groups.includes('Owner');
-      const isManagerUser = groups.includes('Manager') || isOwnerUser;
+      const isOwnerUser = callerIsOwner(groups);
+      const isManagerUser = callerHasManagerAccess(groups);
 
       if (method === 'GET') {
         requireRole(groups, 'Manager');

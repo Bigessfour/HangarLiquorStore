@@ -3,23 +3,16 @@ import { createLocalEvent, deleteLocalEvent, getLocalEvents } from './lib/dynamo
 import { validateCreateEventInput } from './lib/event-validators';
 import { getActiveStaticHolidays } from './lib/event-multiplier';
 import { errorResponse, jsonResponse } from './lib/response';
+import { callerHasManagerAccess, groupsFromJwtClaims } from '../../shared/auth/roles';
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
 }): string[] {
-  try {
-    const claims = event.requestContext?.authorizer?.jwt?.claims || {};
-    const groups = claims['cognito:groups'];
-    if (Array.isArray(groups)) return groups as string[];
-    if (typeof groups === 'string') return groups.split(',');
-    return [];
-  } catch {
-    return [];
-  }
+  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
 }
 
 function requireManager(groups: string[]) {
-  if (!groups.includes('Manager') && !groups.includes('Owner')) {
+  if (!callerHasManagerAccess(groups)) {
     throw new Error('Manager role required');
   }
 }

@@ -19,19 +19,12 @@ import {
   saveConnection,
 } from './lib/storage';
 import { runSquareSync } from './lib/sync';
+import { callerIsOwner, groupsFromJwtClaims } from '../../shared/auth/roles';
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
 }): string[] {
-  try {
-    const claims = event.requestContext?.authorizer?.jwt?.claims || {};
-    const groups = claims['cognito:groups'];
-    if (Array.isArray(groups)) return groups as string[];
-    if (typeof groups === 'string') return groups.split(',');
-    return [];
-  } catch {
-    return [];
-  }
+  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
 }
 
 function getCallerUsername(event: {
@@ -42,7 +35,7 @@ function getCallerUsername(event: {
 }
 
 function requireOwner(groups: string[]) {
-  if (!groups.includes('Owner')) {
+  if (!callerIsOwner(groups)) {
     throw new Error('Owner role required');
   }
 }

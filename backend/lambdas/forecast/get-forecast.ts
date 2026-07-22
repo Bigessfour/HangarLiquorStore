@@ -10,6 +10,7 @@ import { buildOptimizationImpact, buildProfitSnapshot, periodWindow } from './li
 import type { TrendingSuggestion } from '../../shared/types/forecast';
 import type { ProfitPeriod } from '../../shared/types/profit';
 import { errorResponse, jsonResponse } from './lib/response';
+import { callerHasManagerAccess, groupsFromJwtClaims } from '../../shared/auth/roles';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -30,19 +31,11 @@ function overlaps(date: string, start: string, end: string): boolean {
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
 }): string[] {
-  try {
-    const claims = event.requestContext?.authorizer?.jwt?.claims || {};
-    const groups = claims['cognito:groups'];
-    if (Array.isArray(groups)) return groups as string[];
-    if (typeof groups === 'string') return groups.split(',');
-    return [];
-  } catch {
-    return [];
-  }
+  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
 }
 
 function requireManager(groups: string[]) {
-  if (!groups.includes('Manager') && !groups.includes('Owner')) {
+  if (!callerHasManagerAccess(groups)) {
     throw new Error('Manager role required');
   }
 }

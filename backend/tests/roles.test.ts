@@ -3,7 +3,9 @@ import {
   canChangeRoles,
   canEditInventory,
   canManageUsers,
+  callerHasManagerAccess,
   hasMinimumRole,
+  parseCognitoGroups,
   resolveRoleFromGroups,
 } from '../shared/auth/roles';
 
@@ -18,6 +20,24 @@ describe('resolveRoleFromGroups', () => {
     [['custom'], 'ReadOnly'],
   ] as const)('groups %j => %s', (groups, expected) => {
     expect(resolveRoleFromGroups([...groups])).toBe(expected);
+  });
+});
+
+describe('parseCognitoGroups (API Gateway claim shapes)', () => {
+  it('parses JSON string array from API Gateway', () => {
+    expect(parseCognitoGroups('["Owner"]')).toEqual(['Owner']);
+    expect(parseCognitoGroups('["Manager","Owner"]')).toEqual(['Manager', 'Owner']);
+  });
+
+  it('parses plain Owner string and arrays', () => {
+    expect(parseCognitoGroups('Owner')).toEqual(['Owner']);
+    expect(parseCognitoGroups(['Owner'])).toEqual(['Owner']);
+  });
+
+  it('gives Manager access to Owner-only users', () => {
+    expect(callerHasManagerAccess(parseCognitoGroups('["Owner"]'))).toBe(true);
+    expect(callerHasManagerAccess(parseCognitoGroups('["Manager"]'))).toBe(true);
+    expect(callerHasManagerAccess(parseCognitoGroups('["ReadOnly"]'))).toBe(false);
   });
 });
 
