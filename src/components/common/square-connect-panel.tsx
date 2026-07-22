@@ -134,8 +134,12 @@ export function SquareConnectPanel() {
 
         {!status?.credentialsConfigured && (
           <p className="text-xs text-muted-foreground">
-            Waiting for developer setup: Square Application ID and Secret must be stored in AWS first.
-            Chris: open <Link to="/square-setup" className="text-hanger-amber underline">Setup instructions</Link>.
+            Optional for local demo. After terraform deploy, store Square Application ID and Secret in AWS,
+            then Chris can connect — see{' '}
+            <Link to="/square-setup" className="text-hanger-amber underline">
+              Setup instructions
+            </Link>
+            .
           </p>
         )}
       </CardContent>

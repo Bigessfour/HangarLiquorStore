@@ -14,6 +14,7 @@ const MOCK_LOCAL_EVENTS: LocalEvent[] = [
     endDate: '2026-07-05',
     multiplier: 2.8,
     notes: 'Beer demand spike',
+    focuses: ['Beer/RTD'],
   },
   {
     id: 'demo-football',
@@ -22,6 +23,7 @@ const MOCK_LOCAL_EVENTS: LocalEvent[] = [
     endDate: '2026-11-30',
     multiplier: 1.25,
     notes: 'Spirits bump on game nights',
+    focuses: ['Spirits'],
   },
 ];
 

@@ -27,6 +27,10 @@ test('iOS home screen PWA prefers photo scan over live camera', async ({ browser
       'hanger_auth_user',
       JSON.stringify({ username: 'demo-owner', token: 'demo-token', role: 'Owner' }),
     );
+    localStorage.setItem(
+      'hanger_guided_trial',
+      JSON.stringify({ status: 'skipped', stepIndex: 0 }),
+    );
   });
   const page = await context.newPage();
   await page.goto('/scan');
@@ -60,6 +64,10 @@ test('iOS home screen FAB modal hides live camera', async ({ browser }) => {
       'hanger_auth_user',
       JSON.stringify({ username: 'demo-owner', token: 'demo-token', role: 'Owner' }),
     );
+    localStorage.setItem(
+      'hanger_guided_trial',
+      JSON.stringify({ status: 'skipped', stepIndex: 0 }),
+    );
   });
   const page = await context.newPage();
   await mockForecastApis(page);
@@ -83,6 +91,10 @@ test('iOS Safari browser shows both photo and live camera scan', async ({ browse
       'hanger_auth_user',
       JSON.stringify({ username: 'demo-owner', token: 'demo-token', role: 'Owner' }),
     );
+    localStorage.setItem(
+      'hanger_guided_trial',
+      JSON.stringify({ status: 'skipped', stepIndex: 0 }),
+    );
   });
   const page = await context.newPage();
   await page.goto('/scan');
@@ -102,6 +114,10 @@ test('Android Chrome more page shows install instructions', async ({ browser }) 
     localStorage.setItem(
       'hanger_auth_user',
       JSON.stringify({ username: 'demo-owner', token: 'demo-token', role: 'Owner' }),
+    );
+    localStorage.setItem(
+      'hanger_guided_trial',
+      JSON.stringify({ status: 'skipped', stepIndex: 0 }),
     );
   });
   const page = await context.newPage();
@@ -123,6 +139,10 @@ test('iOS Safari more page shows Add to Home Screen steps', async ({ browser }) 
     localStorage.setItem(
       'hanger_auth_user',
       JSON.stringify({ username: 'demo-owner', token: 'demo-token', role: 'Owner' }),
+    );
+    localStorage.setItem(
+      'hanger_guided_trial',
+      JSON.stringify({ status: 'skipped', stepIndex: 0 }),
     );
   });
   const page = await context.newPage();

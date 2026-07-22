@@ -34,7 +34,7 @@
     "build:android:release": "node scripts/build-android-apk.mjs --release",
     "upload:android-apk": "node scripts/upload-android-apk.mjs",
     "prep:aws": "npm run generate:product-images && npx tsx scripts/prep-aws-demo.ts",
-    "demo": "npm run generate:product-images && VITE_DEMO_AUTH=true VITE_DEMO_NETWORK_URL=$(node scripts/get-lan-url.mjs) vite --host",
+    "demo": "npm run generate:product-images && VITE_DEMO_AUTH=true VITE_API_URL= VITE_COGNITO_USER_POOL_ID= VITE_COGNITO_CLIENT_ID= VITE_DEMO_NETWORK_URL=$(node scripts/get-lan-url.mjs) vite --host",
     "seed-inventory": "npx tsx scripts/seed-small-town-inventory.ts",
     "dev-setup": "node -e \"require('./scripts/dev-setup.cjs')\"",
     "seed-sales": "npx tsx scripts/seed-small-sales.ts"

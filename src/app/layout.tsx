@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
 import { InstallAppBanner } from '@/components/common/install-app-banner';
+import { GuidedTrialHost } from '@/features/guided-trial';
 
 function PageFallback() {
   return (
@@ -77,6 +78,7 @@ export function AppLayout() {
 
       <ScanBottleFab />
       <BottomNav />
+      <GuidedTrialHost />
       <Toaster position="top-center" richColors closeButton />
     </div>
   );

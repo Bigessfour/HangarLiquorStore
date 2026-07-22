@@ -19,6 +19,7 @@ export function ScanBottleFab() {
       <Button
         type="button"
         aria-label="Scan Bottle"
+        data-tour="tour-scan-fab"
         onClick={() => setModalOpen(true)}
         className={cn(
           'pointer-events-auto h-20 min-h-20 w-20 min-w-20 rounded-full p-0 shadow-xl',

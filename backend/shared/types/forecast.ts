@@ -28,7 +28,14 @@ export interface LocalEvent {
   endDate: string;
   multiplier: number;
   notes?: string;
+  /** Planning focus for ice, beer, spirits, essentials (Manager event planning). */
+  focuses?: EventFocusTag[];
 }
+
+/** Demand-planning chips for local events (Hay Days, festivals, etc.). */
+export type EventFocusTag = 'Ice' | 'Beer/RTD' | 'Spirits' | 'Essentials';
+
+export const EVENT_FOCUS_TAGS: EventFocusTag[] = ['Ice', 'Beer/RTD', 'Spirits', 'Essentials'];
 
 export interface StaticHoliday {
   id: string;
@@ -57,6 +64,7 @@ export interface CreateLocalEventInput {
   endDate: string;
   multiplier: number;
   notes?: string;
+  focuses?: EventFocusTag[];
 }
 
 export interface TrendingSuggestion {

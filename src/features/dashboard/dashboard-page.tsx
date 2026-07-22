@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CalendarPlus } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAddInventoryItem, useInventoryList } from '@/lib/api';
 import { useCreateEvent, useLocalEvents } from '@/features/events/api/use-local-events';
+import { EventFormDialog } from '@/features/events/components/event-form-dialog';
 import { hasRole } from '@/lib/auth';
 import { useForecasts } from '@/features/forecast/api/use-forecasts';
 import { SquareDashboardCard } from '@/components/common/square-dashboard-card';
@@ -20,6 +21,7 @@ export function DashboardPage() {
   const createEvent = useCreateEvent();
 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
 
   const lowStockAlerts = useMemo(
     () => inventory.filter((item) => item.currentStock < (item.reorderPoint ?? 10)).slice(0, 3),
@@ -116,7 +118,9 @@ export function DashboardPage() {
   return (
     <div className="p-4 space-y-6 pb-24">
       <div>
-        <h1 className="text-3xl font-bold">Hanger Liquor Store • Wiley, CO • Today</h1>
+        <h1 className="text-3xl font-bold" data-tour="tour-dashboard">
+          Hanger Liquor Store • Wiley, CO • Today
+        </h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>TanStack Query • Live forecast API</span>
           {activeMultiplier && (
@@ -132,7 +136,7 @@ export function DashboardPage() {
           <AlertDescription className="font-medium text-green-600">
             {actionMessage}
           </AlertDescription>
-        </Alert>  
+        </Alert>
       )}
 
       <SquareDashboardCard />
@@ -188,6 +192,18 @@ export function DashboardPage() {
             className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg active:scale-[0.985]"
           >
             Reorder {lowStockAlerts[0]?.name?.split(' ')[0] || reorderSuggestions[0]?.name?.split(' ')[0] || 'Stock'} • from live data
+          </Button>
+        ) : null}
+
+        {hasRole('Manager') ? (
+          <Button
+            type="button"
+            onClick={() => setEventDialogOpen(true)}
+            className="w-full min-h-12 py-4 bg-hanger-amber text-primary-foreground hover:bg-hanger-amber/90 rounded-xl text-lg active:scale-[0.985]"
+            data-testid="dashboard-add-local-event"
+          >
+            <CalendarPlus className="mr-2 h-5 w-5" aria-hidden />
+            Add local event
           </Button>
         ) : null}
 
@@ -252,6 +268,8 @@ export function DashboardPage() {
       <p className="text-center text-xs opacity-60">
         Live from forecast API • TanStack Query • Events drive multipliers • AWS-ready
       </p>
+
+      <EventFormDialog open={eventDialogOpen} onOpenChange={setEventDialogOpen} />
     </div>
   );
 }

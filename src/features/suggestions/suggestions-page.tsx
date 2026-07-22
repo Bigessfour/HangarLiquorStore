@@ -72,7 +72,7 @@ export function SuggestionsPage() {
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h2 className="flex items-center gap-2 text-2xl font-bold">
+        <h2 className="flex items-center gap-2 text-2xl font-bold" data-tour="tour-suggestions">
           <Lightbulb className="h-7 w-7 text-hanger-amber" aria-hidden />
           Suggestions
         </h2>
@@ -104,9 +104,9 @@ export function SuggestionsPage() {
               </div>
               <div className="mt-3 flex gap-2">
                 {hasRole('Manager') && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="flex-1 min-h-9 text-xs"
                     onClick={() => handleAddToStock(item)}
                     disabled={addInventory.isPending}
@@ -115,9 +115,9 @@ export function SuggestionsPage() {
                   </Button>
                 )}
                 {hasRole('Manager') && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="flex-1 min-h-9 text-xs"
                     onClick={handleCreateBoost}
                   >
@@ -138,7 +138,7 @@ export function SuggestionsPage() {
       <Card className="border-hanger-gold/20 bg-gradient-to-br from-hanger-gold/5 to-transparent">
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
-            <strong>Premium Features:</strong> Live forecasts from AWS SageMaker Canvas (high-accuracy ML) + statistical engine. 
+            <strong>Premium Features:</strong> Live forecasts from AWS SageMaker Canvas (high-accuracy ML) + statistical engine.
             Integrated with events for multipliers. Bulk actions available.
           </p>
         </CardContent>

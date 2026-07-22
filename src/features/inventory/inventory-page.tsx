@@ -45,7 +45,9 @@ export function InventoryPage() {
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Inventory</h2>
+          <h2 className="text-2xl font-bold" data-tour="tour-inventory">
+            Inventory
+          </h2>
           <p className="text-sm text-muted-foreground">
             {items.length} item{items.length !== 1 ? 's' : ''}
             {isFetching && !isLoading && (
@@ -55,13 +57,13 @@ export function InventoryPage() {
         </div>
         {hasRole('Manager') && (
           <div className="flex gap-2">
-            <ImportCSV 
+            <ImportCSV
               defaultIsShipment={true}
               trigger={
                 <Button variant="outline" size="sm" className="min-h-9 text-xs bg-hanger-amber/10 border-hanger-amber/30">
                   Receive Shipment (Bulk)
                 </Button>
-              } 
+              }
             />
             <ImportCSV />
           </div>

@@ -94,6 +94,7 @@ export async function getLocalEvents(): Promise<LocalEvent[]> {
       endDate: item.endDate,
       multiplier: item.multiplier,
       notes: item.notes,
+      focuses: item.focuses,
     }),
   );
 }

@@ -9,6 +9,7 @@ import { SquareConnectPanel } from '@/components/common/square-connect-panel';
 import { resetToDemoData, listUsers, createUser, updateUserRole, disableUser, enableUser, resetUserPassword, removeUserFromAllGroups } from '@/lib/api';
 import { getCurrentUser, signOut, isOwner, hasRole } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
+import { useGuidedTrialStore } from '@/features/guided-trial';
 
 const moreLinks = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, description: 'Store overview & alerts' },
@@ -29,6 +30,8 @@ const moreLinks = [
 export function MorePage() {
   const user = getCurrentUser();
   const navigate = useNavigate();
+  const startTrial = useGuidedTrialStore((s) => s.start);
+  const trialStatus = useGuidedTrialStore((s) => s.status);
 
   // User management state (Owner only)
   const [users, setUsers] = useState<any[]>([]);
@@ -88,7 +91,7 @@ export function MorePage() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="tour-more">
         <div>
           <h2 className="text-2xl font-bold">More</h2>
           <p className="text-muted-foreground">Settings and additional tools.</p>
@@ -121,6 +124,25 @@ export function MorePage() {
           </li>
         ))}
       </ul>
+
+      <Card className="border-hanger-gold/40 bg-hanger-amber/5" data-tour="tour-start-trial">
+        <CardContent className="space-y-3 p-4">
+          <p className="font-medium">Owner trial run</p>
+          <p className="text-sm text-muted-foreground">
+            Walk through each control — Dashboard, Scan, Inventory, Events, Forecast, and more.
+            {trialStatus === 'completed' ? ' You already finished once; restart anytime.' : null}
+            {trialStatus === 'skipped' ? ' You skipped earlier; restart anytime.' : null}
+          </p>
+          <Button
+            type="button"
+            className="min-h-12 w-full bg-hanger-amber text-primary-foreground hover:bg-hanger-amber/90"
+            onClick={() => startTrial()}
+            data-testid="start-trial-run"
+          >
+            Start trial run
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="border-hanger-amber/10">
         <CardContent className="flex min-h-14 items-center justify-between p-4">
@@ -173,6 +195,11 @@ export function MorePage() {
                 {isOwner() ? 'Owner (full control)' : 'Manager (ReadOnly users only)'}
               </span>
             </p>
+            {!import.meta.env.VITE_API_URL && (
+              <p className="text-[10px] text-muted-foreground">
+                Local demo shows a sample owner only. Creating users needs Cognito on a deployed backend.
+              </p>
+            )}
 
             <form onSubmit={handleCreateUser} className="space-y-2 rounded border bg-muted/30 p-2">
               <div className="text-xs font-medium">Create New User</div>
@@ -360,7 +387,7 @@ export function MorePage() {
         <CardContent className="p-4">
           <p className="font-medium mb-1 text-hanger-gold">AWS SageMaker Canvas Integration</p>
           <p className="text-xs text-muted-foreground">
-            Optional high-accuracy forecasting via no-code ML in client's AWS. 
+            Optional high-accuracy forecasting via no-code ML in client's AWS.
             Export sales → train in Canvas → deploy Serverless endpoint → toggle in /forecast or ?model=canvas.
             Falls back to statistical engine. See client-deployment.md for full workflow.
           </p>

@@ -15,7 +15,7 @@ You are building the mobile-first inventory optimization PWA for Hanger Liquor S
   - Always support local events + static holidays as multipliers.
 - Forms: React Hook Form + Zod everywhere.
 - Charts: Recharts (lightweight).
-- Camera/Scanning: Browser camera only (`@zxing/browser` or `html5-qrcode`). No native plugins.
+- Camera/Scanning: Browser camera (`@zxing/browser` or `html5-qrcode`); Android may use Capacitor ML Kit. Prefer web path unless native packaging is in scope.
 - Accessibility & Security: Proper ARIA, input sanitization, no sensitive data logging.
 - Testing: Playwright for critical flows (scan, forecast dashboard, event management).
 
@@ -53,6 +53,9 @@ backend/
 - Backend: AWS Lambda (TypeScript) + API Gateway + DynamoDB
 - Auth (future): Cognito if multi-user needed
 - No heavy state managers. No Redux. No PrimeNG.
+
+## Spec Kit
+Optional Spec-Driven Development (no mandatory phases). Constitution: `.specify/memory/constitution.md`. Usage: `docs/spec-kit.md`. Homecoming north star: `specs/001-client-homecoming/spec.md`.
 
 ## Repository
 https://github.com/Bigessfour/HangarLiquorStore

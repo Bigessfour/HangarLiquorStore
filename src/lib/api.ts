@@ -14,6 +14,7 @@ import type {
   ScanAddItemInput,
 } from '@/types/inventory';
 import { getCatalogProduct } from '@/lib/product-catalog';
+import { isMockApi } from '@/lib/mock-api';
 
 export const inventoryKeys = {
   all: ['inventory'] as const,
@@ -100,7 +101,7 @@ const MOCK_INVENTORY: InventoryItem[] = [
 let mockStore = [...MOCK_INVENTORY];
 
 function useMockApi(): boolean {
-  return !import.meta.env.VITE_API_URL;
+  return isMockApi();
 }
 
 /**
@@ -543,6 +544,17 @@ export function useScanDecrement() {
 
 // ===== User Management (for Owner/Manager via app) =====
 export async function listUsers() {
+  if (useMockApi()) {
+    return [
+      {
+        username: 'demo-owner',
+        name: 'Chris (Demo Owner)',
+        role: 'Owner',
+        enabled: true,
+        status: 'CONFIRMED',
+      },
+    ];
+  }
   return apiClient<any[]>('/api/users');
 }
 
@@ -552,6 +564,9 @@ export async function createUser(data: {
   name?: string;
   role: 'ReadOnly' | 'Manager' | 'Owner';
 }) {
+  if (useMockApi()) {
+    throw new Error('User management requires Cognito. Use a deployed backend, not mock demo.');
+  }
   return apiClient('/api/users', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -559,6 +574,9 @@ export async function createUser(data: {
 }
 
 export async function updateUserRole(username: string, role: 'ReadOnly' | 'Manager' | 'Owner') {
+  if (useMockApi()) {
+    throw new Error('User management requires Cognito. Use a deployed backend, not mock demo.');
+  }
   return apiClient(`/api/users/${username}/role`, {
     method: 'POST',
     body: JSON.stringify({ role }),
@@ -566,18 +584,30 @@ export async function updateUserRole(username: string, role: 'ReadOnly' | 'Manag
 }
 
 export async function disableUser(username: string) {
+  if (useMockApi()) {
+    throw new Error('User management requires Cognito. Use a deployed backend, not mock demo.');
+  }
   return apiClient(`/api/users/${username}/disable`, { method: 'POST' });
 }
 
 export async function enableUser(username: string) {
+  if (useMockApi()) {
+    throw new Error('User management requires Cognito. Use a deployed backend, not mock demo.');
+  }
   return apiClient(`/api/users/${username}/enable`, { method: 'POST' });
 }
 
 export async function resetUserPassword(username: string) {
+  if (useMockApi()) {
+    throw new Error('User management requires Cognito. Use a deployed backend, not mock demo.');
+  }
   // Backend will set a new temporary password and return it (or send via Cognito)
   return apiClient(`/api/users/${username}/reset-password`, { method: 'POST' });
 }
 
 export async function removeUserFromAllGroups(username: string) {
+  if (useMockApi()) {
+    throw new Error('User management requires Cognito. Use a deployed backend, not mock demo.');
+  }
   return apiClient(`/api/users/${username}/remove-groups`, { method: 'POST' });
 }

@@ -357,7 +357,7 @@ export function ScanPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-8rem)] flex-col">
+    <div className="flex min-h-[calc(100dvh-8rem)] flex-col" data-tour="tour-scan">
       <div id={FILE_SCANNER_ELEMENT_ID} className="hidden" aria-hidden />
       <input
         id={PHOTO_CAPTURE_INPUT_ID}
@@ -529,9 +529,9 @@ export function ScanPage() {
           {lookupResult?.photo && (
             <div className="flex justify-center mb-3">
               <div className="text-center">
-                <img 
-                  src={lookupResult.photo} 
-                  alt={lookupResult.name || 'Product'} 
+                <img
+                  src={lookupResult.photo}
+                  alt={lookupResult.name || 'Product'}
                   className="w-24 h-24 rounded-xl object-cover border border-border shadow-sm mx-auto"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />

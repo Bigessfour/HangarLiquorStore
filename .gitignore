@@ -4,6 +4,7 @@ backend/dist
 .env
 .env.*
 !.env.example
+!.env.demo
 playwright-report
 test-results
 .playwright-browsers

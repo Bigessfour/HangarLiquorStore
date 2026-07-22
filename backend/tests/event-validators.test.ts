@@ -43,6 +43,19 @@ describe('validateCreateEventInput', () => {
     expect(validateCreateEventInput({ ...valid, notes: 'Beer spike' }).notes).toBe('Beer spike');
   });
 
+  it('preserves valid focus tags and drops unknown', () => {
+    expect(
+      validateCreateEventInput({
+        ...valid,
+        focuses: ['Ice', 'Beer/RTD', 'NotARealTag'],
+      }).focuses,
+    ).toEqual(['Ice', 'Beer/RTD']);
+  });
+
+  it('omits empty focuses', () => {
+    expect(validateCreateEventInput({ ...valid, focuses: [] }).focuses).toBeUndefined();
+  });
+
   it.each([null, undefined, 'string', 42])('rejects non-object body %#', (body) => {
     expect(() => validateCreateEventInput(body)).toThrow('Request body must be a JSON object');
   });

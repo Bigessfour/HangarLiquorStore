@@ -25,8 +25,13 @@ export function EventBadgeList({ localEvents, staticHolidays }: EventBadgeListPr
           </Badge>
         ))}
         {localEvents.map((event) => (
-          <Badge key={event.id} variant="default" className="text-sm py-1 px-3 bg-gradient-to-r from-hanger-amber to-hanger-gold text-white">
+          <Badge
+            key={event.id}
+            variant="default"
+            className="text-sm py-1 px-3 bg-gradient-to-r from-hanger-amber to-hanger-gold text-white"
+          >
             {event.name} • ×{event.multiplier}
+            {event.focuses?.length ? ` · ${event.focuses.join(', ')}` : ''}
           </Badge>
         ))}
       </CardContent>

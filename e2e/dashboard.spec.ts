@@ -69,6 +69,12 @@ test('scan FAB is visible on dashboard', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Scan Bottle' })).toBeVisible();
 });
 
+test('manager can open add local event from dashboard', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('dashboard-add-local-event').click();
+  await expect(page.getByRole('heading', { name: /Add Local Event Multiplier/i })).toBeVisible();
+});
+
 test('scan FAB opens modal with photo capture and manual fallback', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Scan Bottle' }).click();

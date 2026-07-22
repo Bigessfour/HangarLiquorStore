@@ -67,13 +67,16 @@ export function ForecastDashboard() {
     <div className="mx-auto max-w-4xl space-y-6 p-4 pb-20">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-hanger-amber via-hanger-gold to-hanger-amber bg-clip-text text-transparent">
+          <h1
+            className="text-3xl font-bold tracking-tight bg-gradient-to-r from-hanger-amber via-hanger-gold to-hanger-amber bg-clip-text text-transparent"
+            data-tour="tour-forecast"
+          >
             Demand Forecast
           </h1>
           <p className="text-slate-500">Next 14 days • Hanger Liquor Store</p>
           <div className="mt-1 flex items-center gap-2">
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className="border-hanger-amber/50 text-hanger-amber bg-hanger-amber/5 text-[10px] font-medium"
             >
               {model === 'canvas' ? 'AWS SageMaker Canvas' : 'Statistical Engine'}
@@ -179,10 +182,10 @@ export function ForecastDashboard() {
                       <Badge variant={selectedItem.confidence === 'high' ? 'default' : 'secondary'}>
                         {selectedItem.confidence} confidence
                       </Badge>
-                      <Badge 
-                        variant="outline" 
-                        className={selectedItem.source === 'sagemaker' 
-                          ? 'border-hanger-gold/60 text-hanger-gold bg-hanger-gold/5 text-[10px] font-medium' 
+                      <Badge
+                        variant="outline"
+                        className={selectedItem.source === 'sagemaker'
+                          ? 'border-hanger-gold/60 text-hanger-gold bg-hanger-gold/5 text-[10px] font-medium'
                           : 'text-[10px]'}
                       >
                         {selectedItem.source === 'sagemaker' ? 'AWS SageMaker Canvas' : 'Statistical'}
