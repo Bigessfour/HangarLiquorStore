@@ -4,138 +4,131 @@
 
 **Created**: 2026-07-21
 
-**Status**: Draft — **specs-only** for trial business; refine after 004; mock/proxy OK for first Profit MVP narrative
+**Status**: Shipped — full outline + implementation (no YAGNI cut)
 
 **Trial role:** Prove to Chris the tool **saves or makes him money** (Day/Month/Year + Saved/Made) — not a chart wall.
 
-**Input**: A kick-ass but calm Manager/Owner data-viz dashboard — industry KPIs liquor store owners actually care about — so Chris can see **daily / monthly / yearly** how Hangar is doing and how inventory optimization is **saving or making him money**. Not a wall of charts. Meaningful signal. Optional everyday-language AI chat (see Spec 006 companion) to spitball ideas against Hangar-specific data.
+**Input**: Manager/Owner **Profit & Ops** surface — liquor-store KPIs that protect cash and margin — so Chris sees **daily / monthly / yearly** how Hangar is doing and how inventory optimization is **saving or making him money**.
 
 ## Research basis (liquor retail)
 
-Industry sources emphasize a **short KPI list** that protects cash and margin — not vanity dashboards:
+| KPI                                 | Why owners care                            | Healthy signal             |
+| ----------------------------------- | ------------------------------------------ | -------------------------- |
+| Sales by category                   | Beer = volume; spirits/wine often = margin | Mix, not just total $      |
+| Gross margin %                      | Busy-but-broke check                       | ~25–30% blended            |
+| Inventory turnover / days of supply | Cash on the shelf                          | ~6–8 turns/year overall    |
+| Stockout risk $                     | Lost sales on winners                      | Days zero on A-items       |
+| Shrinkage                           | Theft/breakage                             | Under ~1–2% of revenue     |
+| GMROI                               | Inventory earning its keep                 | Aim > 1.0                  |
+| Average basket / ATV                | Upsell                                     | Often ~$30–50 independents |
+| Peak periods                        | Staff + ice for weekends/festivals         | Day/week patterns          |
 
-| KPI                                                                | Why owners care                                   | Typical healthy signal                                                                                                                                                                       |
-| ------------------------------------------------------------------ | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Sales by category** (Beer / Wine / Spirits / RTD / Mixers & ice) | Beer = volume; spirits/wine often = margin        | Mix, not just total $                                                                                                                                                                        |
-| **Gross margin %**                                                 | Reality check vs busy-but-broke                   | ~25–30% blended ([Korona](https://koronapos.com/blog/how-to-run-a-liquor-store/))                                                                                                            |
-| **Inventory turnover / days of supply**                            | Cash trapped on the shelf                         | ~6–8 turns/year overall; beer faster, premium spirits slower ([POS Nation](https://www.posnation.com/blog/liquor-store-metrics), [Bottle POS](https://bottlepos.com/blog/inventory-metrics)) |
-| **Stockout risk $**                                                | Lost sales on winners                             | Track stockouts / days zero on A-items                                                                                                                                                       |
-| **Shrinkage**                                                      | Theft/breakage/admin loss                         | Keep under ~1–2% of revenue                                                                                                                                                                  |
-| **GMROI** (gross margin $ per $ inventory)                         | Is inventory earning its keep?                    | Aim > 1.0 at category/SKU ([inventory guides](https://get-creative.co/blog/the-ultimate-guide-to-liquor-store-inventory-management))                                                         |
-| **Average basket / ATV**                                           | Upsell without being pushy                        | Often ~$30–50 independents                                                                                                                                                                   |
-| **Peak periods**                                                   | Staff + cold vault / ice for weekends & festivals | Day/week/season patterns                                                                                                                                                                     |
+Hangar differentiator: **Money in your pocket** — $ **saved** (avoided overbuy / dead stock) and $ **made** (avoided stockouts, event-ready ice & beer).
 
-Hangar differentiator: turn those into a **“Money in your pocket”** narrative — dollars **saved** (avoided overbuy / dead stock) and dollars **made** (avoided stockouts, event-ready ice & beer) from forecasts + events + (later) SageMaker optimization.
+## First viewport (wireframe in prose)
 
-## User Scenarios & Testing *(mandatory)*
+```
+[ Profit & Ops ]     [ Day | Month | Year ]
+─────────────────────────────────────────
+Store pulse
+  Sales $XXXX     Margin ~XX%     Low stock N
+  Days of supply ~NN
 
-### User Story 1 - See how the store is doing today / this month / this year (Priority: P1)
+Money in your pocket
+  Saved $XXX   Made $YYY
+  “Cash staying in Hangar’s pocket.” + provenance line
 
-Chris opens a Manager/Owner **Profit & Ops** view (new route or elevated Dashboard section). He picks **Day / Month / Year** and sees a few large numbers + one primary chart — not ten competing graphs.
+Category mix          (one chart: bar or horizontal)
+  Beer | Wine | Spirits | RTD | Mixers/Ice
 
-**Why this priority**: Daily ritual; proves the product is about his wallet.
+Ask Hangar → (006 chat entry)
+```
 
-**Independent Test**: Manager+ opens Profit & Ops; toggles Day/Month/Year; numbers update without page chaos.
+≤2 charts on first viewport. Remaining signal as numbers/lists.
 
-**Acceptance Scenarios**:
+## User Scenarios & Testing _(mandatory)_
 
-1. **Given** Manager or Owner, **When** opening Profit & Ops, **Then** they see period toggle (Day / Month / Year) and a clear “Store pulse” summary.
-2. **Given** ReadOnly, **When** navigating, **Then** they do not get Manager money metrics (or see a limited non-financial stock view only — prefer hide).
-3. **Given** mock demo without Square, **When** viewing, **Then** KPIs use inventory + forecast proxies with honest “demo estimate” labeling.
+### User Story 1 - Period store pulse (Priority: P1)
 
----
+Manager/Owner opens `/profit`, toggles Day/Month/Year, sees large pulse metrics.
 
-### User Story 2 - Money in your pocket from optimization (Priority: P1)
+**Acceptance**:
 
-Chris sees a dedicated **Optimization impact** card: estimated **$ saved** (dead stock avoided / better turns) and **$ made** (stockouts avoided / event uplift captured) for the selected period — driven by Hangar forecast/reorder actions and later SageMaker (006). Copy is plain English: “This is cash staying in Hangar’s pocket.”
+1. **Given** Manager or Owner, **When** opening Profit & Ops, **Then** period toggle works and pulse updates.
+2. **Given** ReadOnly, **When** navigating to `/profit`, **Then** redirected or shown “Managers only” (prefer hide from More).
+3. **Given** mock demo, **When** viewing, **Then** KPIs labeled demo estimate / proxy.
 
-**Why this priority**: User’s stated north star for Chris.
+### User Story 2 - Money in pocket (Priority: P1)
 
-**Independent Test**: With demo data, impact card shows non-zero or clear “Not enough history yet” state; with Square+006, uses real sales deltas.
+Optimization impact card: **Saved** + **Made** with plain-English provenance (forecast reorder vs flat buy, event uplift, 006 when present).
 
-**Acceptance Scenarios**:
+**Acceptance**:
 
-1. **Given** period = Month, **When** impact card loads, **Then** Chris sees Saved / Made (or pending) with one-sentence explanation.
-2. **Given** no optimization history, **When** viewing, **Then** UI explains what will appear after forecasts + Square sync — not a fake precise dollar.
-
----
+1. Period = Month → Saved/Made with one-sentence explanation.
+2. Thin history → “Not enough history yet” / provisional estimates — never fake precise pennies without label.
 
 ### User Story 3 - Category mix & inventory health (Priority: P1)
 
-One category breakdown (Beer / Wine / Spirits / RTD / Mixers·Ice) and a short inventory health strip: turns or days-of-supply, low-stock count, shrink risk flag if available.
+Category breakdown + health strip (days of supply or turns, low-stock count, top offenders → Inventory/Suggestions).
 
-**Why this priority**: Matches how liquor owners actually buy and face the floor ([category mix guidance](https://www.posnation.com/blog/liquor-store-metrics)).
+### User Story 4 - Ask Hangar entry (Priority: P2)
 
-**Independent Test**: Category bars/list match inventory+sales mock; ice/mixers visible as essentials.
-
-**Acceptance Scenarios**:
-
-1. **Given** store data, **When** viewing category mix, **Then** Chris can tell volume vs margin story at a glance (labels, not 5 charts).
-2. **Given** low-stock SKUs, **When** viewing health strip, **Then** count and top offenders link toward Suggestions/Inventory.
-
----
-
-### User Story 4 - Optional Hangar AI chat (Priority: P3 — Spec 006 companion)
-
-Chris types everyday language (“What should I stock for Hay Days?” / “Why is beer cash tied up?”) and an AI agent answers using Hangar inventory, events, forecasts, and Square analytics — spitball only, with citations to in-app numbers.
-
-**Why this priority**: Powerful, but depends on data contracts (004) + model path (006); must not block Profit & Ops MVP.
-
-**Independent Test**: Spec’d under 006; stub entry point OK on Profit & Ops (“Coming with optimization”).
-
----
+Profit page embeds Ask Hangar chat panel (006). If 006 unavailable, show stub that still answers from local mock grounding rules.
 
 ### Edge Cases
 
-- Square not connected → show inventory/forecast-based proxies + Connect CTA
-- Thin history → confidence labels, not false precision
-- Mobile: one scroll composition; charts sparse (Recharts, lazy)
-- Never show raw tokens or PII
+- Square not connected → inventory/forecast proxies + Connect CTA
+- Thin history → confidence labels
+- Mobile: one scroll; Recharts sparse; lazy route
+- Never show tokens/PII
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
-- **FR-001**: Manager/Owner Profit & Ops surface with Day / Month / Year period control
-- **FR-002**: Hero metrics MUST include store sales (or proxy), margin or margin proxy, and inventory health (turns or days of supply / low stock)
-- **FR-003**: MUST include Optimization impact card (Saved / Made) with honest provenance
-- **FR-004**: MUST include category mix for Beer, Wine, Spirits, RTD, Mixers/Ice (map to existing categories)
-- **FR-005**: Prefer ≤2 charts on the first viewport; remaining signal as numbers/lists
-- **FR-006**: Integrate Square sales when connected (004); otherwise labeled demo/proxy
-- **FR-007**: Reserve/integrate SageMaker optimization outputs when 006 ships
-- **FR-008**: AI chat is optional P3 — implement under Spec 006 unless a thin “Ask Hangar” stub is needed for demo copy
+- **FR-001**: Route `/profit` — Manager+ only
+- **FR-002**: Day / Month / Year period control
+- **FR-003**: Hero pulse: sales (or proxy), margin proxy, inventory health (days of supply / low stock)
+- **FR-004**: Optimization impact card (Saved / Made) with provenance
+- **FR-005**: Category mix Beer / Wine / Spirits / RTD / Mixers·Ice (map existing categories; RTD from name heuristics if needed)
+- **FR-006**: ≤2 charts first viewport
+- **FR-007**: `GET /api/profit?period=day|month|year` returns typed payload; mock client when no API
+- **FR-008**: Integrate Square payment rollup when last sync present
+- **FR-009**: Consume 006 optimization fields when present (`optimization` block)
+- **FR-010**: More menu link for Manager+; Dashboard shortcut card optional
+- **FR-011**: Ask Hangar panel on page (wired to 006)
+
+### Proxy formulas (demo / no Square)
+
+| Metric         | Formula                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sales $        | `unitsSold * avgUnitPrice` where avgUnitPrice ≈ $12 beer / $22 spirits / $15 wine / $8 mixers; units from sales history or forecast predictedDemand scaled by period |
+| Margin %       | Blended 28% proxy (labeled)                                                                                                                                          |
+| Days of supply | `totalStock / max(avgDailyUnits, 0.1)`                                                                                                                               |
+| Saved $        | `suggestedOrderReductionUnits * avgUnitCost` from forecast overbuy avoidance (suggestedOrder capped vs naive 2× demand)                                              |
+| Made $         | `stockoutAvoidedUnits * avgUnitPrice * margin` + active event uplift share                                                                                           |
 
 ### Non-Functional
 
-- Mobile-first; rural-owner plain English; YAGNI on chart chrome
-- Recharts only; TanStack Query for data
-- Constitution: no hot-path heavy ML on this dashboard render
+- Mobile-first; plain English; Recharts; TanStack Query
+- No heavy ML on render path
 
 ### Out of Scope
 
-- Full BI suite / 20-report POS clone
-- Customer CRM / loyalty deep dive (unless Square later)
-- Labor cost % / sales per sq ft (need data we don’t have yet — future)
+- Full BI / 20-report POS clone
+- CRM / loyalty
+- Labor % / sales per sq ft
 
-## Success Criteria *(mandatory)*
+## Success Criteria
 
-### Measurable Outcomes
+- **SC-001**: Chris understands cash health in &lt;60 seconds
+- **SC-002**: ≤2 charts + ≥1 money-in-pocket message on first viewport
+- **SC-003**: Demo works without Square
+- **SC-004**: ReadOnly cannot access money dashboard
 
-- **SC-001**: Chris understands in &lt;60 seconds whether the period was good for cash (pulse + impact card)
-- **SC-002**: First viewport has ≤2 charts and ≥1 money-in-pocket message
-- **SC-003**: Demo mode works without Square; live mode improves with 004/006
-- **SC-004**: ReadOnly cannot access Manager money dashboard
+## Related
 
-## Assumptions
-
-- Build after **003** (events) and preferably after **004** (Square groundwork); can ship MVP on mock proxies earlier if demo needs it
-- **006** delivers SageMaker optimization + optional Hangar AI chat
-- Existing Dashboard remains the ops home; Profit & Ops may live at `/profit` or as a Dashboard tab — plan decides; avoid chart spam on scan path
-
-## Related specs
-
-| Spec                                                   | Role                                                 |
-| ------------------------------------------------------ | ---------------------------------------------------- |
-| [004](../004-square-analytics-groundwork/spec.md)      | POS sales/catalog/inventory feeds                    |
-| [006](../006-sagemaker-optimization-assistant/spec.md) | Optimization engine + everyday-language AI assistant |
-| [002](../002-owner-guided-trial/spec.md)               | Tour may later add a Profit stop once shipped        |
+| Spec                                                   | Role              |
+| ------------------------------------------------------ | ----------------- |
+| [004](../004-square-analytics-groundwork/spec.md)      | POS feeds         |
+| [006](../006-sagemaker-optimization-assistant/spec.md) | Optimization + AI |

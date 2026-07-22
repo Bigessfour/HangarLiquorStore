@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BookOpen, ExternalLink, Link2, Link2Off, Store } from 'lucide-react';
+import { BookOpen, ExternalLink, Link2, Link2Off, RefreshCw, Store } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,9 +10,11 @@ import {
   disconnectSquare,
   fetchSquareStatus,
   startSquareAuthorization,
+  syncSquareData,
   type SquareConnectionStatus,
 } from '@/lib/square-api';
 import { toast } from 'sonner';
+import { isMockApi } from '@/lib/mock-api';
 
 const SQUARE_DOCS = 'https://developer.squareup.com/docs/oauth-api/overview';
 
@@ -20,8 +22,13 @@ export function SquareConnectPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const mock = isMockApi();
 
-  const { data: status, isLoading, error } = useQuery({
+  const {
+    data: status,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['square', 'status'],
     queryFn: fetchSquareStatus,
     enabled: isOwner(),
@@ -72,6 +79,21 @@ export function SquareConnectPanel() {
     }
   };
 
+  const handleSync = async () => {
+    setBusy(true);
+    try {
+      const summary = await syncSquareData();
+      await queryClient.invalidateQueries({ queryKey: ['square', 'status'] });
+      toast.success(
+        `Synced ${summary.orders.unitsSold} units · ${summary.catalog.mappedVariations} catalog items`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Square sync failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Card className="border-hanger-amber/30">
       <CardContent className="space-y-4 p-4">
@@ -85,9 +107,16 @@ export function SquareConnectPanel() {
           </div>
         </div>
 
+        {mock && (
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Local demo mode — Square OAuth needs the live backend. Sync still works as a demo
+            estimate so you can see the flow.
+          </p>
+        )}
+
         {isLoading && <p className="text-sm text-muted-foreground">Checking Square status…</p>}
 
-        {error && (
+        {error && !mock && (
           <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error instanceof Error ? error.message : 'Unable to load Square status'}
           </p>
@@ -95,28 +124,59 @@ export function SquareConnectPanel() {
 
         {status && <SquareStatusBody status={status} />}
 
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+          <li>Steve finishes Part A (credentials in AWS) — see Setup instructions.</li>
+          <li>You tap Connect and Allow with the register Square login.</li>
+          <li>Tap Sync Square data when you want fresh sales into Hangar.</li>
+        </ol>
+
         <div className="flex flex-wrap gap-2 border-t border-border pt-3">
           {status?.connected ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-12"
-              disabled={busy}
-              onClick={() => void handleDisconnect()}
-            >
-              <Link2Off className="mr-2 h-4 w-4" aria-hidden />
-              Disconnect Square
-            </Button>
+            <>
+              <Button
+                type="button"
+                className="min-h-12 bg-hanger-amber text-primary-foreground hover:bg-hanger-amber/90"
+                disabled={busy}
+                onClick={() => void handleSync()}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                Sync Square data
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-12"
+                disabled={busy}
+                onClick={() => void handleDisconnect()}
+              >
+                <Link2Off className="mr-2 h-4 w-4" aria-hidden />
+                Disconnect Square
+              </Button>
+            </>
           ) : (
-            <Button
-              type="button"
-              className="min-h-12 bg-hanger-amber text-primary-foreground hover:bg-hanger-amber/90"
-              disabled={busy || !status?.credentialsConfigured}
-              onClick={() => void handleConnect()}
-            >
-              <Link2 className="mr-2 h-4 w-4" aria-hidden />
-              Connect Square account
-            </Button>
+            <>
+              <Button
+                type="button"
+                className="min-h-12 bg-hanger-amber text-primary-foreground hover:bg-hanger-amber/90"
+                disabled={busy || (!mock && !status?.credentialsConfigured)}
+                onClick={() => void handleConnect()}
+              >
+                <Link2 className="mr-2 h-4 w-4" aria-hidden />
+                Connect Square account
+              </Button>
+              {mock && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-12"
+                  disabled={busy}
+                  onClick={() => void handleSync()}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                  Try demo sync
+                </Button>
+              )}
+            </>
           )}
           <Button type="button" variant="outline" className="min-h-12" asChild>
             <Link to="/square-setup">
@@ -132,10 +192,11 @@ export function SquareConnectPanel() {
           </Button>
         </div>
 
-        {!status?.credentialsConfigured && (
+        {!status?.credentialsConfigured && !mock && (
           <p className="text-xs text-muted-foreground">
-            Optional for local demo. After terraform deploy, store Square Application ID and Secret in AWS,
-            then Chris can connect — see{' '}
+            Optional for local demo. After terraform deploy, run{' '}
+            <code className="rounded bg-muted px-1">npx tsx scripts/setup-square-ssm.ts</code>, then
+            Chris can connect — see{' '}
             <Link to="/square-setup" className="text-hanger-amber underline">
               Setup instructions
             </Link>
@@ -164,6 +225,20 @@ function SquareStatusBody({ status }: { status: SquareConnectionStatus }) {
           {status.connectedAt && (
             <li>
               <strong>Connected:</strong> {new Date(status.connectedAt).toLocaleString()}
+            </li>
+          )}
+          {status.lastSyncAt && (
+            <li>
+              <strong>Last sync:</strong> {new Date(status.lastSyncAt).toLocaleString()}
+              {status.lastSyncSummary?.orders && (
+                <>
+                  {' '}
+                  ({status.lastSyncSummary.orders.unitsSold} units · $
+                  {(
+                    (status.lastSyncSummary.payments?.paymentsGrossCents || 0) / 100
+                  ).toFixed(0)}
+                  )                </>
+              )}
             </li>
           )}
         </ul>

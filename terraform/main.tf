@@ -382,13 +382,15 @@ resource "aws_lambda_function" "forecast" {
 
   environment {
     variables = {
-      STORE_ID               = var.store_id
-      INVENTORY_TABLE        = aws_dynamodb_table.inventory.name
-      SALES_HISTORY_TABLE    = aws_dynamodb_table.sales_history.name
-      LOCAL_EVENTS_TABLE     = aws_dynamodb_table.local_events.name
-      PRODUCTS_TABLE         = aws_dynamodb_table.products.name
+      STORE_ID                = var.store_id
+      INVENTORY_TABLE         = aws_dynamodb_table.inventory.name
+      SALES_HISTORY_TABLE     = aws_dynamodb_table.sales_history.name
+      LOCAL_EVENTS_TABLE      = aws_dynamodb_table.local_events.name
+      PRODUCTS_TABLE          = aws_dynamodb_table.products.name
+      SQUARE_CONNECTION_TABLE = aws_dynamodb_table.square_connection.name
       SAGEMAKER_ENDPOINT_NAME = var.sagemaker_endpoint
-      COGNITO_USER_POOL_ID   = aws_cognito_user_pool.main.id
+      BEDROCK_MODEL_ID        = var.bedrock_model_id
+      COGNITO_USER_POOL_ID    = aws_cognito_user_pool.main.id
     }
   }
 
@@ -407,7 +409,7 @@ resource "aws_lambda_function" "square" {
   runtime          = "nodejs20.x"
   source_code_hash = data.archive_file.square_lambda.output_base64sha256
   memory_size      = var.lambda_memory
-  timeout          = var.lambda_timeout
+  timeout          = 90
 
   environment {
     variables = {
@@ -417,6 +419,9 @@ resource "aws_lambda_function" "square" {
       SQUARE_REDIRECT_URI      = "${aws_apigatewayv2_api.main.api_endpoint}/api/square/callback"
       FRONTEND_URL             = "https://${aws_cloudfront_distribution.frontend.domain_name}"
       SQUARE_SANDBOX           = "false"
+      SALES_HISTORY_TABLE      = aws_dynamodb_table.sales_history.name
+      PRODUCTS_TABLE           = aws_dynamodb_table.products.name
+      INVENTORY_TABLE          = aws_dynamodb_table.inventory.name
     }
   }
 
@@ -596,6 +601,30 @@ resource "aws_apigatewayv2_route" "forecast" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+resource "aws_apigatewayv2_route" "profit" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/profit"
+  target             = "integrations/${aws_apigatewayv2_integration.forecast.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "optimize" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /api/optimize"
+  target             = "integrations/${aws_apigatewayv2_integration.forecast.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "assistant_chat" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/assistant/chat"
+  target             = "integrations/${aws_apigatewayv2_integration.forecast.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_apigatewayv2_route" "events_get" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "GET /api/events"
@@ -710,10 +739,45 @@ resource "aws_apigatewayv2_route" "square_locations" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+resource "aws_apigatewayv2_route" "square_sync" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /api/square/sync"
+  target             = "integrations/${aws_apigatewayv2_integration.square.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_apigatewayv2_route" "square_callback" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /api/square/callback"
   target    = "integrations/${aws_apigatewayv2_integration.square.id}"
+}
+
+# Nightly Square analytics sync (05:00 UTC ≈ 11pm–midnight Mountain)
+resource "aws_cloudwatch_event_rule" "square_daily_sync" {
+  name                = "${var.store_id}-square-daily-sync"
+  description         = "Daily Square Orders/Catalog/Inventory sync into Hangar tables"
+  schedule_expression = "cron(0 5 * * ? *)"
+
+  tags = {
+    Store       = var.store_id
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_event_target" "square_daily_sync" {
+  rule      = aws_cloudwatch_event_rule.square_daily_sync.name
+  target_id = "square-lambda"
+  arn       = aws_lambda_function.square.arn
+  input     = jsonencode({ source = "scheduled-sync" })
+}
+
+resource "aws_lambda_permission" "events_square_sync" {
+  statement_id  = "AllowEventBridgeSquareSync"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.square.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.square_daily_sync.arn
 }
 
 # Lambda permissions

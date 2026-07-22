@@ -21,6 +21,12 @@ const ForecastDashboard = lazy(() =>
   })),
 );
 
+const ProfitOpsPage = lazy(() =>
+  import('@/features/profit/profit-ops-page').then((m) => ({
+    default: m.ProfitOpsPage,
+  })),
+);
+
 function RouteFallback() {
   return (
     <div className="space-y-4 p-4">
@@ -56,6 +62,14 @@ export const router = createBrowserRouter([
           { path: 'more', element: <MorePage /> },
           { path: 'square-setup', element: <SquareSetupPage /> },
           { path: 'events', element: <EventsPage /> },
+          {
+            path: 'profit',
+            element: (
+              <Suspense fallback={<RouteFallback />}>
+                <ProfitOpsPage />
+              </Suspense>
+            ),
+          },
           {
             path: 'reports',
             element: (

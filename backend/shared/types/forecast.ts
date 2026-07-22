@@ -56,6 +56,7 @@ export interface InventoryRecord {
   name: string;
   category: string;
   currentStock: number;
+  reorderPoint?: number;
 }
 
 export interface CreateLocalEventInput {

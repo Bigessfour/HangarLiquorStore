@@ -50,6 +50,8 @@ test('owner sees Square POS connection (owner only)', async ({ page }) => {
         locationId: null,
         connectedAt: null,
         connectedBy: null,
+        lastSyncAt: null,
+        lastSyncSummary: null,
         scopes: ['ORDERS_READ', 'PAYMENTS_READ'],
       }),
     });
@@ -57,4 +59,14 @@ test('owner sees Square POS connection (owner only)', async ({ page }) => {
   await page.goto('/more');
   await expect(page.getByText(/Square POS connection/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Connect Square account/i })).toBeVisible();
+});
+
+test('owner can run demo Square sync in mock mode', async ({ page }) => {
+  await page.goto('/more');
+  await expect(page.getByText(/Square POS connection/i)).toBeVisible();
+  const demoSync = page.getByRole('button', { name: /Try demo sync/i });
+  if (await demoSync.isVisible().catch(() => false)) {
+    await demoSync.click();
+    await expect(page.getByText(/Synced|units|catalog/i).first()).toBeVisible({ timeout: 5000 });
+  }
 });

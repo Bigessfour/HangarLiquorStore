@@ -1,29 +1,60 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, CalendarDays, ChevronRight, LayoutDashboard, Settings } from 'lucide-react';
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronRight,
+  DollarSign,
+  LayoutDashboard,
+  Settings,
+} from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { InstallAppPanel } from '@/components/common/install-app-panel';
 import { SquareConnectPanel } from '@/components/common/square-connect-panel';
-import { resetToDemoData, listUsers, createUser, updateUserRole, disableUser, enableUser, resetUserPassword, removeUserFromAllGroups } from '@/lib/api';
+import {
+  resetToDemoData,
+  listUsers,
+  createUser,
+  updateUserRole,
+  disableUser,
+  enableUser,
+  resetUserPassword,
+  removeUserFromAllGroups,
+} from '@/lib/api';
 import { getCurrentUser, signOut, isOwner, hasRole } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { useGuidedTrialStore } from '@/features/guided-trial';
 
 const moreLinks = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, description: 'Store overview & alerts' },
+  {
+    to: '/',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    description: 'Store overview & alerts',
+    minRole: 'ReadOnly' as const,
+  },
+  {
+    to: '/profit',
+    label: 'Profit & Ops',
+    icon: DollarSign,
+    description: 'Day / month / year · money in your pocket',
+    minRole: 'Manager' as const,
+  },
   {
     to: '/events',
     label: 'Local Events',
     icon: CalendarDays,
     description: 'July 4th, football weekends',
+    minRole: 'ReadOnly' as const,
   },
   {
     to: '/forecast',
     label: 'Forecast Reports',
     icon: BarChart3,
     description: 'Demand charts & trends',
+    minRole: 'ReadOnly' as const,
   },
 ] as const;
 
@@ -36,7 +67,12 @@ export function MorePage() {
   // User management state (Owner only)
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', tempPassword: '', name: '', role: 'ReadOnly' as const });
+  const [newUser, setNewUser] = useState({
+    username: '',
+    tempPassword: '',
+    name: '',
+    role: 'ReadOnly' as const,
+  });
   const [userError, setUserError] = useState('');
 
   const loadUsers = async () => {
@@ -107,22 +143,24 @@ export function MorePage() {
       </div>
 
       <ul className="space-y-2">
-        {moreLinks.map(({ to, label, icon: Icon, description }) => (
-          <li key={to}>
-            <Link to={to} className="block">
-              <Card className="transition-all hover:bg-muted/50 hover:shadow-sm border-hanger-amber/10">
-                <CardContent className="flex min-h-14 items-center gap-3 p-4">
-                  <Icon className="h-6 w-6 shrink-0 text-hanger-amber" aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{label}</p>
-                    <p className="truncate text-sm text-muted-foreground">{description}</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-                </CardContent>
-              </Card>
-            </Link>
-          </li>
-        ))}
+        {moreLinks
+          .filter((link) => hasRole(link.minRole))
+          .map(({ to, label, icon: Icon, description }) => (
+            <li key={to}>
+              <Link to={to} className="block">
+                <Card className="transition-all hover:bg-muted/50 hover:shadow-sm border-hanger-amber/10">
+                  <CardContent className="flex min-h-14 items-center gap-3 p-4">
+                    <Icon className="h-6 w-6 shrink-0 text-hanger-amber" aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{label}</p>
+                      <p className="truncate text-sm text-muted-foreground">{description}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                  </CardContent>
+                </Card>
+              </Link>
+            </li>
+          ))}
       </ul>
 
       <Card className="border-hanger-gold/40 bg-hanger-amber/5" data-tour="tour-start-trial">
@@ -197,7 +235,8 @@ export function MorePage() {
             </p>
             {!import.meta.env.VITE_API_URL && (
               <p className="text-[10px] text-muted-foreground">
-                Local demo shows a sample owner only. Creating users needs Cognito on a deployed backend.
+                Local demo shows a sample owner only. Creating users needs Cognito on a deployed
+                backend.
               </p>
             )}
 
@@ -227,7 +266,9 @@ export function MorePage() {
               <select
                 className="w-full rounded border p-1.5 text-sm"
                 value={newUser.role}
-                onChange={(e) => setNewUser({ ...newUser, role: e.target.value as typeof newUser.role })}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, role: e.target.value as typeof newUser.role })
+                }
                 disabled={!isOwner()}
               >
                 <option value="ReadOnly">Read Only (view only)</option>
@@ -277,7 +318,9 @@ export function MorePage() {
                                 <option value="Owner">Owner</option>
                               </select>
                             ) : (
-                              <span className="rounded border px-1 py-0.5 text-[10px]">{currentRole}</span>
+                              <span className="rounded border px-1 py-0.5 text-[10px]">
+                                {currentRole}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -322,7 +365,9 @@ export function MorePage() {
                                 variant="outline"
                                 className="h-6 px-1.5 text-[10px] text-destructive"
                                 onClick={async () => {
-                                  if (confirm(`Remove all roles from ${u.username}? (keeps account)`)) {
+                                  if (
+                                    confirm(`Remove all roles from ${u.username}? (keeps account)`)
+                                  ) {
                                     await removeUserFromAllGroups(u.username);
                                     await loadUsers();
                                   }
@@ -353,13 +398,17 @@ export function MorePage() {
             <BarChart3 className="h-6 w-6 text-hanger-amber" aria-hidden />
             <div>
               <p className="font-medium">AWS Cost Monitoring</p>
-              <p className="text-sm text-muted-foreground">Budget alerts for serverless costs (Terraform managed).</p>
+              <p className="text-sm text-muted-foreground">
+                Budget alerts for serverless costs (Terraform managed).
+              </p>
             </div>
           </div>
           <div className="text-xs bg-muted/50 p-2 rounded">
             Monthly budget: $50 USD • Forecast alerts at 80%. View in AWS Console → Budgets.
           </div>
-          <p className="text-[10px] text-muted-foreground">Keeps deployment low-cost as per AGENTS guidelines. Use PAY_PER_REQUEST + filtered data.</p>
+          <p className="text-[10px] text-muted-foreground">
+            Keeps deployment low-cost as per AGENTS guidelines. Use PAY_PER_REQUEST + filtered data.
+          </p>
         </CardContent>
       </Card>
 
@@ -387,17 +436,33 @@ export function MorePage() {
         <CardContent className="p-4">
           <p className="font-medium mb-1 text-hanger-gold">AWS SageMaker Canvas Integration</p>
           <p className="text-xs text-muted-foreground">
-            Optional high-accuracy forecasting via no-code ML in client's AWS.
-            Export sales → train in Canvas → deploy Serverless endpoint → toggle in /forecast or ?model=canvas.
-            Falls back to statistical engine. See client-deployment.md for full workflow.
+            Optional high-accuracy forecasting via no-code ML in client's AWS. Export sales → train
+            in Canvas → deploy Serverless endpoint → toggle in /forecast or ?model=canvas. Falls
+            back to statistical engine. See client-deployment.md for full workflow.
           </p>
-          <p className="text-[10px] mt-1">Developed by Steve McKitrick, AWS Certified AI Practitioner</p>
+          <p className="text-[10px] mt-1">
+            Developed by Steve McKitrick, AWS Certified AI Practitioner
+          </p>
         </CardContent>
       </Card>
 
       <div className="mt-6 text-center text-xs text-muted-foreground">
-        <p>UPC product data (when available) provided by <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline">Open Food Facts</a> under free open licenses.</p>
-        <p className="mt-1">We comply with their terms: proper attribution, User-Agent, and 1 API call per real user scan.</p>
+        <p>
+          UPC product data (when available) provided by{' '}
+          <a
+            href="https://world.openfoodfacts.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Open Food Facts
+          </a>{' '}
+          under free open licenses.
+        </p>
+        <p className="mt-1">
+          We comply with their terms: proper attribution, User-Agent, and 1 API call per real user
+          scan.
+        </p>
       </div>
 
       {/* Premium developer credit */}
@@ -407,7 +472,9 @@ export function MorePage() {
           <span className="font-semibold">Steve McKitrick</span>
           <span className="text-[9px] opacity-70">• AWS Certified AI Practitioner</span>
         </div>
-        <p className="mt-1 text-[9px] text-muted-foreground/60">Premium forecasting powered by AWS SageMaker Canvas</p>
+        <p className="mt-1 text-[9px] text-muted-foreground/60">
+          Premium forecasting powered by AWS SageMaker Canvas
+        </p>
       </div>
     </div>
   );

@@ -33,3 +33,9 @@ variable "sagemaker_endpoint" {
   type        = string
   default     = ""
 }
+
+variable "bedrock_model_id" {
+  description = "Optional Bedrock model id for Hangar AI chat (empty = grounded fallback only)"
+  type        = string
+  default     = ""
+}

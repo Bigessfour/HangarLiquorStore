@@ -1,5 +1,5 @@
-import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
-import { frontendUrl, storeId } from './lib/config';
+import type { APIGatewayProxyHandlerV2, EventBridgeHandler } from 'aws-lambda';
+import { frontendUrl, storeId, SQUARE_OAUTH_SCOPES } from './lib/config';
 import {
   exchangeAuthorizationCode,
   fetchLocations,
@@ -7,6 +7,7 @@ import {
   newOAuthState,
   revokeSquareTokens,
   buildAuthorizationUrlAsync,
+  getValidAccessToken,
 } from './lib/oauth';
 import { errorResponse, jsonResponse, redirectResponse } from './lib/response';
 import {
@@ -17,8 +18,11 @@ import {
   getSquareAppCredentials,
   saveConnection,
 } from './lib/storage';
+import { runSquareSync } from './lib/sync';
 
-function getCallerGroups(event: { requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } } }): string[] {
+function getCallerGroups(event: {
+  requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+}): string[] {
   try {
     const claims = event.requestContext?.authorizer?.jwt?.claims || {};
     const groups = claims['cognito:groups'];
@@ -30,7 +34,9 @@ function getCallerGroups(event: { requestContext?: { authorizer?: { jwt?: { clai
   }
 }
 
-function getCallerUsername(event: { requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } } }): string {
+function getCallerUsername(event: {
+  requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+}): string {
   const claims = event.requestContext?.authorizer?.jwt?.claims || {};
   return String(claims.username || claims['cognito:username'] || '');
 }
@@ -41,30 +47,58 @@ function requireOwner(groups: string[]) {
   }
 }
 
-function parsePath(rawPath: string): 'status' | 'authorize' | 'callback' | 'disconnect' | 'locations' | 'unknown' {
+function parsePath(
+  rawPath: string,
+): 'status' | 'authorize' | 'callback' | 'disconnect' | 'locations' | 'sync' | 'unknown' {
   if (rawPath.endsWith('/status')) return 'status';
   if (rawPath.endsWith('/authorize')) return 'authorize';
   if (rawPath.endsWith('/callback')) return 'callback';
   if (rawPath.endsWith('/disconnect')) return 'disconnect';
   if (rawPath.endsWith('/locations')) return 'locations';
+  if (rawPath.endsWith('/sync')) return 'sync';
   return 'unknown';
 }
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
-  const method = event.requestContext.http.method;
+function isScheduledEvent(event: unknown): boolean {
+  if (!event || typeof event !== 'object') return false;
+  const e = event as Record<string, unknown>;
+  return e.source === 'aws.events' || e.source === 'scheduled-sync';
+}
+
+async function handleScheduledSync(): Promise<{ statusCode: number; body: string }> {
+  const result = await runSquareSync({ source: 'scheduled' });
+  return {
+    statusCode: 200,
+    body: JSON.stringify(result),
+  };
+}
+
+export const handler:
+  APIGatewayProxyHandlerV2 | EventBridgeHandler<'Scheduled Event', unknown, void> = async (
+  event,
+) => {
+  if (isScheduledEvent(event)) {
+    await handleScheduledSync();
+    return;
+  }
+
+  const apiEvent = event as Parameters<APIGatewayProxyHandlerV2>[0];
+  const method = apiEvent.requestContext.http.method;
   if (method === 'OPTIONS') return jsonResponse(200, {});
 
-  const rawPath = event.rawPath ?? event.requestContext.http.path;
+  const rawPath = apiEvent.rawPath ?? apiEvent.requestContext.http.path;
   const route = parsePath(rawPath);
 
   try {
     if (route === 'callback' && method === 'GET') {
-      const code = event.queryStringParameters?.code;
-      const state = event.queryStringParameters?.state;
-      const error = event.queryStringParameters?.error;
+      const code = apiEvent.queryStringParameters?.code;
+      const state = apiEvent.queryStringParameters?.state;
+      const error = apiEvent.queryStringParameters?.error;
 
       if (error) {
-        return redirectResponse(`${frontendUrl()}/more?square=error&reason=${encodeURIComponent(error)}`);
+        return redirectResponse(
+          `${frontendUrl()}/more?square=error&reason=${encodeURIComponent(error)}`,
+        );
       }
       if (!code || !state) {
         return redirectResponse(`${frontendUrl()}/more?square=error&reason=missing_code`);
@@ -97,7 +131,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       return redirectResponse(`${frontendUrl()}/more?square=connected`);
     }
 
-    const groups = getCallerGroups(event);
+    const groups = getCallerGroups(apiEvent);
     requireOwner(groups);
 
     if (route === 'status' && method === 'GET') {
@@ -112,7 +146,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         locationId: record?.locationId ?? null,
         connectedAt: record?.connectedAt ?? null,
         connectedBy: record?.connectedBy ?? null,
-        scopes: ['MERCHANT_PROFILE_READ', 'ORDERS_READ', 'PAYMENTS_READ', 'ITEMS_READ', 'INVENTORY_READ'],
+        lastSyncAt: record?.lastSyncAt ?? null,
+        lastSyncSummary: record?.lastSyncSummary ?? null,
+        scopes: [...SQUARE_OAUTH_SCOPES],
       });
     }
 
@@ -120,7 +156,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const state = newOAuthState();
       const authUrl = await buildAuthorizationUrlAsync(state);
       if (!authUrl) {
-        return errorResponse(503, 'Square application credentials are not configured yet. See docs/square-owner-setup.md');
+        return errorResponse(
+          503,
+          'Square application credentials are not configured yet. See docs/square-owner-setup.md',
+        );
       }
 
       const existing = (await getConnection()) ?? { storeId: storeId(), connected: false };
@@ -129,17 +168,25 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         storeId: storeId(),
         oauthState: state,
         oauthStateExpiresAt: Date.now() + 10 * 60 * 1000,
-        connectedBy: getCallerUsername(event),
+        connectedBy: getCallerUsername(apiEvent),
       });
 
       return jsonResponse(200, { authorizationUrl: authUrl });
     }
 
     if (route === 'locations' && method === 'GET') {
-      const token = await getSquareAccessToken();
+      const token = await getValidAccessToken();
       if (!token) return errorResponse(400, 'Square is not connected');
       const locations = await fetchLocations(token);
       return jsonResponse(200, { locations });
+    }
+
+    if (route === 'sync' && method === 'POST') {
+      const result = await runSquareSync({ source: 'manual' });
+      if ('skipped' in result && result.skipped) {
+        return errorResponse(400, result.reason);
+      }
+      return jsonResponse(200, result);
     }
 
     if (route === 'disconnect' && method === 'POST') {

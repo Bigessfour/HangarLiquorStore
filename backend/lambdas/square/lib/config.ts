@@ -30,6 +30,18 @@ export function frontendUrl(): string {
   return (process.env.FRONTEND_URL || '').replace(/\/$/, '');
 }
 
+export function salesHistoryTable(): string {
+  return process.env.SALES_HISTORY_TABLE || 'HangerSalesHistory';
+}
+
+export function productsTable(): string {
+  return process.env.PRODUCTS_TABLE || 'HangerProducts';
+}
+
+export function inventoryTable(): string {
+  return process.env.INVENTORY_TABLE || 'HangerInventory';
+}
+
 /** Read-only scopes for POS sales → forecasting (no write access). */
 export const SQUARE_OAUTH_SCOPES = [
   'MERCHANT_PROFILE_READ',

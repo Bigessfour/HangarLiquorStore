@@ -4,73 +4,88 @@
 
 **Created**: 2026-07-21
 
-**Status**: Draft — **specs-only** for trial business; next to refine (no implement until build window)
+**Status**: Shipped — full outline + implementation (no YAGNI cut)
 
-**Trial role:** Unlocks real POS sales for the “money in pocket” story (005/006). Chris only taps Connect; Steve gets copy-paste Part A.
+**Trial role:** Unlocks real POS sales for the “money in pocket” story (005/006). Chris only taps Connect / Sync; Steve gets copy-paste Part A + helper script.
 
-**Input**: Prepare Hangar Liquor’s data / inventory connection to [Square’s platform](https://developer.squareup.com/us/en) for analytics — groundwork so Owner connection is simple and intuitive (“enter this / tap Connect”), not a developer scavenger hunt. Align with Catalog, Inventory, Orders, and Payments APIs for forecasting inputs.
+**Input**: Prepare Hangar Liquor’s data / inventory connection to [Square’s platform](https://developer.squareup.com/us/en) for analytics — Owner connection stays simple (“tap Connect”), developer prep is copy-paste, and connected Square data **actually lands** in Hangar tables for forecasting and Profit & Ops.
 
-## Current status (brownfield)
+## Current status (brownfield → target)
 
-| Piece                                                                                                      | Status                                                                                          |
-| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Owner-only OAuth connect/disconnect UI                                                                     | **Exists** — More + Dashboard cards, `/square-setup`                                            |
-| Read-only scopes (`MERCHANT_PROFILE_READ`, `ORDERS_READ`, `PAYMENTS_READ`, `ITEMS_READ`, `INVENTORY_READ`) | **Exists** — [backend/lambdas/square/lib/config.ts](../../backend/lambdas/square/lib/config.ts) |
-| SSM app id/secret + Dynamo connection tokens                                                               | **Exists** — docs in [docs/square-owner-setup.md](../../docs/square-owner-setup.md)             |
-| Chris “tap Connect → Allow” path                                                                           | **Documented**                                                                                  |
-| Steve Part A (Developer Dashboard app, redirect URL, SSM paste)                                            | **Documented** — still multi-step                                                               |
-| Pull Orders / Catalog / Inventory into Dynamo for forecasts                                                | **Missing / thin** — connect stores tokens; analytics ingest not the daily path yet             |
-| UPC mapping Square catalog ↔ Hangar inventory                                                              | **Future** (called out in square-owner-setup)                                                   |
-| Mock demo Square                                                                                           | **Mocked status** (Gate A) — no live OAuth in `npm run demo`                                    |
+| Piece                                | Before 004    | After 004                                                      |
+| ------------------------------------ | ------------- | -------------------------------------------------------------- |
+| Owner OAuth connect/disconnect       | Exists        | Polished checklist + sync CTA                                  |
+| Read-only OAuth scopes               | Exists        | Unchanged (no write scopes)                                    |
+| SSM app id/secret + Dynamo tokens    | Exists        | Helper script + docs                                           |
+| Token refresh                        | Missing       | Implemented before every sync                                  |
+| Orders → `HangerSalesHistory`        | Missing       | On-demand + scheduled sync                                     |
+| Catalog → UPC map / `HangerProducts` | Missing       | Sync barcodes → product stubs                                  |
+| Inventory → stock reconcile          | Missing       | Optional overwrite of `currentStock` when Square count present |
+| Payments rollup                      | Missing       | Period totals stored on connection / returned by sync          |
+| Mock demo Square                     | Mocked status | Sync mocked; no live Square calls                              |
 
-Official platform overview: [Square APIs & SDKs](https://developer.squareup.com/us/en) — commerce APIs for Catalog, Inventory, Orders; payment/list APIs for sales analytics.
+Official platform overview: [Square APIs & SDKs](https://developer.squareup.com/us/en).
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Chris connects in plain language (Priority: P1)
 
-As Owner, Chris opens More → Square, sees a short checklist (“credentials ready?” / “use register Square login”), taps **Connect Square account**, authorizes read-only access, and returns to **Connected** with business name — no API keys typed into the phone.
-
-**Why this priority**: User asked for intuitive connection (“enter this code here” style for *developer* prep; Chris only taps Connect).
-
-**Independent Test**: On live (non-mock) env with SSM credentials set, Owner completes OAuth and status shows connected.
+As Owner, Chris opens More → Square, sees a short checklist (“credentials ready?” / “use register Square login”), taps **Connect Square account**, authorizes read-only access, and returns to **Connected** with business name — no API keys on the phone.
 
 **Acceptance Scenarios**:
 
-1. **Given** credentials configured, **When** Owner taps Connect, **Then** Square OAuth opens with Hangar’s registered redirect URL.
+1. **Given** credentials configured, **When** Owner taps Connect, **Then** Square OAuth opens with Hangar’s registered redirect URL (including `redirect_uri` on authorize).
 2. **Given** successful Allow, **When** returned to app, **Then** Connected state shows merchant/location without exposing tokens.
-3. **Given** mock demo, **When** Owner views Square card, **Then** copy explains Square is optional offline / needs live backend — no red failure.
+3. **Given** mock demo, **When** Owner views Square card, **Then** copy explains Square needs live backend — no red failure.
 
 ---
 
 ### User Story 2 - Steve groundwork is copy-paste simple (Priority: P1)
 
-Developer completes Part A with a single checklist: create Square app → paste **one** redirect URL from terraform → paste Application ID + Secret into two SSM commands (or a small helper script). No ambiguity about which console field maps where.
+Developer completes Part A with a single checklist + helper:
 
-**Why this priority**: “Enter this code here” is the developer experience that unblocks Chris.
+```bash
+npx tsx scripts/setup-square-ssm.ts --application-id=sq0idp-... --application-secret=sq0csp-...
+```
 
-**Independent Test**: Follow checklist on a fresh environment; status endpoint reports `credentialsConfigured: true`.
+Script reads terraform outputs (`square_ssm_prefix`, `square_oauth_redirect_uri`), prints the redirect URL to paste into Square Developer OAuth, and writes SSM parameters.
 
 **Acceptance Scenarios**:
 
-1. **Given** terraform output `square_oauth_redirect_uri`, **When** pasted into Square Developer OAuth redirect URLs, **Then** it matches Lambda callback exactly.
-2. **Given** Application ID + secret, **When** stored under documented SSM paths, **Then** `/api/square/status` reports credentials configured.
-3. **Given** docs, **When** Steve follows them, **Then** each step names the Square console label and the Hangar field/command side-by-side.
+1. **Given** terraform outputs, **When** script runs with id+secret, **Then** `/api/square/status` reports `credentialsConfigured: true`.
+2. **Given** docs, **When** Steve follows them, **Then** each step names Square console label ↔ Hangar field/command.
 
 ---
 
-### User Story 3 - Analytics data path prepared (Priority: P2)
+### User Story 3 - Owner syncs analytics into Hangar (Priority: P1)
 
-Design/prepare how connected Square data feeds Hangar analytics: **Orders** + **Payments** for sales history, **Catalog** (`ITEMS_READ`) for UPC/name mapping, **Inventory** for optional reconciliation. Groundwork may be contracts + stub sync job + docs — full sync can follow in a later slice.
+Connected Owner taps **Sync Square data** (or nightly schedule runs). Hangar pulls:
 
-**Why this priority**: Connection without a clear analytics contract is incomplete for “inventory optimization.”
-
-**Independent Test**: Spec/contracts list endpoints and Dynamo targets; optional dry-run or stub Lambda documented.
+| Square API                   | Hangar target                                           | Purpose                 |
+| ---------------------------- | ------------------------------------------------------- | ----------------------- |
+| Orders (`ORDERS_READ`)       | `HangerSalesHistory` (`upc` + `date` + `quantity`)      | Forecast + Profit sales |
+| Catalog (`ITEMS_READ`)       | `HangerProducts` (+ barcode→UPC map on connection)      | Name/UPC resolution     |
+| Inventory (`INVENTORY_READ`) | `HangerInventory.currentStock` (when mapped UPC exists) | Stock reconcile         |
+| Payments (`PAYMENTS_READ`)   | Sync summary totals (gross / fees proxy)                | Profit pulse            |
 
 **Acceptance Scenarios**:
 
-1. **Given** a connected merchant, **When** reviewing architecture, **Then** docs map Square APIs → Hangar tables (sales history, products, inventory).
-2. **Given** scopes already granted, **When** implementing sync later, **Then** no new OAuth consent required for these read scopes.
+1. **Given** connected merchant with orders, **When** sync completes, **Then** sales rows appear keyed by UPC/date.
+2. **Given** catalog items with barcodes, **When** sync runs, **Then** products table gains/updates those UPCs.
+3. **Given** inventory counts for mapped catalog objects, **When** sync runs, **Then** Hangar stock updates for matching UPCs only (never invents unmapped SKUs as sales without barcode).
+4. **Given** expired access token + valid refresh, **When** sync starts, **Then** tokens refresh transparently and sync proceeds.
+5. **Given** mock demo, **When** Owner taps Sync, **Then** mock returns success summary without calling Square.
+
+---
+
+### User Story 4 - Nightly automatic sync (Priority: P2)
+
+EventBridge schedule invokes Square Lambda with `{ "source": "scheduled-sync" }` once per day (store timezone approx America/Denver → 05:00 UTC default). Owner can still force sync anytime.
+
+**Acceptance Scenarios**:
+
+1. **Given** connected store, **When** schedule fires, **Then** same sync path runs as manual.
+2. **Given** not connected, **When** schedule fires, **Then** Lambda no-ops with logged skip (not error storm).
 
 ---
 
@@ -78,46 +93,83 @@ Design/prepare how connected Square data feeds Hangar analytics: **Orders** + **
 
 - Sandbox vs production Square apps (`SQUARE_SANDBOX`)
 - Expired OAuth state (~10 min) — retry Connect
-- Wrong Square seller account — Disconnect + reconnect
-- ReadOnly/Manager never see connect controls
+- Wrong seller account — Disconnect + reconnect
+- Line items without barcode/UPC — skip with `unmappedLineItems` count in summary (do not invent UPCs)
+- ReadOnly/Manager never see connect/sync controls
 - Mock demo must not call live Square
+- Sync timeout: default lookback 90 days; paginate Square cursors
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
-- **FR-001**: Owner-only connect/disconnect MUST remain the only mutation path for Square tokens
-- **FR-002**: OAuth MUST continue using read-only scopes aligned with Catalog/Inventory/Orders/Payments analytics needs
-- **FR-003**: Developer setup MUST document side-by-side “Square console → Hangar value” (redirect URI, Application ID, Application secret)
-- **FR-004**: Prefer a helper script or single README section that prints exact `aws ssm put-parameter` commands after terraform output
-- **FR-005**: In-app Square UX MUST stay calm in mock mode (no failed-fetch errors)
-- **FR-006**: Spec/docs MUST define the analytics ingest contract (Orders/Payments → sales; Catalog → products; Inventory → optional stock check)
-- **FR-007**: Tokens MUST never appear in client logs, git, or UI
+- **FR-001**: Owner-only connect/disconnect/sync MUST be the only mutation path for Square tokens and ingest
+- **FR-002**: OAuth MUST use read-only scopes: `MERCHANT_PROFILE_READ`, `ORDERS_READ`, `PAYMENTS_READ`, `ITEMS_READ`, `INVENTORY_READ`
+- **FR-003**: Authorize URL MUST include `client_id`, `scope`, `state`, `session=false`, and `redirect_uri`
+- **FR-004**: Developer setup MUST include helper script `scripts/setup-square-ssm.ts` + side-by-side docs
+- **FR-005**: In-app Square UX MUST stay calm in mock mode
+- **FR-006**: `POST /api/square/sync` MUST run catalog → sales → inventory → payments (order flexible) and return a summary
+- **FR-007**: Sync MUST refresh OAuth tokens when needed before Square API calls
+- **FR-008**: Orders MUST aggregate into `HangerSalesHistory` by barcode/UPC and calendar date (YYYY-MM-DD)
+- **FR-009**: Catalog MUST upsert `HangerProducts` for items with barcodes
+- **FR-010**: Inventory MUST update `currentStock` only for Hangar inventory rows whose UPC matches a Square barcode
+- **FR-011**: Connection record MUST store `lastSyncAt`, `lastSyncSummary` (no tokens)
+- **FR-012**: Status response MUST include last sync metadata when present
+- **FR-013**: Tokens MUST never appear in client logs, git, or UI
+- **FR-014**: Terraform MUST wire table env vars, sync route, and EventBridge schedule for daily sync
 
 ### Non-Functional
 
 - Mobile-first Owner UX; rural-store plain English
-- Follow [Square OAuth](https://developer.squareup.com/docs/oauth-api/overview) and platform APIs from [developer.squareup.com](https://developer.squareup.com/us/en)
-- Least privilege — no write scopes unless a future story explicitly expands
+- Square OAuth + Commerce APIs from [developer.squareup.com](https://developer.squareup.com/us/en)
+- Least privilege — no write scopes
+- Sync Lambda timeout ≥ 60s; memory enough for pagination
 
-### Out of Scope (this feature)
+### Analytics ingest contract
 
-- Full automated nightly sync implementation (may be stubbed/contract-only here)
+```
+Square Orders (COMPLETED / OPEN completed) line_items
+  → barcode / catalog_object_id → UPC
+  → sold date (created_at local date)
+  → quantity sum
+  → PutItem HangerSalesHistory { upc, date, quantity, source: "square" }
+
+Square Catalog ITEM_VARIATION
+  → upc = item_variation_data.upc || first barcode
+  → PutItem HangerProducts { upc, name, category?, squareCatalogObjectId, squareVariationId, updatedAt }
+
+Square Inventory counts
+  → variation → UPC map
+  → if HangerInventory[upc] exists: Update currentStock = quantity
+
+Square Payments (optional rollup)
+  → sum amount_money for period → lastSyncSummary.paymentsGrossCents
+```
+
+### Out of Scope
+
 - Square App Marketplace listing
-- Write-back inventory to Square
-- Guided trial Square stop as required (002 keeps Square optional)
+- Write-back inventory/orders to Square
+- Guided trial requiring Square (002 keeps Square optional)
+- Multi-location picker UI (uses primary ACTIVE location; sync all locations when location list returned)
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
-### Measurable Outcomes
-
-- **SC-001**: Steve completes Part A with documented copy-paste steps in under ~15 minutes on a prepared AWS account
-- **SC-002**: Chris connects with tap Connect → Allow only (no secrets on device)
-- **SC-003**: Analytics contract documented for Orders, Payments, Catalog, Inventory
+- **SC-001**: Steve completes Part A with helper script in under ~15 minutes
+- **SC-002**: Chris connects with tap Connect → Allow only
+- **SC-003**: After sync, sales history and/or sync summary visible to Owner
 - **SC-004**: Mock demo Square panel remains error-free
+- **SC-005**: Backend tests cover scopes + sync summary shaping (unit); e2e covers Owner sync CTA in mock
 
 ## Assumptions
 
-- Build order: **002** (trial) → **003** (events) → **004** (this Square groundwork), unless connection is needed earlier for a live Chris meeting
-- Existing Lambda OAuth remains the transport; this feature hardens UX/docs/contracts more than rewriting auth
-- Hangar continues to own forecasting; Square is the POS source of truth for sales when connected
+- Hangar owns forecasting; Square is POS source of truth for sales when connected
+- Existing Lambda OAuth remains transport; this feature completes the analytics path
+- 005/006 consume synced sales + inventory
+
+## Related specs
+
+| Spec                                                   | Role                                       |
+| ------------------------------------------------------ | ------------------------------------------ |
+| [005](../005-owner-profit-dataviz/spec.md)             | Consumes sales for Profit & Ops            |
+| [006](../006-sagemaker-optimization-assistant/spec.md) | Uses sales for optimization + AI grounding |

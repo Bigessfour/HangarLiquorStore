@@ -32,16 +32,17 @@ You only need your **normal Square login** for Hangar Liquor. You do **not** nee
    - Inventory levels
 8. Tap **Allow** / **Authorize**.
 9. You are returned to the app. You should see **Connected to Square** with your business name.
+10. Tap **Sync Square data** when you want Hangar to pull recent Orders, Catalog, Inventory, and Payments (also runs nightly after deploy).
 
 ### If something goes wrong
 
-| Symptom | What to try |
-|--------|-------------|
-| No “Square POS connection” card | Your login is not Owner. Ask Steve to confirm your Cognito role is **Owner**. |
-| Button says credentials not configured | Steve must finish Part A (Square Developer app + AWS secrets). |
-| Square login fails | Use the Square account that owns the Hangar Liquor seller account, not a personal sandbox. |
-| “invalid_state” or “state_expired” | Tap **Connect Square account** again (authorization links expire in ~10 minutes). |
-| Wrong store connected | Tap **Disconnect Square**, then connect again with the correct Square login. |
+| Symptom                                | What to try                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| No “Square POS connection” card        | Your login is not Owner. Ask Steve to confirm your Cognito role is **Owner**.              |
+| Button says credentials not configured | Steve must finish Part A (Square Developer app + AWS secrets).                             |
+| Square login fails                     | Use the Square account that owns the Hangar Liquor seller account, not a personal sandbox. |
+| “invalid_state” or “state_expired”     | Tap **Connect Square account** again (authorization links expire in ~10 minutes).          |
+| Wrong store connected                  | Tap **Disconnect Square**, then connect again with the correct Square login.               |
 
 ### Disconnecting
 
@@ -84,14 +85,26 @@ In the Square app **OAuth** page:
 
 On the same **OAuth** page:
 
-| Square console label | AWS SSM parameter |
-|---------------------|-------------------|
-| **Application ID** | `/hanger/prod/square/application_id` |
+| Square console label   | AWS SSM parameter                        |
+| ---------------------- | ---------------------------------------- |
+| **Application ID**     | `/hanger/prod/square/application_id`     |
 | **Application secret** | `/hanger/prod/square/application_secret` |
 
 Keep the **Application secret** private — only AWS Lambda reads it.
 
-### 4. Store credentials in AWS (account 570912405222)
+### 4. Store credentials in AWS (helper script)
+
+Preferred (prints redirect URI + writes SSM):
+
+```bash
+export AWS_PROFILE=steve
+
+npm run setup-square-ssm -- \
+  --application-id=sq0idp-XXXXXXXX \
+  --application-secret=sq0csp-XXXXXXXX
+```
+
+Manual equivalent:
 
 ```bash
 export AWS_PROFILE=steve
@@ -137,20 +150,20 @@ aws cognito-idp admin-add-user-to-group \
 
 Send Chris:
 
-- App URL: https://d1imxsgur21o71.cloudfront.net  
-- His Owner username / temporary password  
+- App URL: https://d1imxsgur21o71.cloudfront.net
+- His Owner username / temporary password
 - This doc section **“What Chris needs to do”**
 
 ---
 
 ## Security model
 
-| Item | Where it lives | Who can access |
-|------|----------------|----------------|
-| Application secret | AWS SSM SecureString | Lambda only |
-| OAuth access / refresh tokens | AWS SSM SecureString | Lambda only |
-| Connection metadata (store name, location) | DynamoDB `HangerSquareConnection` | Owner via API |
-| Connect / disconnect UI | More page | **Owner only** (enforced in UI + API) |
+| Item                                       | Where it lives                    | Who can access                        |
+| ------------------------------------------ | --------------------------------- | ------------------------------------- |
+| Application secret                         | AWS SSM SecureString              | Lambda only                           |
+| OAuth access / refresh tokens              | AWS SSM SecureString              | Lambda only                           |
+| Connection metadata (store name, location) | DynamoDB `HangerSquareConnection` | Owner via API                         |
+| Connect / disconnect UI                    | More page                         | **Owner only** (enforced in UI + API) |
 
 Managers cannot call `/api/square/*` — API returns **403 Owner role required**.
 
@@ -172,13 +185,22 @@ Production Hangar Liquor should use **production** Square (`connect.squareup.com
 
 ## Permissions requested (read-only)
 
-| Scope | Purpose |
-|-------|---------|
-| `MERCHANT_PROFILE_READ` | Confirm correct store connected |
-| `ORDERS_READ` | POS sales orders for demand history |
-| `PAYMENTS_READ` | Payment totals / timing |
-| `ITEMS_READ` | Square catalog ↔ UPC mapping (future) |
-| `INVENTORY_READ` | Optional stock reconciliation (future) |
+| Scope                   | Purpose                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `MERCHANT_PROFILE_READ` | Confirm correct store connected                              |
+| `ORDERS_READ`           | POS sales orders for demand history                          |
+| `PAYMENTS_READ`         | Payment totals / timing                                      |
+| `ITEMS_READ`            | Square catalog ↔ UPC mapping into `HangerProducts`           |
+| `INVENTORY_READ`        | Stock reconciliation into `HangerInventory` when UPC matches |
+
+### Analytics sync (after Connect)
+
+| Square source    | Hangar table                                        | Trigger                               |
+| ---------------- | --------------------------------------------------- | ------------------------------------- |
+| Orders           | `HangerSalesHistory`                                | Owner **Sync** or nightly EventBridge |
+| Catalog          | `HangerProducts`                                    | Same                                  |
+| Inventory counts | `HangerInventory.currentStock` (existing UPCs only) | Same                                  |
+| Payments         | Rollup on connection `lastSyncSummary`              | Same                                  |
 
 Full list: [OAuth permissions reference](https://developer.squareup.com/docs/oauth-api/square-permissions)
 
@@ -187,5 +209,5 @@ Full list: [OAuth permissions reference](https://developer.squareup.com/docs/oau
 ## Support contacts
 
 - **Square Developer support:** [Square Developer Forums](https://developer.squareup.com/forums)
-- **Square seller (register) support:** Square Dashboard → Help  
+- **Square seller (register) support:** Square Dashboard → Help
 - **App / AWS:** Steve McKitrick

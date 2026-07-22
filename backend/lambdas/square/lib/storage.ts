@@ -1,5 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DeleteCommand,
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { GetParameterCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { connectionTable, ssmPrefix, storeId } from './config';
 
@@ -17,6 +22,8 @@ export interface SquareConnectionRecord {
   connectedBy?: string;
   oauthState?: string;
   oauthStateExpiresAt?: number;
+  lastSyncAt?: string;
+  lastSyncSummary?: Record<string, unknown>;
 }
 
 export async function getConnection(): Promise<SquareConnectionRecord | null> {
@@ -70,7 +77,10 @@ async function putSecureParam(name: string, value: string): Promise<void> {
   );
 }
 
-export async function getSquareAppCredentials(): Promise<{ applicationId: string; applicationSecret: string } | null> {
+export async function getSquareAppCredentials(): Promise<{
+  applicationId: string;
+  applicationSecret: string;
+} | null> {
   const applicationId = await getSecureParam('application_id');
   const applicationSecret = await getSecureParam('application_secret');
   if (!applicationId || !applicationSecret) return null;
@@ -83,7 +93,15 @@ export async function saveSquareTokens(accessToken: string, refreshToken: string
 }
 
 export async function getSquareAccessToken(): Promise<string | null> {
-  return getSecureParam('access_token');
+  const token = await getSecureParam('access_token');
+  if (!token || token === 'cleared') return null;
+  return token;
+}
+
+export async function getSquareRefreshToken(): Promise<string | null> {
+  const token = await getSecureParam('refresh_token');
+  if (!token || token === 'cleared') return null;
+  return token;
 }
 
 export async function clearSquareTokens(): Promise<void> {
