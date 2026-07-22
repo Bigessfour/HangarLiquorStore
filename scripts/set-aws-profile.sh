@@ -4,7 +4,10 @@
 
 set -e
 
-PROFILE="hanger-personal"
+PROFILE="steve"
+# Prefer steve (personal). If login expired: aws login --profile steve
+# Legacy docs mention hanger-personal — create an alias if you want that name:
+#   aws configure set profile.hanger-personal.region us-east-2
 export AWS_PROFILE="$PROFILE"
 
 echo "AWS_PROFILE set to '$PROFILE'"
