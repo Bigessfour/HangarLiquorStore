@@ -11,7 +11,7 @@ export function resolveRoleFromGroups(groups: string[]): UserRole {
 /**
  * Normalize cognito:groups from API Gateway JWT claims.
  * API GW often passes groups as a JSON string (e.g. `["Owner"]`) instead of an array —
- * naive `.split(',')` then fails Owner-only users on Manager+ routes.
+ * naive `.split(',')` then fails Owner-only users on Manager+ / Owner routes.
  */
 export function parseCognitoGroups(raw: unknown): string[] {
   if (raw == null) return [];
@@ -44,9 +44,65 @@ export function parseCognitoGroups(raw: unknown): string[] {
   return [];
 }
 
-export function groupsFromJwtClaims(claims: Record<string, unknown> | undefined | null): string[] {
+function groupsFromClaimsObject(claims: Record<string, unknown> | undefined | null): string[] {
   if (!claims) return [];
-  return parseCognitoGroups(claims['cognito:groups']);
+  const raw =
+    claims['cognito:groups'] ??
+    claims['cognito%3Agroups'] ??
+    claims['Cognito:groups'];
+  return parseCognitoGroups(raw);
+}
+
+export function groupsFromJwtClaims(claims: Record<string, unknown> | undefined | null): string[] {
+  return groupsFromClaimsObject(claims);
+}
+
+/** Decode JWT payload without verifying (API GW already verified the token). */
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+    const json = Buffer.from(b64 + pad, 'base64').toString('utf8');
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+type ApiGwAuthEvent = {
+  requestContext?: {
+    authorizer?: {
+      jwt?: { claims?: Record<string, unknown> };
+      claims?: Record<string, unknown>;
+    };
+  };
+  headers?: Record<string, string | undefined>;
+};
+
+/**
+ * Prefer API Gateway authorizer claims; fall back to decoding the Bearer ID token.
+ * Fixes Owner routes when claim packaging differs by route or authorizer version.
+ */
+export function groupsFromApiGatewayEvent(event: ApiGwAuthEvent): string[] {
+  const authz = event.requestContext?.authorizer;
+  const fromJwtAuthorizer = groupsFromClaimsObject(authz?.jwt?.claims);
+  if (fromJwtAuthorizer.length > 0) return fromJwtAuthorizer;
+
+  const fromLegacyAuthorizer = groupsFromClaimsObject(authz?.claims);
+  if (fromLegacyAuthorizer.length > 0) return fromLegacyAuthorizer;
+
+  const headers = event.headers || {};
+  const authHeader = headers.authorization || headers.Authorization || '';
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (match?.[1]) {
+    const payload = decodeJwtPayload(match[1].trim());
+    const fromToken = groupsFromClaimsObject(payload);
+    if (fromToken.length > 0) return fromToken;
+  }
+
+  return [];
 }
 
 export function hasMinimumRole(current: UserRole, required: UserRole): boolean {

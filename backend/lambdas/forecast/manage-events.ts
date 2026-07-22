@@ -3,12 +3,13 @@ import { createLocalEvent, deleteLocalEvent, getLocalEvents } from './lib/dynamo
 import { validateCreateEventInput } from './lib/event-validators';
 import { getActiveStaticHolidays } from './lib/event-multiplier';
 import { errorResponse, jsonResponse } from './lib/response';
-import { callerHasManagerAccess, groupsFromJwtClaims } from '../../shared/auth/roles';
+import { callerHasManagerAccess, groupsFromApiGatewayEvent } from '../../shared/auth/roles';
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+  headers?: Record<string, string | undefined>;
 }): string[] {
-  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
+  return groupsFromApiGatewayEvent(event);
 }
 
 function requireManager(groups: string[]) {

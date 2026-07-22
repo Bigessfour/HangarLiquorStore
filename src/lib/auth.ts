@@ -182,7 +182,34 @@ export function getAuthHeaders(): Record<string, string> {
 
 export function getUserRole(): UserRole {
   const user = getCurrentUser();
-  return user?.role || 'ReadOnly';
+  if (!user) return 'ReadOnly';
+  // Re-derive from ID token so Owner stays Owner even if localStorage role is stale
+  if (user.token && !user.token.startsWith('demo-')) {
+    const payload = parseJwt(user.token);
+    const groups = payload['cognito:groups'];
+    const groupList = Array.isArray(groups)
+      ? groups.map(String)
+      : typeof groups === 'string'
+        ? groups.startsWith('[')
+          ? (() => {
+              try {
+                const parsed = JSON.parse(groups) as unknown;
+                return Array.isArray(parsed) ? parsed.map(String) : [groups];
+              } catch {
+                return groups.split(/[, ]+/).filter(Boolean);
+              }
+            })()
+          : groups.split(/[, ]+/).filter(Boolean)
+        : [];
+    if (groupList.length > 0) {
+      const role = resolveRoleFromGroups(groupList);
+      if (user.role !== role) {
+        setCurrentUser({ ...user, role });
+      }
+      return role;
+    }
+  }
+  return user.role || 'ReadOnly';
 }
 
 export function hasRole(required: UserRole): boolean {

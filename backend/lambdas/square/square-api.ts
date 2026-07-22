@@ -19,12 +19,13 @@ import {
   saveConnection,
 } from './lib/storage';
 import { runSquareSync } from './lib/sync';
-import { callerIsOwner, groupsFromJwtClaims } from '../../shared/auth/roles';
+import { callerIsOwner, groupsFromApiGatewayEvent } from '../../shared/auth/roles';
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+  headers?: Record<string, string | undefined>;
 }): string[] {
-  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
+  return groupsFromApiGatewayEvent(event);
 }
 
 function getCallerUsername(event: {

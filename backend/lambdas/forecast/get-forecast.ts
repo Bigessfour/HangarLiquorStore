@@ -10,7 +10,7 @@ import { buildOptimizationImpact, buildProfitSnapshot, periodWindow } from './li
 import type { TrendingSuggestion } from '../../shared/types/forecast';
 import type { ProfitPeriod } from '../../shared/types/profit';
 import { errorResponse, jsonResponse } from './lib/response';
-import { callerHasManagerAccess, groupsFromJwtClaims } from '../../shared/auth/roles';
+import { callerHasManagerAccess, groupsFromApiGatewayEvent } from '../../shared/auth/roles';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -30,8 +30,9 @@ function overlaps(date: string, start: string, end: string): boolean {
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+  headers?: Record<string, string | undefined>;
 }): string[] {
-  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
+  return groupsFromApiGatewayEvent(event);
 }
 
 function requireManager(groups: string[]) {

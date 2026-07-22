@@ -4,6 +4,8 @@ import {
   canEditInventory,
   canManageUsers,
   callerHasManagerAccess,
+  callerIsOwner,
+  groupsFromApiGatewayEvent,
   hasMinimumRole,
   parseCognitoGroups,
   resolveRoleFromGroups,
@@ -38,6 +40,26 @@ describe('parseCognitoGroups (API Gateway claim shapes)', () => {
     expect(callerHasManagerAccess(parseCognitoGroups('["Owner"]'))).toBe(true);
     expect(callerHasManagerAccess(parseCognitoGroups('["Manager"]'))).toBe(true);
     expect(callerHasManagerAccess(parseCognitoGroups('["ReadOnly"]'))).toBe(false);
+  });
+
+  it('recognizes Owner for Square requireOwner path', () => {
+    expect(callerIsOwner(parseCognitoGroups('["Owner"]'))).toBe(true);
+    expect(callerIsOwner(parseCognitoGroups('Owner'))).toBe(true);
+  });
+});
+
+describe('groupsFromApiGatewayEvent', () => {
+  it('falls back to Bearer ID token when authorizer claims are empty', () => {
+    const payload = Buffer.from(JSON.stringify({ 'cognito:groups': ['Owner'] })).toString(
+      'base64url',
+    );
+    const token = `hdr.${payload}.sig`;
+    const groups = groupsFromApiGatewayEvent({
+      requestContext: { authorizer: { jwt: { claims: {} } } },
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(groups).toEqual(['Owner']);
+    expect(callerIsOwner(groups)).toBe(true);
   });
 });
 

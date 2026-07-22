@@ -32,7 +32,7 @@ import {
 import {
   callerHasManagerAccess,
   callerIsOwner,
-  groupsFromJwtClaims,
+  groupsFromApiGatewayEvent,
 } from '../../shared/auth/roles';
 
 type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product' | 'users';
@@ -79,8 +79,9 @@ function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
+  headers?: Record<string, string | undefined>;
 }): string[] {
-  return groupsFromJwtClaims(event.requestContext?.authorizer?.jwt?.claims);
+  return groupsFromApiGatewayEvent(event);
 }
 
 function requireRole(groups: string[], minRole: 'Manager' | 'Owner') {

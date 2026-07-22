@@ -84,6 +84,13 @@ export async function getSquareAppCredentials(): Promise<{
   const applicationId = await getSecureParam('application_id');
   const applicationSecret = await getSecureParam('application_secret');
   if (!applicationId || !applicationSecret) return null;
+  // Terraform seeds placeholders — treat as not configured until real Square app ids are set
+  if (
+    applicationId.startsWith('REPLACE_WITH_') ||
+    applicationSecret.startsWith('REPLACE_WITH_')
+  ) {
+    return null;
+  }
   return { applicationId, applicationSecret };
 }
 
