@@ -27,10 +27,15 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
   if (!response.ok) {
     let message = 'Request failed';
     try {
-      const body = (await response.json()) as { error?: string };
-      message = body.error ?? message;
+      const body = (await response.json()) as { error?: string; message?: string };
+      message = body.error ?? body.message ?? message;
     } catch {
-      message = await response.text();
+      try {
+        const text = await response.text();
+        if (text) message = text.slice(0, 200);
+      } catch {
+        /* keep default */
+      }
     }
     throw new ApiError(response.status, message);
   }

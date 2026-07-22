@@ -206,10 +206,10 @@ export function SquareConnectPanel() {
         </div>
 
         {!status?.credentialsConfigured && !mock && (
-          <p className="text-xs text-muted-foreground">
-            Optional for local demo. After terraform deploy, run{' '}
-            <code className="rounded bg-muted px-1">npx tsx scripts/setup-square-ssm.ts</code>, then
-            Chris can connect — see{' '}
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Square Connect is not ready yet — Steve still needs to put Hangar&apos;s Square app ID and
+            secret in AWS (Part A). Everything else (scan, inventory, Profit &amp; Ops, Ask Hangar)
+            works without that. See{' '}
             <Link to="/square-setup" className="text-hanger-amber underline">
               Setup instructions
             </Link>
