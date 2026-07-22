@@ -45,9 +45,10 @@ This deploys the AWS backend (DynamoDB, Lambda, API Gateway) to a **client's own
 Code-only + small IAM/timeout changes — no new DynamoDB tables.
 
 ```bash
-# 1. Profile (personal Hangar account)
-source scripts/set-aws-profile.sh   # AWS_PROFILE=hanger-personal
-aws sts get-caller-identity
+# 1. Profile (Hangar account 570912405222 — AWS_PROFILE=steve)
+source scripts/set-aws-profile.sh
+aws login --profile steve           # if session expired
+aws sts get-caller-identity         # must show Account 570912405222
 
 # 2. Build Lambda bundles (required before plan/apply)
 npm run build:backend
