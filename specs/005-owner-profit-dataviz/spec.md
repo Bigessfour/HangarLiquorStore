@@ -4,7 +4,9 @@
 
 **Created**: 2026-07-21
 
-**Status**: Draft — after 003/004; depends on Square (004) + optimization (006) for full “money in pocket” story
+**Status**: Draft — **specs-only** for trial business; refine after 004; mock/proxy OK for first Profit MVP narrative
+
+**Trial role:** Prove to Chris the tool **saves or makes him money** (Day/Month/Year + Saved/Made) — not a chart wall.
 
 **Input**: A kick-ass but calm Manager/Owner data-viz dashboard — industry KPIs liquor store owners actually care about — so Chris can see **daily / monthly / yearly** how Hangar is doing and how inventory optimization is **saving or making him money**. Not a wall of charts. Meaningful signal. Optional everyday-language AI chat (see Spec 006 companion) to spitball ideas against Hangar-specific data.
 

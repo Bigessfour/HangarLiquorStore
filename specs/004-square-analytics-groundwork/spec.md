@@ -4,7 +4,9 @@
 
 **Created**: 2026-07-21
 
-**Status**: Draft — prepare inventory/sales data path to Square (after 002/003)
+**Status**: Draft — **specs-only** for trial business; next to refine (no implement until build window)
+
+**Trial role:** Unlocks real POS sales for the “money in pocket” story (005/006). Chris only taps Connect; Steve gets copy-paste Part A.
 
 **Input**: Prepare Hangar Liquor’s data / inventory connection to [Square’s platform](https://developer.squareup.com/us/en) for analytics — groundwork so Owner connection is simple and intuitive (“enter this / tap Connect”), not a developer scavenger hunt. Align with Catalog, Inventory, Orders, and Payments APIs for forecasting inputs.
 

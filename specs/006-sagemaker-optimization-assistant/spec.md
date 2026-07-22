@@ -4,7 +4,9 @@
 
 **Created**: 2026-07-21
 
-**Status**: Draft — after 004/005 data path; not started
+**Status**: Draft stub — **specs-only**; expand before any build; after 004/005
+
+**Trial role:** Computes the dollars behind 005’s impact card; AI chat is P3 spitball with grounded Hangar data only.
 
 **Input**: Implement the SageMaker / inventory **optimization** function so forecasts become actionable money outcomes, and (optionally) a **custom AI chat** where Chris uses everyday language to discuss Hangar Liquor–specific data — spitball ideas, ask questions, query store metrics.
 
