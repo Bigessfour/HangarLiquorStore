@@ -1,0 +1,17 @@
+# Terraform variable examples (do not commit real secrets)
+#
+# cp terraform.tfvars.example terraform.tfvars
+# Edit locally — terraform.tfvars is gitignored if present in .gitignore
+
+store_id    = "hanger"
+region      = "us-east-2"
+environment = "prod"
+
+# Leave empty for statistical + grounded Ask Hangar (no Bedrock cost)
+bedrock_model_id = ""
+
+# Optional after Canvas deploy:
+# sagemaker_endpoint = "hanger-forecast-canvas"
+
+# Profit/optimize/assistant may scan sales history
+forecast_lambda_timeout = 60

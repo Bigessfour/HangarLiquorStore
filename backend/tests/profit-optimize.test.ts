@@ -82,6 +82,30 @@ describe('profit-engine', () => {
     expect(snap.pulse.salesDollars).toBeGreaterThan(0);
     expect(snap.categoryMix.length).toBeGreaterThan(0);
     expect(snap.optimization.dollarsSaved).toBeGreaterThanOrEqual(0);
+    expect(snap.learning.basis).toBe('inventory_proxy');
+    expect(snap.learning.plainEnglish.length).toBeGreaterThan(20);
+  });
+
+  it('cites earliest Square sale date when history exists', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map([
+        [
+          '1',
+          [
+            { upc: '1', date: '2026-03-01', quantity: 4 },
+            { upc: '1', date: '2026-04-01', quantity: 2 },
+          ],
+        ],
+      ]),
+      forecasts,
+      events,
+      squareLastSyncAt: '2026-07-01T00:00:00Z',
+    });
+    expect(snap.learning.salesDataSince).toBe('2026-03-01');
+    expect(snap.learning.basis).toBe('square_sales');
+    expect(snap.learning.plainEnglish).toMatch(/actual Square sales since/);
   });
 });
 

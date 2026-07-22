@@ -40,6 +40,50 @@ This deploys the AWS backend (DynamoDB, Lambda, API Gateway) to a **client's own
    - Deploy model to Serverless endpoint.
    - Set `sagemaker_endpoint` var and re-apply.
 
+## AWS update prep (Profit learning + demo honesty + Bedrock IAM)
+
+Code-only + small IAM/timeout changes — no new DynamoDB tables.
+
+```bash
+# 1. Profile (personal Hangar account)
+source scripts/set-aws-profile.sh   # AWS_PROFILE=hanger-personal
+aws sts get-caller-identity
+
+# 2. Build Lambda bundles (required before plan/apply)
+npm run build:backend
+
+# 3. Plan (review forecast timeout + optional Bedrock policy)
+cd terraform
+terraform init -input=false
+terraform plan -var="store_id=hanger" -out=tfplan
+
+# Optional Bedrock chat (otherwise grounded keyword fallback only):
+# terraform plan -var="store_id=hanger" -var="bedrock_model_id=amazon.nova-lite-v1:0" -out=tfplan
+# Enable model access in Bedrock console for that region first.
+
+# 4. Apply when ready
+terraform apply tfplan
+
+# 5. Frontend + env sync
+cd ..
+npx tsx scripts/sync-aws-env.ts --write-dotenv
+npm run deploy:frontend
+# Or full path: npm run deploy:production
+```
+
+**What this apply ships to AWS**
+- Forecast Lambda: profit `learning` block (sales-since date + illustrative monthly improvement), cash-impact optimize, Ask Hangar
+- Forecast timeout default **60s** (`forecast_lambda_timeout`)
+- Bedrock IAM **only if** `bedrock_model_id` is non-empty
+- Square sync / Profit & Ops routes already in TF — redeploy picks up new zip hashes
+
+**Square still needs (manual, not TF secrets)**
+- `npm run setup-square-ssm` after replacing SSM placeholders
+- Owner Connect OAuth on the live app
+- Redirect URI from `terraform output square_oauth_redirect_uri`
+
+**Laptop demo (no AWS)** still: `npm run demo` with Square/Profit simulation flags in `.env.demo`.
+
 ## Invoicing / Billing
 - Client pays their own AWS bill directly (DynamoDB on-demand, Lambda pay-per-use, API Gateway).
 - You invoice Hangar Liquor for:

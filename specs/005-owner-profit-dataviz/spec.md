@@ -97,6 +97,7 @@ Profit page embeds Ask Hangar chat panel (006). If 006 unavailable, show stub th
 - **FR-009**: Consume 006 optimization fields when present (`optimization` block)
 - **FR-010**: More menu link for Manager+; Dashboard shortcut card optional
 - **FR-011**: Ask Hangar panel on page (wired to 006)
+- **FR-012**: `learning` block on profit payload — `salesDataSince` (earliest Square/sales date), illustrative ~% improvement per month of history, and holiday-actuals note (honest labels; not an SLA)
 
 ### Proxy formulas (demo / no Square)
 

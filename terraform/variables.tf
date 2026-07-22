@@ -35,7 +35,13 @@ variable "sagemaker_endpoint" {
 }
 
 variable "bedrock_model_id" {
-  description = "Optional Bedrock model id for Hangar AI chat (empty = grounded fallback only)"
+  description = "Optional Bedrock model id for Hangar AI chat (empty = grounded fallback only). Example: amazon.nova-lite-v1:0"
   type        = string
   default     = ""
+}
+
+variable "forecast_lambda_timeout" {
+  description = "Timeout for forecast/profit/optimize/assistant Lambda (seconds). Higher helps sales-history scans."
+  type        = number
+  default     = 60
 }

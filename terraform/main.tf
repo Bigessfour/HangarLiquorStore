@@ -282,6 +282,28 @@ resource "aws_iam_role_policy" "sagemaker" {
   policy = data.aws_iam_policy_document.sagemaker_invoke[0].json
 }
 
+# Optional Hangar AI chat (forecast Lambda → Bedrock Converse)
+data "aws_iam_policy_document" "bedrock_invoke" {
+  count = var.bedrock_model_id != "" ? 1 : 0
+  statement {
+    sid = "BedrockConverse"
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+      "bedrock:Converse",
+      "bedrock:ConverseStream",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "bedrock" {
+  count  = var.bedrock_model_id != "" ? 1 : 0
+  name   = "${var.store_id}-bedrock-invoke"
+  role   = aws_iam_role.lambda_exec.id
+  policy = data.aws_iam_policy_document.bedrock_invoke[0].json
+}
+
 # AWS Budgets for cost control (recommended for low-cost client deployment)
 resource "aws_budgets_budget" "monthly_cost" {
   name              = "${var.store_id}-monthly-cost-budget"
@@ -378,7 +400,7 @@ resource "aws_lambda_function" "forecast" {
   runtime          = "nodejs20.x"  # Use nodejs24.x or latest supported per AWS/MCP docs
   source_code_hash = data.archive_file.forecast_lambda.output_base64sha256
   memory_size      = var.lambda_memory
-  timeout          = var.lambda_timeout
+  timeout          = var.forecast_lambda_timeout
 
   environment {
     variables = {

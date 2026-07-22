@@ -1,7 +1,29 @@
 export type ProfitPeriod = 'day' | 'month' | 'year';
 
 export type ProfitProvenance =
-  'demo_proxy' | 'square_sync' | 'statistical' | 'sagemaker' | 'hybrid';
+  | 'demo_proxy'
+  | 'square_sync'
+  | 'statistical'
+  | 'sagemaker'
+  | 'hybrid';
+
+export type ForecastLearningBasis =
+  | 'demo_simulation'
+  | 'inventory_proxy'
+  | 'square_sales';
+
+/** Honest owner messaging: data since date + illustrative learning curve */
+export interface ForecastLearningStatus {
+  basis: ForecastLearningBasis;
+  salesDataSince: string | null;
+  monthsOfHistory: number;
+  expectedImprovementPctPerMonth: number;
+  illustrativeAccuracyPct: number;
+  illustrativeAccuracyNextMonthPct: number;
+  holidaysWithActuals: number;
+  pastHolidaysOnCalendar: number;
+  plainEnglish: string;
+}
 
 export interface CategoryMixSlice {
   category: string;
@@ -58,6 +80,8 @@ export interface ProfitOpsSnapshot {
   optimization: OptimizationImpact;
   squareConnected: boolean;
   squareLastSyncAt: string | null;
+  /** How much real sales history backs the numbers + expected improvement */
+  learning: ForecastLearningStatus;
 }
 
 export interface AssistantChatResponse {

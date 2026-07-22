@@ -27,6 +27,17 @@ function buildContextPack(snapshot: ProfitOpsSnapshot, eventsSummary: string[]):
       events: safeEvents,
       isProxy: snapshot.isProxy,
       squareConnected: snapshot.squareConnected,
+      learning: snapshot.learning
+        ? {
+            basis: snapshot.learning.basis,
+            salesDataSince: snapshot.learning.salesDataSince,
+            monthsOfHistory: snapshot.learning.monthsOfHistory,
+            expectedImprovementPctPerMonth:
+              snapshot.learning.expectedImprovementPctPerMonth,
+            illustrativeAccuracyPct: snapshot.learning.illustrativeAccuracyPct,
+            holidaysWithActuals: snapshot.learning.holidaysWithActuals,
+          }
+        : null,
     },
     null,
     0,
@@ -186,10 +197,31 @@ export function groundedAssistantReply(
     };
   }
 
+  if (
+    q.includes('improv') ||
+    q.includes('accuracy') ||
+    q.includes('how long') ||
+    q.includes('history') ||
+    q.includes('learning') ||
+    (q.includes('data') && q.includes('since'))
+  ) {
+    const L = snapshot.learning;
+    if (L) {
+      citations.push(L.plainEnglish.slice(0, 160));
+      if (L.salesDataSince) citations.push(`Sales since ${L.salesDataSince}`);
+      citations.push(`~${L.expectedImprovementPctPerMonth}% / month (illustrative)`);
+      return {
+        reply: L.plainEnglish,
+        citations,
+        source: 'grounded_fallback',
+      };
+    }
+  }
+
   citations.push(`Sales ~$${pulse.salesDollars}`);
   citations.push(`Saved $${optimization.dollarsSaved} / Made $${optimization.dollarsMade}`);
   return {
-    reply: `Here’s Hangar’s pulse for ${snapshot.periodLabel}: ~$${pulse.salesDollars} sales, $${optimization.dollarsSaved} saved / $${optimization.dollarsMade} made from optimization. Ask about Hay Days, beer cash, or what to order next.`,
+    reply: `Here’s Hangar’s pulse for ${snapshot.periodLabel}: ~$${pulse.salesDollars} sales, $${optimization.dollarsSaved} saved / $${optimization.dollarsMade} made from optimization. Ask about Hay Days, beer cash, what to order, or how forecasts improve with more Square history.`,
     citations,
     source: 'grounded_fallback',
   };

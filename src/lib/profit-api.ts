@@ -1,4 +1,9 @@
 import { apiClient } from '@/lib/api-client';
+import { isDemoProfitSimulated, isDemoSquareSimulated } from '@/lib/demo-sim';
+import {
+  buildForecastLearningStatus,
+  demoSimulatedSalesSince,
+} from '@/lib/forecast-learning';
 import { isMockApi } from '@/lib/mock-api';
 import type {
   AssistantChatResponse,
@@ -7,11 +12,20 @@ import type {
   ProfitPeriod,
 } from '@/types/profit';
 
-const MOCK_SNAPSHOT: ProfitOpsSnapshot = {
-  period: 'month',
-  periodLabel: 'Last 30 days',
-  generatedAt: new Date().toISOString(),
-  isProxy: true,
+/** Base sample numbers used for both proxy and Square-sim walkthroughs. */
+const MOCK_SNAPSHOT_BASE: Omit<
+  ProfitOpsSnapshot,
+  | 'period'
+  | 'periodLabel'
+  | 'generatedAt'
+  | 'isProxy'
+  | 'optimization'
+  | 'squareConnected'
+  | 'squareLastSyncAt'
+  | 'learning'
+> & {
+  optimization: Omit<OptimizationImpact, 'provenance' | 'explanation'>;
+} = {
   pulse: {
     salesDollars: 18420,
     marginPct: 28,
@@ -48,9 +62,6 @@ const MOCK_SNAPSHOT: ProfitOpsSnapshot = {
     dollarsSaved: 1840,
     dollarsMade: 2100,
     confidence: 'medium',
-    provenance: 'demo_proxy',
-    explanation:
-      'Demo cash-impact estimate from days-of-cover vs category targets (overstock saved / stockout margin protected).',
     recommendations: [
       {
         upc: '082184000012',
@@ -81,9 +92,44 @@ const MOCK_SNAPSHOT: ProfitOpsSnapshot = {
       },
     ],
   },
-  squareConnected: false,
-  squareLastSyncAt: null,
 };
+
+function buildMockSnapshot(): ProfitOpsSnapshot {
+  const simulate = isDemoProfitSimulated();
+  const lastSync =
+    typeof localStorage !== 'undefined'
+      ? localStorage.getItem('hanger-demo-square-last-sync')
+      : null;
+  const salesDataSince = simulate ? demoSimulatedSalesSince() : null;
+
+  return {
+    period: 'month',
+    periodLabel: 'Last 30 days',
+    generatedAt: new Date().toISOString(),
+    // Still sample $ — banner + isProxy keep us honest even when "connected" sim is on
+    isProxy: true,
+    pulse: MOCK_SNAPSHOT_BASE.pulse,
+    categoryMix: MOCK_SNAPSHOT_BASE.categoryMix,
+    health: MOCK_SNAPSHOT_BASE.health,
+    optimization: {
+      ...MOCK_SNAPSHOT_BASE.optimization,
+      provenance: simulate ? 'square_sync' : 'demo_proxy',
+      explanation: simulate
+        ? 'Simulated Square-connected cash-impact view (sample sales + cover math). Real live dollars need Owner Square Connect + sync.'
+        : 'Demo cash-impact estimate from days-of-cover vs category targets. Connect Square and sync for live register dollars.',
+    },
+    squareConnected: simulate && isDemoSquareSimulated(),
+    squareLastSyncAt: simulate
+      ? (lastSync ?? new Date(Date.now() - 3_600_000).toISOString())
+      : null,
+    learning: buildForecastLearningStatus({
+      basis: simulate ? 'demo_simulation' : 'inventory_proxy',
+      salesDataSince,
+      holidaysWithActuals: simulate ? 1 : 0,
+      pastHolidaysOnCalendar: simulate ? 2 : 0,
+    }),
+  };
+}
 
 function withPeriod(base: ProfitOpsSnapshot, period: ProfitPeriod): ProfitOpsSnapshot {
   const labels = { day: 'Today', month: 'Last 30 days', year: 'Last 12 months' } as const;
@@ -113,14 +159,14 @@ function withPeriod(base: ProfitOpsSnapshot, period: ProfitPeriod): ProfitOpsSna
 
 export async function fetchProfitOps(period: ProfitPeriod): Promise<ProfitOpsSnapshot> {
   if (isMockApi()) {
-    return withPeriod(MOCK_SNAPSHOT, period);
+    return withPeriod(buildMockSnapshot(), period);
   }
   return apiClient<ProfitOpsSnapshot>(`/api/profit?period=${period}`);
 }
 
 export async function fetchOptimization(period: ProfitPeriod): Promise<OptimizationImpact> {
   if (isMockApi()) {
-    return withPeriod(MOCK_SNAPSHOT, period).optimization;
+    return withPeriod(buildMockSnapshot(), period).optimization;
   }
   return apiClient<OptimizationImpact>(`/api/optimize?period=${period}`);
 }
@@ -130,7 +176,7 @@ export async function askHangarAssistant(
   period: ProfitPeriod,
 ): Promise<AssistantChatResponse> {
   if (isMockApi()) {
-    const snap = withPeriod(MOCK_SNAPSHOT, period);
+    const snap = withPeriod(buildMockSnapshot(), period);
     const q = message.toLowerCase();
     if (q.includes('overstock') || q.includes('cash tied') || q.includes('tied up') || q.includes('whiskey')) {
       const overstock = [...snap.optimization.recommendations]
@@ -154,6 +200,24 @@ export async function askHangarAssistant(
         source: 'demo',
       };
     }
+    if (
+      q.includes('improv') ||
+      q.includes('accuracy') ||
+      q.includes('history') ||
+      q.includes('learning') ||
+      (q.includes('square') && q.includes('data'))
+    ) {
+      return {
+        reply: snap.learning.plainEnglish,
+        citations: [
+          snap.learning.salesDataSince
+            ? `Sales since ${snap.learning.salesDataSince}`
+            : 'No Square history yet',
+          `~${snap.learning.expectedImprovementPctPerMonth}% / month (illustrative)`,
+        ],
+        source: 'demo',
+      };
+    }
     if (q.includes('beer')) {
       return {
         reply: `Beer is ~${snap.categoryMix[0]?.sharePct}% of mix (~$${snap.categoryMix[0]?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}. Saved ~$${snap.optimization.dollarsSaved} from cover targets.`,
@@ -162,7 +226,11 @@ export async function askHangarAssistant(
       };
     }
     return {
-      reply: `${snap.periodLabel}: ~$${snap.pulse.salesDollars} sales, $${snap.optimization.dollarsSaved} saved / $${snap.optimization.dollarsMade} made. Ask about Hay Days, beer cash, or what to order.`,
+      reply: `${snap.periodLabel}: ~$${snap.pulse.salesDollars} sales, $${snap.optimization.dollarsSaved} saved / $${snap.optimization.dollarsMade} made${
+        isDemoProfitSimulated()
+          ? ' (demo simulation of a Square-connected view — not live register data yet)'
+          : ''
+      }. Ask about Hay Days, beer cash, or what to order.`,
       citations: [
         `Sales $${snap.pulse.salesDollars}`,
         `Saved $${snap.optimization.dollarsSaved}`,

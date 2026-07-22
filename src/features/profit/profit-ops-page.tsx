@@ -6,6 +6,7 @@ import { DollarSign, MessageCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { hasRole } from '@/lib/auth';
+import { DEMO_PROFIT_DISCLAIMER, isDemoProfitSimulated } from '@/lib/demo-sim';
 import { askHangarAssistant, fetchProfitOps } from '@/lib/profit-api';
 import type { ProfitPeriod } from '@/types/profit';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ const SUGGESTED = [
   'Why is beer cash tied up?',
   'Show me the biggest overstock dollars this month.',
   'How much money is in my pocket this month?',
+  'How do forecasts improve with more Square history?',
 ];
 
 function money(n: number): string {
@@ -113,10 +115,76 @@ export function ProfitOpsPage() {
 
       {data && (
         <>
-          {data.isProxy && (
-            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Demo / proxy estimate — connect Square and sync for live register dollars.
+          {isDemoProfitSimulated() && (
+            <p className="rounded-md border border-hanger-amber/40 bg-hanger-amber/10 px-3 py-2 text-sm text-foreground">
+              {DEMO_PROFIT_DISCLAIMER}
+              {data.squareConnected
+                ? ` Simulated last sync: ${data.squareLastSyncAt ? new Date(data.squareLastSyncAt).toLocaleString() : 'just now'}.`
+                : ' Square not simulated as connected — live Profit dollars still need Owner Connect.'}
             </p>
+          )}
+          {data.isProxy && !isDemoProfitSimulated() && (
+            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              Demo / proxy estimate — connect Square and sync for live register dollars. Without
+              Square, Saved/Made and mix are sample figures only.
+            </p>
+          )}
+          {data.isProxy && isDemoProfitSimulated() && (
+            <p className="text-xs text-muted-foreground">
+              Still marked proxy: category margin (~28%) until real Square costs/catalog map in.
+            </p>
+          )}
+
+          {data.learning && (
+            <section
+              className="space-y-2 rounded-lg border border-border bg-muted/30 px-3 py-3"
+              aria-labelledby="learning-heading"
+            >
+              <h2 id="learning-heading" className="text-sm font-semibold">
+                Based on your sales data
+              </h2>
+              <p className="text-sm text-foreground">{data.learning.plainEnglish}</p>
+              <dl className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                <div>
+                  <dt className="text-muted-foreground">Data since</dt>
+                  <dd className="font-medium tabular-nums">
+                    {data.learning.salesDataSince
+                      ? new Date(`${data.learning.salesDataSince}T12:00:00Z`).toLocaleDateString(
+                          undefined,
+                          { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' },
+                        )
+                      : 'Not yet'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">History</dt>
+                  <dd className="font-medium tabular-nums">
+                    ~{data.learning.monthsOfHistory} mo
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Illustrative trust</dt>
+                  <dd className="font-medium tabular-nums">
+                    ~{data.learning.illustrativeAccuracyPct}% → ~
+                    {data.learning.illustrativeAccuracyNextMonthPct}%
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Per month</dt>
+                  <dd className="font-medium tabular-nums">
+                    ~+{data.learning.expectedImprovementPctPerMonth}%
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted-foreground">
+                Trust % is illustrative (not a guarantee). Holiday/event actuals (
+                {data.learning.holidaysWithActuals}
+                {data.learning.pastHolidaysOnCalendar > 0
+                  ? ` of ${data.learning.pastHolidaysOnCalendar} past events`
+                  : ''}
+                ) further tighten seasonal forecasts.
+              </p>
+            </section>
           )}
 
           <section className="space-y-2" aria-labelledby="pulse-heading">

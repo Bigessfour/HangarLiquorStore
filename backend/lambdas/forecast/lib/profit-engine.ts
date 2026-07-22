@@ -12,6 +12,11 @@ import type {
   ProfitProvenance,
 } from '../../../shared/types/profit';
 import { buildCashOptimizationImpact, unitPrice } from './cash-impact-engine';
+import {
+  buildForecastLearningStatus,
+  countPastHolidaysWithSales,
+  earliestSaleDate,
+} from './forecast-learning';
 
 function mixCategory(category: string, name: string): string {
   const n = name.toLowerCase();
@@ -179,6 +184,14 @@ export function buildProfitSnapshot(input: {
     salesByUpc: input.salesByUpc,
   });
 
+  const salesDataSince = earliestSaleDate(input.salesByUpc);
+  const holidayStats = countPastHolidaysWithSales(input.events, input.salesByUpc);
+  const squareConnected = !!input.squareLastSyncAt || !!input.squarePaymentsGrossCents;
+  const learningBasis =
+    salesDataSince && (squareConnected || historyUnits > 0)
+      ? 'square_sales'
+      : 'inventory_proxy';
+
   return {
     period: input.period,
     periodLabel: window.label,
@@ -199,7 +212,13 @@ export function buildProfitSnapshot(input: {
       turnsPerYear,
     },
     optimization,
-    squareConnected: !!input.squareLastSyncAt || !!input.squarePaymentsGrossCents,
+    squareConnected,
     squareLastSyncAt: input.squareLastSyncAt ?? null,
+    learning: buildForecastLearningStatus({
+      basis: learningBasis,
+      salesDataSince,
+      holidaysWithActuals: holidayStats.withActuals,
+      pastHolidaysOnCalendar: holidayStats.pastOnCalendar,
+    }),
   };
 }

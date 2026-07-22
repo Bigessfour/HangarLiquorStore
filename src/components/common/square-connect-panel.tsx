@@ -14,6 +14,7 @@ import {
   type SquareConnectionStatus,
 } from '@/lib/square-api';
 import { toast } from 'sonner';
+import { DEMO_SQUARE_DISCLAIMER, isDemoSquareSimulated } from '@/lib/demo-sim';
 import { isMockApi } from '@/lib/mock-api';
 
 const SQUARE_DOCS = 'https://developer.squareup.com/docs/oauth-api/overview';
@@ -23,6 +24,7 @@ export function SquareConnectPanel() {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const mock = isMockApi();
+  const squareSim = isDemoSquareSimulated();
 
   const {
     data: status,
@@ -107,10 +109,19 @@ export function SquareConnectPanel() {
           </div>
         </div>
 
-        {mock && (
+        {mock && squareSim && (
+          <p className="rounded-md border border-hanger-amber/40 bg-hanger-amber/10 px-3 py-2 text-sm text-foreground">
+            {DEMO_SQUARE_DISCLAIMER} Depends on: live API, Square SSM credentials, Owner Connect,
+            then Sync.
+          </p>
+        )}
+        {mock && !squareSim && (
           <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-            Local demo mode — Square OAuth needs the live backend. Sync still works as a demo
-            estimate so you can see the flow.
+            Local demo — Square is not connected. Set{' '}
+            <code className="rounded bg-muted px-1 text-xs">VITE_DEMO_SIMULATE_SQUARE=true</code> in{' '}
+            <code className="rounded bg-muted px-1 text-xs">.env.demo</code> (or run{' '}
+            <code className="rounded bg-muted px-1 text-xs">npm run demo</code>) to preview the
+            connected view. Real OAuth needs the live backend.
           </p>
         )}
 
@@ -140,18 +151,20 @@ export function SquareConnectPanel() {
                 onClick={() => void handleSync()}
               >
                 <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
-                Sync Square data
+                {squareSim ? 'Refresh demo sync' : 'Sync Square data'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-12"
-                disabled={busy}
-                onClick={() => void handleDisconnect()}
-              >
-                <Link2Off className="mr-2 h-4 w-4" aria-hidden />
-                Disconnect Square
-              </Button>
+              {!status.demoSimulation && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-12"
+                  disabled={busy}
+                  onClick={() => void handleDisconnect()}
+                >
+                  <Link2Off className="mr-2 h-4 w-4" aria-hidden />
+                  Disconnect Square
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -212,7 +225,9 @@ function SquareStatusBody({ status }: { status: SquareConnectionStatus }) {
   if (status.connected) {
     return (
       <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm">
-        <p className="font-medium text-green-700 dark:text-green-400">Connected to Square</p>
+        <p className="font-medium text-green-700 dark:text-green-400">
+          {status.demoSimulation ? 'Connected to Square (demo simulation)' : 'Connected to Square'}
+        </p>
         <ul className="mt-2 space-y-1 text-muted-foreground">
           <li>
             <strong>Business:</strong> {status.merchantName || status.merchantId}
