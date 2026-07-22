@@ -14,8 +14,10 @@ test('profit page shows pulse and money in pocket', async ({ page }) => {
   await expect(page.getByText(/Today/i).first()).toBeVisible();
 });
 
-test('ask hangar answers suggested prompt', async ({ page }) => {
+test('ask hangar answers overstock prompt', async ({ page }) => {
   await page.goto('/profit');
-  await page.getByRole('button', { name: /Hay Days/i }).click();
-  await expect(page.getByText(/Hay Days|ice|beer/i).first()).toBeVisible({ timeout: 5000 });
+  await page.getByRole('button', { name: /biggest overstock/i }).click();
+  await expect(page.getByText(/cash tied up|overstock|Jack Daniel|cover/i).first()).toBeVisible({
+    timeout: 5000,
+  });
 });

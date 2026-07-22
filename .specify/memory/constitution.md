@@ -28,8 +28,8 @@ TanStack Query for all server data; Zustand/Jotai only for ephemeral UI; optimis
 React Hook Form + Zod for forms. Recharts only for charts.
 
 ### IV. Forecast Without Hot-Path ML
-Primary runtime forecast is lightweight statistical logic in AWS Lambda (weekday patterns + trend + holiday/event multipliers).
-SageMaker Canvas / Serverless Inference are optional accuracy paths — never required for core reorder suggestions.
+Primary runtime is lightweight statistical demand + cash-impact cover math in AWS Lambda (weekday patterns + trend + holiday/event multipliers + days-of-cover / excess / stockout-risk $).
+SageMaker Canvas / Serverless Inference are optional accuracy paths — never required for core reorder or Profit impact. Do not use Amazon Forecast (closed to new customers 2024-07-29).
 Local events + static US holidays always influence multipliers.
 
 ### V. YAGNI With Proof

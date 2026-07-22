@@ -100,13 +100,15 @@ Profit page embeds Ask Hangar chat panel (006). If 006 unavailable, show stub th
 
 ### Proxy formulas (demo / no Square)
 
-| Metric         | Formula                                                                                                                                                              |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sales $        | `unitsSold * avgUnitPrice` where avgUnitPrice ≈ $12 beer / $22 spirits / $15 wine / $8 mixers; units from sales history or forecast predictedDemand scaled by period |
-| Margin %       | Blended 28% proxy (labeled)                                                                                                                                          |
-| Days of supply | `totalStock / max(avgDailyUnits, 0.1)`                                                                                                                               |
-| Saved $        | `suggestedOrderReductionUnits * avgUnitCost` from forecast overbuy avoidance (suggestedOrder capped vs naive 2× demand)                                              |
-| Made $         | `stockoutAvoidedUnits * avgUnitPrice * margin` + active event uplift share                                                                                           |
+| Metric         | Formula                                                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sales $        | `unitsSold * avgUnitPrice` (category heuristics); units from sales history or forecast daily × period                                                      |
+| Margin %       | Blended 28% proxy (labeled)                                                                                                                                |
+| Days of supply | Storewide `totalStock / max(avgDailyUnits, 0.1)`; per-SKU `days_of_cover = current / velocity`                                                             |
+| Saved $        | Sum of `excess_units * unit_cost` where `excess = max(0, current - target_cover * velocity)` and `target_cover = lead_time + safety_days` (category table) |
+| Made $         | Sum of `P(stockout) × expected_lost_margin` (+ event demand uplift on velocity only)                                                                       |
+
+Recommendations include optional `cashTiedUp`, `daysOfCover`, `excessUnits`, `limitedHistory`.
 
 ### Non-Functional
 

@@ -4,17 +4,29 @@
 
 **Created**: 2026-07-21
 
-**Status**: Shipped — full outline + implementation (no YAGNI cut)
+**Status**: Shipped — cash-impact cover engine (statistical primary; Canvas optional; no Amazon Forecast)
 
 **Trial role:** Computes the dollars behind 005’s impact card; Hangar AI chat is everyday-language spitball grounded in Hangar data only.
 
-**Input**: Inventory **optimization** so forecasts become actionable money outcomes, plus a **custom AI chat** where Chris discusses Hangar-specific data.
+**Input**: Inventory **optimization** so cover/excess/stockout-risk become actionable money outcomes, plus a **custom AI chat** where Chris discusses Hangar-specific data.
 
 ## Relationship
 
 - **005** shows money in pocket — this spec **computes** Saved/Made and richer recommendations.
 - **004** supplies Square sales/catalog/inventory.
-- Primary runtime forecast remains lightweight Lambda stats ([constitution](../../.specify/memory/constitution.md)); SageMaker Canvas / Serverless Inference is the higher-accuracy path when configured.
+- Primary runtime is the **statistical cash-impact engine** in Lambda ([constitution](../../.specify/memory/constitution.md)). **Amazon Forecast is not used** (closed to new customers 2024-07-29). SageMaker Canvas / Serverless Inference is the only higher-accuracy upgrade when configured.
+
+## Cash-impact formulas
+
+```
+days_of_cover     = current_units / max(avg_daily_velocity, 0.1)
+target_cover      = lead_time_days + safety_days
+excess_units      = max(0, current_units - target_cover * velocity)
+overstock_dollars = excess_units * unit_cost          → dollarsSaved / hold
+stockout_risk_$   = P(stockout) × expected_lost_margin → dollarsMade / order
+```
+
+Events multiply demand only. Thin history → `limitedHistory` + lower confidence.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -22,10 +34,10 @@
 
 `GET /api/optimize?period=day|month|year` (or embedded in `/api/profit`) returns:
 
-- `dollarsSaved` — avoided overbuy / dead stock vs naive reorder
-- `dollarsMade` — avoided stockouts + event uplift captured
-- `recommendations[]` — top SKUs to order / hold / promote with $ impact
-- `provenance` — statistical | sagemaker | hybrid
+- `dollarsSaved` — overstock $ vs category cover targets
+- `dollarsMade` — margin protected from stockouts + event uplift
+- `recommendations[]` — top SKUs to order / hold / promote with $ impact, optional `cashTiedUp` / `daysOfCover`
+- `provenance` — statistical | sagemaker | hybrid | demo_proxy
 - `confidence` — high | medium | low
 
 Consumed by Profit & Ops impact card.
@@ -38,43 +50,38 @@ Consumed by Profit & Ops impact card.
 
 ### User Story 2 - Canvas / Serverless Inference path (Priority: P2)
 
-Documented + toggleable:
+Documented + toggleable (see `docs/sagemaker-optimization.md`):
 
 1. Export sales CSV (`npm run export-sales-for-canvas`)
 2. Train in SageMaker Canvas (time series)
 3. Deploy Serverless Inference; set `SAGEMAKER_ENDPOINT_NAME`
-4. Profit/optimize prefer Canvas predictions when endpoint healthy; fall back to statistical
+4. Profit/optimize merge Canvas when healthy; fall back to statistical
 
 Existing `canvas-bridge.ts` remains the bridge. Forecast UI `?model=canvas` continues to work.
 
 **Acceptance**:
 
-1. Docs in `docs/sagemaker-optimization.md` with copy-paste steps.
+1. Docs note Forecast retirement + Canvas checklist.
 2. When endpoint missing, statistical path used — no hard failure on Profit page.
 3. When endpoint present, `provenance` can be `sagemaker` or `hybrid`.
 
 ### User Story 3 - Hangar AI chat (Priority: P1 for full outline)
 
-Manager/Owner opens Ask Hangar on `/profit` (or More). Types everyday language:
+Manager/Owner opens Ask Hangar on `/profit`. Suggested prompts include overstock dollars, Hay Days, beer cash.
 
-- “What should I stock for Hay Days?”
-- “Why is beer cash tied up?”
-- “How much did we make this month?”
-
-Agent answers using **only** grounded context: inventory snapshot, local events, forecast suggestions, profit KPIs, Square sync summary if present. Each money claim cites the in-app number.
+Agent answers using **only** grounded context. Each money claim cites optimize/inventory numbers.
 
 **Implementation path**:
 
 1. `POST /api/assistant/chat` with `{ message, period? }`
-2. Server builds a **context pack** (JSON summary, capped size)
-3. If `BEDROCK_MODEL_ID` set → Amazon Bedrock Converse with system prompt “Hangar Liquor assistant; refuse invented dollars”
-4. Else → **deterministic grounded responder** (template + keyword routing over context pack) so demo always works offline
+2. Context pack (JSON, capped)
+3. Bedrock optional; deterministic grounded responder otherwise
 
 **Acceptance**:
 
 1. Manager+ only; ReadOnly 403.
 2. Answers cite numbers from context pack.
-3. If data missing for a question, refuse clearly (“I don’t have Square sales yet — connect Square or sync”).
+3. If data missing, refuse clearly.
 4. Mock client returns grounded demo replies without AWS.
 
 ### Edge Cases

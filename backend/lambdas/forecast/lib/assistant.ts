@@ -52,6 +52,7 @@ function bedrockDollarsAreGrounded(reply: string, snapshot: ProfitOpsSnapshot): 
       snapshot.optimization.dollarsMade,
       ...snapshot.categoryMix.map((c) => c.salesDollars),
       ...snapshot.optimization.recommendations.map((r) => r.dollarsImpact),
+      ...snapshot.optimization.recommendations.map((r) => r.cashTiedUp ?? 0),
     ].map((n) => Math.round(n)),
   );
 
@@ -87,15 +88,50 @@ export function groundedAssistantReply(
     };
   }
 
+  if (
+    q.includes('overstock') ||
+    q.includes('cash tied') ||
+    q.includes('tied up') ||
+    (q.includes('whiskey') && (q.includes('tied') || q.includes('cash') || q.includes('over')))
+  ) {
+    const overstock = [...optimization.recommendations]
+      .filter(
+        (r) =>
+          r.upc !== 'event' &&
+          ((r.cashTiedUp ?? 0) > 0 || r.action === 'hold' || (r.action === 'promote' && (r.cashTiedUp ?? 0) > 0)),
+      )
+      .sort((a, b) => (b.cashTiedUp ?? 0) - (a.cashTiedUp ?? 0))[0];
+    if (overstock) {
+      const tied = overstock.cashTiedUp ?? overstock.dollarsImpact;
+      citations.push(`${overstock.name}: $${tied} cash tied up`);
+      if (overstock.daysOfCover != null) citations.push(`Cover ~${overstock.daysOfCover}d`);
+      return {
+        reply: `Biggest overstock this ${snapshot.periodLabel}: ${overstock.name} — about $${tied} cash tied up${overstock.daysOfCover != null ? ` (~${overstock.daysOfCover}d cover vs target)` : ''}. ${overstock.reason}`,
+        citations,
+        source: 'grounded_fallback',
+      };
+    }
+    citations.push(`Saved $${optimization.dollarsSaved} (overstock avoided storewide)`);
+    return {
+      reply: `I don’t see a single SKU with cashTiedUp yet. Storewide overstock avoided is about $${optimization.dollarsSaved} for ${snapshot.periodLabel}.`,
+      citations,
+      source: 'grounded_fallback',
+    };
+  }
+
   if (q.includes('beer') && (q.includes('cash') || q.includes('tied') || q.includes('stock'))) {
     const beer = categoryMix.find((c) => c.category === 'Beer');
+    const beerRec = optimization.recommendations.find(
+      (r) => r.name.toLowerCase().includes('beer') || r.name.toLowerCase().includes('light'),
+    );
     citations.push(
       beer ? `Beer ~$${beer.salesDollars} (${beer.sharePct}% of mix)` : 'Beer mix not available',
     );
     citations.push(`Days of supply ~${pulse.daysOfSupply}`);
+    if (beerRec?.cashTiedUp) citations.push(`Tied up $${beerRec.cashTiedUp} on ${beerRec.name}`);
     return {
       reply: beer
-        ? `Beer is about ${beer.sharePct}% of sales mix (~$${beer.salesDollars}). Shelf cash shows up as ~${pulse.daysOfSupply} days of supply storewide — if beer is overstocked vs demand, use Holds on slow movers and Orders on low-stock winners.`
+        ? `Beer is about ${beer.sharePct}% of sales mix (~$${beer.salesDollars}). Shelf cash shows up as ~${pulse.daysOfSupply} days of supply storewide${beerRec?.cashTiedUp ? ` — ${beerRec.name} has ~$${beerRec.cashTiedUp} tied up at ~${beerRec.daysOfCover ?? '?'}d cover` : ''}. Use Holds on slow movers and Orders on low-stock winners.`
         : `I don’t see a Beer slice yet. Overall days of supply is ~${pulse.daysOfSupply} with ${pulse.lowStockCount} low-stock SKUs.`,
       citations,
       source: 'grounded_fallback',

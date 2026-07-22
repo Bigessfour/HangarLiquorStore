@@ -16,6 +16,11 @@ export interface OptimizationRecommendation {
   action: 'order' | 'hold' | 'promote';
   dollarsImpact: number;
   reason: string;
+  daysOfCover?: number;
+  excessUnits?: number;
+  /** Overstock $ currently tied up for this SKU */
+  cashTiedUp?: number;
+  limitedHistory?: boolean;
 }
 
 export interface OptimizationImpact {

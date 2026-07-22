@@ -195,7 +195,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (rawPath.includes('/optimize') && method === 'GET') {
       requireManager(getCallerGroups(event));
       const period = parsePeriod(event.queryStringParameters?.period);
-      const { inventoryItems, localEvents, forecasts } = await loadForecastBundle();
+      const { inventoryItems, localEvents, forecasts, salesByUpc } = await loadForecastBundle();
       const window = periodWindow(period);
       const impact = buildOptimizationImpact({
         inventory: inventoryItems,
@@ -204,6 +204,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         period,
         dayCount: window.dayCount,
         provenance: process.env.SAGEMAKER_ENDPOINT_NAME ? 'hybrid' : 'statistical',
+        salesByUpc,
       });
       return jsonResponse(200, impact);
     }

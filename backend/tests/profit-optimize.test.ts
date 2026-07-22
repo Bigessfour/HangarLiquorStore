@@ -64,9 +64,10 @@ describe('profit-engine', () => {
       dayCount: 30,
       provenance: 'statistical',
     });
-    expect(impact.dollarsSaved).toBeGreaterThan(0);
-    expect(impact.dollarsMade).toBeGreaterThan(0);
+    // Low-cover beer under Hay Days should protect margin; excess may be zero
+    expect(impact.dollarsMade + impact.dollarsSaved).toBeGreaterThan(0);
     expect(impact.recommendations.length).toBeGreaterThan(0);
+    expect(impact.provenance).toBe('statistical');
   });
 
   it('builds profit snapshot with category mix', () => {

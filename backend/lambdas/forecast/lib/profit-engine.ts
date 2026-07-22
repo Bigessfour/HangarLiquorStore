@@ -7,30 +7,11 @@ import type {
 import type {
   CategoryMixSlice,
   OptimizationImpact,
-  OptimizationRecommendation,
   ProfitOpsSnapshot,
   ProfitPeriod,
   ProfitProvenance,
 } from '../../../shared/types/profit';
-
-const AVG_PRICE: Record<string, number> = {
-  Beer: 12,
-  Spirits: 22,
-  Wine: 15,
-  Mixers: 8,
-  RTD: 10,
-  Ice: 6,
-  General: 14,
-};
-
-const AVG_COST_RATIO = 0.72; // ~28% margin → cost is 72% of price
-
-function avgPrice(category: string, name: string): number {
-  const n = name.toLowerCase();
-  if (n.includes('ice') || category === 'Ice') return AVG_PRICE.Ice;
-  if (n.includes('rtd') || n.includes('seltzer') || n.includes('hard tea')) return AVG_PRICE.RTD;
-  return AVG_PRICE[category] ?? AVG_PRICE.General;
-}
+import { buildCashOptimizationImpact, unitPrice } from './cash-impact-engine';
 
 function mixCategory(category: string, name: string): string {
   const n = name.toLowerCase();
@@ -96,77 +77,17 @@ export function buildOptimizationImpact(input: {
   period: ProfitPeriod;
   dayCount: number;
   provenance?: ProfitProvenance;
+  salesByUpc?: Map<string, SalesRecord[]>;
 }): OptimizationImpact {
-  const recommendations: OptimizationRecommendation[] = [];
-  let dollarsSaved = 0;
-  let dollarsMade = 0;
-
-  for (const forecast of input.forecasts) {
-    const price = avgPrice(forecast.category, forecast.name);
-    const cost = price * AVG_COST_RATIO;
-    const naiveOrder = Math.max(
-      0,
-      Math.ceil(forecast.predictedDemand14d * 2 - forecast.currentStock),
-    );
-    const smartOrder = Math.max(0, forecast.suggestedOrder);
-    const avoidedOverbuy = Math.max(0, naiveOrder - smartOrder);
-    const saved = avoidedOverbuy * cost * (input.dayCount / 14);
-    dollarsSaved += saved;
-
-    const stockoutRisk = Math.max(0, forecast.predictedDemand14d - forecast.currentStock);
-    const made = stockoutRisk * price * 0.28 * (input.dayCount / 14);
-    dollarsMade += made;
-
-    if (smartOrder > 0 && recommendations.length < 6) {
-      recommendations.push({
-        upc: forecast.upc,
-        name: forecast.name,
-        action: 'order',
-        dollarsImpact: Math.round(made + saved),
-        reason: `Order ~${smartOrder} (smart) vs naive ~${naiveOrder} — protects margin & shelf`,
-      });
-    } else if (avoidedOverbuy > 2 && recommendations.length < 6) {
-      recommendations.push({
-        upc: forecast.upc,
-        name: forecast.name,
-        action: 'hold',
-        dollarsImpact: Math.round(saved),
-        reason: `Hold back ~${Math.round(avoidedOverbuy)} units vs overbuying`,
-      });
-    }
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-  const activeEvents = input.events.filter((e) => e.startDate <= today && e.endDate >= today);
-  if (activeEvents.length > 0) {
-    const uplift = Math.max(...activeEvents.map((e) => e.multiplier)) - 1;
-    const eventMade = dollarsMade * uplift * 0.35;
-    dollarsMade += eventMade;
-    recommendations.unshift({
-      upc: 'event',
-      name: activeEvents[0].name,
-      action: 'promote',
-      dollarsImpact: Math.round(eventMade),
-      reason: `Active event ×${activeEvents[0].multiplier} — keep ice & beer ready`,
-    });
-  }
-
-  const confidence: OptimizationImpact['confidence'] =
-    input.forecasts.length >= 8 ? 'high' : input.forecasts.length >= 3 ? 'medium' : 'low';
-
-  const provenance = input.provenance ?? 'statistical';
-
-  return {
-    dollarsSaved: Math.round(dollarsSaved),
-    dollarsMade: Math.round(dollarsMade),
-    confidence,
-    provenance,
-    explanation:
-      provenance === 'demo_proxy'
-        ? 'Demo estimate from forecast reorder vs naive overbuy and stockout avoidance.'
-        : 'Cash staying in Hangar’s pocket from smarter reorders and fewer stockouts.',
-    recommendations: recommendations.slice(0, 5),
-  };
+  return buildCashOptimizationImpact({
+    inventory: input.inventory,
+    forecasts: input.forecasts,
+    salesByUpc: input.salesByUpc,
+    events: input.events,
+    period: input.period,
+    dayCount: input.dayCount,
+    provenance: input.provenance,
+  });
 }
 
 export function buildProfitSnapshot(input: {
@@ -188,14 +109,13 @@ export function buildProfitSnapshot(input: {
 
   for (const item of input.inventory) {
     let units = unitsByUpc.get(item.upc) ?? 0;
-    // Proxy: scale predicted demand when no sales history
     if (units === 0) {
       const forecast = input.forecasts.find((f) => f.upc === item.upc);
       if (forecast) {
         units = Math.round((forecast.predictedDemand14d / 14) * window.dayCount);
       }
     }
-    const price = avgPrice(item.category, item.name);
+    const price = unitPrice(item.category, item.name);
     const dollars = units * price;
     unitsSold += units;
     salesDollars += dollars;
@@ -210,8 +130,6 @@ export function buildProfitSnapshot(input: {
 
   const SQUARE_LOOKBACK_DAYS = 90;
   if (input.squarePaymentsGrossCents && input.squarePaymentsGrossCents > 0) {
-    // Prefer Square payment rollup for pulse sales — scale down for shorter periods,
-    // but never inflate beyond the synced lookback window (no year extrapolation).
     const squareDollars = input.squarePaymentsGrossCents / 100;
     const scale = Math.min(1, window.dayCount / SQUARE_LOOKBACK_DAYS);
     salesDollars = squareDollars * scale;
@@ -228,7 +146,6 @@ export function buildProfitSnapshot(input: {
     }))
     .sort((a, b) => b.salesDollars - a.salesDollars);
 
-  // Recompute share against final salesDollars if Square overrode
   if (input.squarePaymentsGrossCents && salesDollars > 0 && categoryMix.length > 0) {
     const mixTotal = categoryMix.reduce((s, c) => s + c.salesDollars, 0) || 1;
     for (const slice of categoryMix) {
@@ -259,6 +176,7 @@ export function buildProfitSnapshot(input: {
     period: input.period,
     dayCount: window.dayCount,
     provenance,
+    salesByUpc: input.salesByUpc,
   });
 
   return {

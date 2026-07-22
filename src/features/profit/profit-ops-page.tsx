@@ -19,6 +19,7 @@ const PERIODS: { id: ProfitPeriod; label: string }[] = [
 const SUGGESTED = [
   'What should I stock for Hay Days?',
   'Why is beer cash tied up?',
+  'Show me the biggest overstock dollars this month.',
   'How much money is in my pocket this month?',
 ];
 
@@ -156,7 +157,27 @@ export function ProfitOpsPage() {
                     </p>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{data.optimization.explanation}</p>
+                <p className="text-sm text-muted-foreground">
+                  Saved ~{money(data.optimization.dollarsSaved)} by not over-ordering slow movers.
+                  Protected ~{money(data.optimization.dollarsMade)} in margin by covering demand
+                  (events + stockouts).
+                </p>
+                {data.optimization.recommendations[0] && (
+                  <p className="rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm">
+                    <span className="font-medium">Top action: </span>
+                    {data.optimization.recommendations[0].action}{' '}
+                    {data.optimization.recommendations[0].name}
+                    {' — '}
+                    {money(data.optimization.recommendations[0].dollarsImpact)}
+                    {data.optimization.recommendations[0].cashTiedUp
+                      ? ` (${money(data.optimization.recommendations[0].cashTiedUp)} cash tied up)`
+                      : ''}
+                    {data.optimization.recommendations[0].daysOfCover != null
+                      ? ` · ~${data.optimization.recommendations[0].daysOfCover}d cover`
+                      : ''}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">{data.optimization.explanation}</p>
                 <p className="text-xs text-muted-foreground">
                   Confidence: {data.optimization.confidence} ·{' '}
                   {data.optimization.provenance.replace(/_/g, ' ')}

@@ -45,25 +45,39 @@ const MOCK_SNAPSHOT: ProfitOpsSnapshot = {
     turnsPerYear: 16.6,
   },
   optimization: {
-    dollarsSaved: 840,
-    dollarsMade: 1260,
+    dollarsSaved: 1840,
+    dollarsMade: 2100,
     confidence: 'medium',
     provenance: 'demo_proxy',
-    explanation: 'Demo estimate from forecast reorder vs naive overbuy and stockout avoidance.',
+    explanation:
+      'Demo cash-impact estimate from days-of-cover vs category targets (overstock saved / stockout margin protected).',
     recommendations: [
+      {
+        upc: '082184000012',
+        name: "Jack Daniel's Tennessee Whiskey 750ml",
+        action: 'promote',
+        dollarsImpact: 412,
+        reason: '0 sales in 67d — $412 cash currently tied up; promote or clear.',
+        daysOfCover: 67,
+        excessUnits: 8,
+        cashTiedUp: 412,
+        limitedHistory: false,
+      },
       {
         upc: '018200000103',
         name: 'Bud Light 12pk',
         action: 'order',
         dollarsImpact: 320,
-        reason: 'Low stock vs weekend beer demand',
+        reason: 'Order ~20 to hit 10d cover — protects ~$320 margin at risk.',
+        daysOfCover: 3,
+        cashTiedUp: 0,
       },
       {
         upc: 'event',
-        name: 'Local event readiness',
+        name: 'Hay Days readiness',
         action: 'promote',
-        dollarsImpact: 180,
-        reason: 'Ice & beer focus for festivals',
+        dollarsImpact: 0,
+        reason: 'Active event ×1.5 — demand uplift already applied in cover math (ice & beer focus).',
       },
     ],
   },
@@ -118,6 +132,21 @@ export async function askHangarAssistant(
   if (isMockApi()) {
     const snap = withPeriod(MOCK_SNAPSHOT, period);
     const q = message.toLowerCase();
+    if (q.includes('overstock') || q.includes('cash tied') || q.includes('tied up') || q.includes('whiskey')) {
+      const overstock = [...snap.optimization.recommendations]
+        .filter((r) => r.upc !== 'event' && (r.cashTiedUp ?? 0) > 0)
+        .sort((a, b) => (b.cashTiedUp ?? 0) - (a.cashTiedUp ?? 0))[0];
+      if (overstock) {
+        return {
+          reply: `Biggest overstock this ${snap.periodLabel}: ${overstock.name} — about $${overstock.cashTiedUp ?? overstock.dollarsImpact} cash tied up${overstock.daysOfCover != null ? ` (~${overstock.daysOfCover}d cover)` : ''}. ${overstock.reason}`,
+          citations: [
+            `Cash tied up $${overstock.cashTiedUp ?? overstock.dollarsImpact}`,
+            overstock.reason,
+          ],
+          source: 'demo',
+        };
+      }
+    }
     if (q.includes('hay')) {
       return {
         reply: `For Hay Days, prioritize Ice and Beer/RTD. This ${snap.periodLabel} optimization shows about $${snap.optimization.dollarsMade} made from being event-ready (demo estimate).`,
@@ -127,7 +156,7 @@ export async function askHangarAssistant(
     }
     if (q.includes('beer')) {
       return {
-        reply: `Beer is ~${snap.categoryMix[0]?.sharePct}% of mix (~$${snap.categoryMix[0]?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}.`,
+        reply: `Beer is ~${snap.categoryMix[0]?.sharePct}% of mix (~$${snap.categoryMix[0]?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}. Saved ~$${snap.optimization.dollarsSaved} from cover targets.`,
         citations: [`Beer $${snap.categoryMix[0]?.salesDollars}`, `DOS ${snap.pulse.daysOfSupply}`],
         source: 'demo',
       };
