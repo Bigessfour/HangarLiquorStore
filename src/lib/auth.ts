@@ -4,6 +4,7 @@ import {
   AuthenticationDetails,
   CognitoUserSession,
 } from 'amazon-cognito-identity-js';
+import { groupsRawType, parseCognitoGroups } from '@/lib/cognito-groups';
 
 let userPool: CognitoUserPool | null = null;
 
@@ -41,6 +42,15 @@ let pendingPasswordUser: CognitoUser | null = null;
 let pendingUsername = '';
 
 const ROLE_HIERARCHY: UserRole[] = ['ReadOnly', 'Manager', 'Owner'];
+
+function isAuthDebugEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_DEBUG_AUTH === 'true';
+}
+
+function logAuth(payload: Record<string, unknown>): void {
+  if (!isAuthDebugEnabled()) return;
+  console.info('[auth]', payload);
+}
 
 function resolveRoleFromGroups(groups: string[]): UserRole {
   if (groups.includes('Owner')) return 'Owner';
@@ -95,9 +105,16 @@ function parseJwt(token: string): Record<string, unknown> {
 function sessionToAuthUser(username: string, session: CognitoUserSession): AuthUser {
   const idToken = session.getIdToken().getJwtToken();
   const payload = parseJwt(idToken);
-  const groups = payload['cognito:groups'];
-  const groupList = Array.isArray(groups) ? groups.map(String) : [];
+  const groupsRaw = payload['cognito:groups'];
+  const groupList = parseCognitoGroups(groupsRaw);
   const role = resolveRoleFromGroups(groupList);
+  logAuth({
+    source: 'sessionToAuthUser',
+    username,
+    groupsRawType: groupsRawType(groupsRaw),
+    groupList,
+    role,
+  });
   const authUser: AuthUser = { username, token: idToken, role };
   setCurrentUser(authUser);
   return authUser;
@@ -186,24 +203,19 @@ export function getUserRole(): UserRole {
   // Re-derive from ID token so Owner stays Owner even if localStorage role is stale
   if (user.token && !user.token.startsWith('demo-')) {
     const payload = parseJwt(user.token);
-    const groups = payload['cognito:groups'];
-    const groupList = Array.isArray(groups)
-      ? groups.map(String)
-      : typeof groups === 'string'
-        ? groups.startsWith('[')
-          ? (() => {
-              try {
-                const parsed = JSON.parse(groups) as unknown;
-                return Array.isArray(parsed) ? parsed.map(String) : [groups];
-              } catch {
-                return groups.split(/[, ]+/).filter(Boolean);
-              }
-            })()
-          : groups.split(/[, ]+/).filter(Boolean)
-        : [];
+    const groupsRaw = payload['cognito:groups'];
+    const groupList = parseCognitoGroups(groupsRaw);
     if (groupList.length > 0) {
       const role = resolveRoleFromGroups(groupList);
       if (user.role !== role) {
+        logAuth({
+          source: 'getUserRole',
+          username: user.username,
+          groupsRawType: groupsRawType(groupsRaw),
+          groupList,
+          role,
+          staleRewrite: `${user.role} → ${role}`,
+        });
         setCurrentUser({ ...user, role });
       }
       return role;

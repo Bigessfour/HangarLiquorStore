@@ -33,6 +33,7 @@ import {
   callerHasManagerAccess,
   callerIsOwner,
   groupsFromApiGatewayEvent,
+  logAuthDeny,
 } from '../../shared/auth/roles';
 
 type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product' | 'users';
@@ -84,11 +85,17 @@ function getCallerGroups(event: {
   return groupsFromApiGatewayEvent(event);
 }
 
-function requireRole(groups: string[], minRole: 'Manager' | 'Owner') {
+function requireRole(
+  groups: string[],
+  minRole: 'Manager' | 'Owner',
+  meta?: { path?: string; method?: string },
+) {
   if (minRole === 'Owner' && !callerIsOwner(groups)) {
+    logAuthDeny({ required: 'Owner', groups, path: meta?.path, method: meta?.method });
     throw new Error('Owner role required');
   }
   if (minRole === 'Manager' && !callerHasManagerAccess(groups)) {
+    logAuthDeny({ required: 'Manager', groups, path: meta?.path, method: meta?.method });
     throw new Error('Manager or Owner role required');
   }
 }
@@ -164,7 +171,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const isManagerUser = callerHasManagerAccess(groups);
 
       if (method === 'GET') {
-        requireRole(groups, 'Manager');
+        requireRole(groups, 'Manager', { path: rawPath, method });
         const listRes = await cognitoClient.send(new ListUsersCommand({
           UserPoolId: process.env.COGNITO_USER_POOL_ID,
           Limit: 60,
@@ -184,7 +191,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
       if (method === 'POST' && !username) {
         // Managers can ONLY create ReadOnly; Owners can create any
-        requireRole(groups, 'Manager');
+        requireRole(groups, 'Manager', { path: rawPath, method });
         const body = JSON.parse(event.body || '{}');
         let { username: newUsername, tempPassword, name, role = 'ReadOnly' } = body;
 
@@ -218,7 +225,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       if (method === 'POST' && username && rawPath.includes('/role')) {
-        requireRole(groups, 'Owner'); // Only owner changes roles
+        requireRole(groups, 'Owner', { path: rawPath, method }); // Only owner changes roles
         const body = JSON.parse(event.body || '{}');
         const { role } = body;
         if (!role) return errorResponse(400, 'role required');
@@ -242,7 +249,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       if (method === 'POST' && username && rawPath.includes('/disable')) {
-        requireRole(groups, 'Owner');
+        requireRole(groups, 'Owner', { path: rawPath, method });
         await cognitoClient.send(new AdminDisableUserCommand({
           UserPoolId: process.env.COGNITO_USER_POOL_ID,
           Username: username,
@@ -251,7 +258,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       if (method === 'POST' && username && rawPath.includes('/enable')) {
-        requireRole(groups, 'Owner');
+        requireRole(groups, 'Owner', { path: rawPath, method });
         await cognitoClient.send(new AdminEnableUserCommand({
           UserPoolId: process.env.COGNITO_USER_POOL_ID,
           Username: username,
@@ -260,7 +267,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       if (method === 'POST' && username && rawPath.includes('/reset-password')) {
-        requireRole(groups, 'Manager'); // Manager or Owner can trigger reset
+        requireRole(groups, 'Manager', { path: rawPath, method }); // Manager or Owner can trigger reset
         // Set a new temporary password that forces change on next login
         const newTemp = 'Temp' + Math.random().toString(36).slice(2, 10) + '1!';
         await cognitoClient.send(new AdminSetUserPasswordCommand({
@@ -274,7 +281,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
 
       if (method === 'POST' && username && rawPath.includes('/remove-groups')) {
-        requireRole(groups, 'Owner');
+        requireRole(groups, 'Owner', { path: rawPath, method });
         const currentGroups = ['ReadOnly', 'Manager', 'Owner'];
         for (const g of currentGroups) {
           try {

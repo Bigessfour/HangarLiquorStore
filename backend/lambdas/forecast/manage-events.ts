@@ -3,7 +3,7 @@ import { createLocalEvent, deleteLocalEvent, getLocalEvents } from './lib/dynamo
 import { validateCreateEventInput } from './lib/event-validators';
 import { getActiveStaticHolidays } from './lib/event-multiplier';
 import { errorResponse, jsonResponse } from './lib/response';
-import { callerHasManagerAccess, groupsFromApiGatewayEvent } from '../../shared/auth/roles';
+import { callerHasManagerAccess, groupsFromApiGatewayEvent, logAuthDeny } from '../../shared/auth/roles';
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
@@ -12,8 +12,9 @@ function getCallerGroups(event: {
   return groupsFromApiGatewayEvent(event);
 }
 
-function requireManager(groups: string[]) {
+function requireManager(groups: string[], meta?: { path?: string; method?: string }) {
   if (!callerHasManagerAccess(groups)) {
+    logAuthDeny({ required: 'Manager', groups, path: meta?.path, method: meta?.method });
     throw new Error('Manager role required');
   }
 }
@@ -41,14 +42,14 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     if (method === 'POST') {
-      requireManager(getCallerGroups(event));
+      requireManager(getCallerGroups(event), { path: event.rawPath, method });
       const parsed = validateCreateEventInput(JSON.parse(event.body ?? '{}'));
       const created = await createLocalEvent(parsed);
       return jsonResponse(201, created);
     }
 
     if (method === 'DELETE') {
-      requireManager(getCallerGroups(event));
+      requireManager(getCallerGroups(event), { path: event.rawPath, method });
       const eventId = event.pathParameters?.id;
       if (!eventId) return errorResponse(400, 'Event id is required');
       await deleteLocalEvent(eventId);

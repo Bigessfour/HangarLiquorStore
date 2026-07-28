@@ -23,7 +23,7 @@ import {
   resetUserPassword,
   removeUserFromAllGroups,
 } from '@/lib/api';
-import { getCurrentUser, signOut, isOwner, hasRole } from '@/lib/auth';
+import { getCurrentUser, signOut, isOwner, hasRole, getUserRole } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { useGuidedTrialStore } from '@/features/guided-trial';
 
@@ -134,7 +134,7 @@ export function MorePage() {
         </div>
         {user && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Role: {user.role}</span>
+            <span className="text-xs text-muted-foreground">Role: {getUserRole()}</span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               Logout
             </Button>

@@ -10,7 +10,7 @@ import { buildOptimizationImpact, buildProfitSnapshot, periodWindow } from './li
 import type { TrendingSuggestion } from '../../shared/types/forecast';
 import type { ProfitPeriod } from '../../shared/types/profit';
 import { errorResponse, jsonResponse } from './lib/response';
-import { callerHasManagerAccess, groupsFromApiGatewayEvent } from '../../shared/auth/roles';
+import { callerHasManagerAccess, groupsFromApiGatewayEvent, logAuthDeny } from '../../shared/auth/roles';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -35,8 +35,12 @@ function getCallerGroups(event: {
   return groupsFromApiGatewayEvent(event);
 }
 
-function requireManager(groups: string[]) {
+function requireManager(
+  groups: string[],
+  meta?: { path?: string; method?: string },
+) {
   if (!callerHasManagerAccess(groups)) {
+    logAuthDeny({ required: 'Manager', groups, path: meta?.path, method: meta?.method });
     throw new Error('Manager role required');
   }
 }
@@ -167,7 +171,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
   try {
     if (rawPath.includes('/profit') && method === 'GET') {
-      requireManager(getCallerGroups(event));
+      requireManager(getCallerGroups(event), { path: rawPath, method });
       const period = parsePeriod(event.queryStringParameters?.period);
       const [{ inventoryItems, localEvents, salesByUpc, forecasts }, square] = await Promise.all([
         loadForecastBundle(),
@@ -187,7 +191,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     if (rawPath.includes('/optimize') && method === 'GET') {
-      requireManager(getCallerGroups(event));
+      requireManager(getCallerGroups(event), { path: rawPath, method });
       const period = parsePeriod(event.queryStringParameters?.period);
       const { inventoryItems, localEvents, forecasts, salesByUpc } = await loadForecastBundle();
       const window = periodWindow(period);
@@ -204,7 +208,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     if (rawPath.includes('/assistant/chat') && method === 'POST') {
-      requireManager(getCallerGroups(event));
+      requireManager(getCallerGroups(event), { path: rawPath, method });
       const body = event.body ? JSON.parse(event.body) : {};
       const message = String(body.message || '');
       const period = parsePeriod(body.period || event.queryStringParameters?.period);

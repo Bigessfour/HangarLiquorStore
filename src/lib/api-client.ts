@@ -2,6 +2,10 @@ import { getAuthHeaders } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
+function isApiDebugEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_DEBUG_AUTH === 'true';
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -14,6 +18,7 @@ export class ApiError extends Error {
 
 export async function apiClient<T>(path: string, options?: RequestInit): Promise<T> {
   const authHeaders = getAuthHeaders();
+  const method = options?.method ?? 'GET';
 
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -36,6 +41,9 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
       } catch {
         /* keep default */
       }
+    }
+    if (isApiDebugEnabled()) {
+      console.warn('[api]', { status: response.status, method, path, message });
     }
     throw new ApiError(response.status, message);
   }

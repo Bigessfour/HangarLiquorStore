@@ -118,6 +118,26 @@ export function callerIsOwner(groups: string[]): boolean {
   return resolveRoleFromGroups(groups) === 'Owner';
 }
 
+/** Log deny paths when groups are empty or DEBUG_AUTH=true (CloudWatch). Never log tokens. */
+export function logAuthDeny(input: {
+  required: 'Manager' | 'Owner';
+  groups: string[];
+  path?: string;
+  method?: string;
+}): void {
+  const role = resolveRoleFromGroups(input.groups);
+  const empty = input.groups.length === 0;
+  if (!empty && process.env.DEBUG_AUTH !== 'true') return;
+  console.warn('[auth-deny]', {
+    required: input.required,
+    role,
+    groups: input.groups.slice(0, 5),
+    path: input.path,
+    method: input.method,
+    emptyGroups: empty,
+  });
+}
+
 export function canEditInventory(role: UserRole): boolean {
   return hasMinimumRole(role, 'Manager');
 }

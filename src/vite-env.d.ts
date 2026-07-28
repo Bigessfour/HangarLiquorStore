@@ -17,6 +17,8 @@ interface ImportMetaEnv {
    * Defaults on when VITE_DEMO_SIMULATE_SQUARE is true.
    */
   readonly VITE_DEMO_SIMULATE_PROFIT: string;
+  /** When "true", emit [auth]/[api] console diagnostics (also on in DEV) */
+  readonly VITE_DEBUG_AUTH: string;
   /** LAN URL for phone demo, e.g. http://192.168.1.5:5173 */
   readonly VITE_DEMO_NETWORK_URL: string;
   /** Public HTTPS URL for PWA install / PWABuilder (production CloudFront) */

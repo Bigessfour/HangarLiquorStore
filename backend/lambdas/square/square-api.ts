@@ -19,7 +19,7 @@ import {
   saveConnection,
 } from './lib/storage';
 import { runSquareSync } from './lib/sync';
-import { callerIsOwner, groupsFromApiGatewayEvent } from '../../shared/auth/roles';
+import { callerIsOwner, groupsFromApiGatewayEvent, logAuthDeny } from '../../shared/auth/roles';
 
 function getCallerGroups(event: {
   requestContext?: { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
@@ -35,8 +35,9 @@ function getCallerUsername(event: {
   return String(claims.username || claims['cognito:username'] || '');
 }
 
-function requireOwner(groups: string[]) {
+function requireOwner(groups: string[], meta?: { path?: string; method?: string }) {
   if (!callerIsOwner(groups)) {
+    logAuthDeny({ required: 'Owner', groups, path: meta?.path, method: meta?.method });
     throw new Error('Owner role required');
   }
 }
@@ -126,7 +127,7 @@ export const handler:
     }
 
     const groups = getCallerGroups(apiEvent);
-    requireOwner(groups);
+    requireOwner(groups, { path: rawPath, method });
 
     if (route === 'status' && method === 'GET') {
       const credsConfigured = !!(await getSquareAppCredentials());
