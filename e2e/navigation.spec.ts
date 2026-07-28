@@ -8,6 +8,7 @@ const routes = [
   { path: '/events', label: 'events' },
   { path: '/forecast', label: 'forecast' },
   { path: '/suggestions', label: 'suggestions' },
+  { path: '/profit', label: 'profit' },
   { path: '/more', label: 'more' },
 ] as const;
 

@@ -17,9 +17,20 @@ const HAY_DAYS_DEFAULTS = {
   focuses: ['Ice', 'Beer/RTD', 'Essentials'] as EventFocusTag[],
 };
 
+const HUNTING_DEFAULTS = {
+  name: 'Hunting Season Opener',
+  startDate: '2026-10-17',
+  endDate: '2026-10-19',
+  multiplier: 1.55,
+  notes: 'Spirits + beer for opening weekend — local area demand',
+  focuses: ['Spirits', 'Beer/RTD', 'Essentials'] as EventFocusTag[],
+};
+
 export function EventsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formDefaults, setFormDefaults] = useState<Partial<typeof HAY_DAYS_DEFAULTS> | undefined>();
+  const [formDefaults, setFormDefaults] = useState<
+    Partial<typeof HAY_DAYS_DEFAULTS> | undefined
+  >();
   const { data, isLoading } = useLocalEvents();
   const createEvent = useCreateEvent();
 
@@ -28,13 +39,19 @@ export function EventsPage() {
     setDialogOpen(true);
   };
 
-  const quickToggle = (name: string, multiplier: number, notes: string) => {
+  const quickToggle = (
+    name: string,
+    multiplier: number,
+    notes: string,
+    focuses?: EventFocusTag[],
+  ) => {
     createEvent.mutate({
       name,
       startDate: new Date().toISOString().slice(0, 10),
       endDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
       multiplier,
       notes,
+      focuses,
     });
   };
 
@@ -55,7 +72,7 @@ export function EventsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upcoming Multipliers</CardTitle>
+          <CardTitle>Upcoming multipliers</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -69,41 +86,54 @@ export function EventsPage() {
         </CardContent>
       </Card>
 
+      <p className="text-sm text-muted-foreground">
+        National holidays (NYE, Memorial Day, July 4, Labor Day, Halloween, Thanksgiving, Christmas)
+        raise demand automatically. Use local events below for Hay Days, hunting, rodeos, and other
+        area festivals — focus chips target beer, ice, spirits, or essentials.
+      </p>
+
       <div className="space-y-2">
         {hasRole('Manager') ? (
           <>
             <Button
               type="button"
               onClick={() => openAdd(HAY_DAYS_DEFAULTS)}
-              className="w-full min-h-12 py-4 bg-hanger-amber text-primary-foreground text-lg active:scale-[0.985]"
+              className="min-h-12 w-full bg-hanger-amber py-4 text-lg text-primary-foreground active:scale-[0.985]"
               data-testid="add-hay-days-example"
             >
               Add Wiley Hay Days (Jun 18–20, 2027)
             </Button>
             <Button
-              onClick={() => quickToggle('4th of July Boost', 1.35, 'Beer focus')}
-              className="w-full py-4 bg-violet-600 text-lg active:scale-[0.985]"
+              type="button"
+              onClick={() => openAdd(HUNTING_DEFAULTS)}
+              className="min-h-12 w-full bg-emerald-700 py-4 text-lg text-white active:scale-[0.985]"
+              data-testid="add-hunting-example"
+            >
+              Add Hunting Season Opener (Oct 17–19)
+            </Button>
+            <Button
+              onClick={() =>
+                quickToggle('4th of July Boost', 1.35, 'Beer focus', ['Beer/RTD', 'Ice'])
+              }
+              className="w-full bg-violet-600 py-4 text-lg active:scale-[0.985]"
             >
               Enable 4th of July +35% (Beer)
             </Button>
             <Button
-              onClick={() => quickToggle('Denver Rodeo Weekend', 1.2, 'Whiskey boost')}
-              className="w-full py-4 bg-orange-600 text-lg active:scale-[0.985]"
+              onClick={() =>
+                quickToggle('Denver Rodeo Weekend', 1.2, 'Whiskey boost', ['Spirits'])
+              }
+              className="w-full bg-orange-600 py-4 text-lg active:scale-[0.985]"
             >
               Rodeo Weekend +20% (Spirits)
             </Button>
           </>
         ) : (
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             Manager or Owner can enable multipliers
           </p>
         )}
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        Local festivals (like Hay Days) and holidays bump demand for beer, ice, and essentials —
-        forecasts pick up the multiplier automatically.
-      </p>
 
       <EventFormDialog
         open={dialogOpen}

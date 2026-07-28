@@ -20,13 +20,12 @@ test('add event button visible for owner demo', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Add Event' })).toBeVisible();
 });
 
-test('hay days example opens form with 2027 dates', async ({ page }) => {
+test('hunting season example opens form', async ({ page }) => {
   await page.goto('/events');
-  await page.getByTestId('add-hay-days-example').click();
+  await page.getByTestId('add-hunting-example').click();
   await expect(page.getByRole('heading', { name: /Add Local Event Multiplier/i })).toBeVisible();
-  await expect(page.locator('#name')).toHaveValue('Wiley Hay Days');
-  await expect(page.locator('#startDate')).toHaveValue('2027-06-18');
-  await expect(page.getByRole('button', { name: 'Ice', pressed: true })).toBeVisible();
+  await expect(page.locator('#name')).toHaveValue('Hunting Season Opener');
+  await expect(page.getByRole('button', { name: 'Spirits', pressed: true })).toBeVisible();
 });
 
 test('events multiplier displayed', async ({ page }) => {

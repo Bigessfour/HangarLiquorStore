@@ -34,7 +34,7 @@ function IosInstallSteps({ deviceLabel }: { deviceLabel: string }) {
       <li>
         Scroll and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
       </li>
-      <li>Open the <strong>Hanger</strong> icon — full-screen app, works offline.</li>
+      <li>Open the <strong>Hangar</strong> icon — full-screen app. Scans &amp; queue work offline; Profit and live reports need a connection.</li>
       <li>
         On Scan, <strong>tap the frame to photograph the UPC</strong>. Live barcode scanning is on
         the <strong>Android native app</strong>; iPhone uses photo scan (Apple limitation).
@@ -130,8 +130,8 @@ function PlatformInstructions({
           <div>
             <p className="font-medium text-green-700 dark:text-green-400">App installed</p>
             <p className="text-sm text-muted-foreground">
-              You are running Hanger as a home screen app. Inventory and scans work offline when
-              cached.
+              You are running Hangar as a home screen app. Scans and the offline queue work when the
+              network drops; Profit, Ask Hangar, and live reports need a connection.
             </p>
           </div>
         </div>

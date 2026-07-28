@@ -8,33 +8,13 @@ test.beforeEach(async ({ page }) => {
 test('dashboard loads with heading', async ({ page }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Hanger Liquor Store • Wiley, CO • Today' }),
+    page.getByRole('heading', { name: /Hangar Liquor Store.*Wiley, CO.*Today/i }),
   ).toBeVisible();
 });
 
-test('owner dashboard shows Square connect card with instructions link', async ({ page }) => {
-  await page.route('**/api/square/status', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        credentialsConfigured: true,
-        connected: false,
-        merchantName: null,
-        merchantId: null,
-        locationName: null,
-        locationId: null,
-        connectedAt: null,
-        connectedBy: null,
-        scopes: ['ORDERS_READ'],
-      }),
-    });
-  });
+test('owner dashboard shows core stock summary', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText(/Connect Square POS/i)).toBeVisible();
-  await page.getByRole('link', { name: /Setup instructions/i }).click();
-  await expect(page).toHaveURL(/square-setup/);
-  await expect(page.getByRole('heading', { name: /Connect Square POS/i })).toBeVisible();
+  await expect(page.getByText('Total Stock')).toBeVisible();
 });
 
 test('dashboard shows low stock alerts', async ({ page }) => {

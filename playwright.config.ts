@@ -12,9 +12,9 @@ export default defineConfig({
   webServer: {
     command: (() => {
       const node = `"${process.execPath}"`;
-      // Force mock API + demo auth — ignore synced .env production VITE_API_URL
+      // Force mock API + demo auth + Square/Profit simulation (same honesty banners as `npm run demo`)
       const e2eEnv =
-        'VITE_DEMO_AUTH=true VITE_API_URL= VITE_COGNITO_USER_POOL_ID= VITE_COGNITO_CLIENT_ID=';
+        'VITE_DEMO_AUTH=true VITE_DEMO_SIMULATE_SQUARE=true VITE_DEMO_SIMULATE_PROFIT=true VITE_API_URL= VITE_COGNITO_USER_POOL_ID= VITE_COGNITO_CLIENT_ID=';
       return `${e2eEnv} ${node} node_modules/typescript/bin/tsc -b && ${e2eEnv} ${node} node_modules/vite/bin/vite.js build && ${e2eEnv} ${node} node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173`;
     })(),
     port: 4173,

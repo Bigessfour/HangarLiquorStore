@@ -16,6 +16,8 @@ import type {
   ProfitPeriod,
   ProfitProvenance,
 } from '../../../shared/types/profit';
+import { focusAdjustedMultiplier } from '../../../shared/lib/event-focus';
+import { getStaticHolidaysBetween } from './static-holidays';
 
 const MARGIN_RATIO = 0.28;
 const COST_RATIO = 1 - MARGIN_RATIO; // 0.72
@@ -93,22 +95,42 @@ export function resolveCoverPolicy(category: string, name: string): CoverPolicy 
   return COVER_POLICIES.General;
 }
 
-export function unitPrice(category: string, name: string): number {
+export function unitPrice(category: string, name: string, override?: number): number {
+  if (override != null && override > 0) return override;
   const n = name.toLowerCase();
   if (n.includes('ice') || category === 'Ice') return AVG_PRICE.Ice;
   if (n.includes('rtd') || n.includes('seltzer') || n.includes('hard tea')) return AVG_PRICE.RTD;
   return AVG_PRICE[category] ?? AVG_PRICE.General;
 }
 
-export function unitCost(category: string, name: string): number {
-  return unitPrice(category, name) * COST_RATIO;
+export function unitCost(category: string, name: string, override?: number, priceOverride?: number): number {
+  if (override != null && override > 0) return override;
+  return unitPrice(category, name, priceOverride) * COST_RATIO;
 }
 
-function activeEventMultiplier(events: LocalEvent[], todayStr: string): number {
+function activeEventMultiplier(
+  events: LocalEvent[],
+  todayStr: string,
+  category?: string,
+  name?: string,
+): number {
   let max = 1;
+  // Include static holidays on demand side (same as forecast engine)
+  const holidays = getStaticHolidaysBetween(todayStr, todayStr);
+  for (const h of holidays) {
+    if (category && name) {
+      max = Math.max(max, focusAdjustedMultiplier(h.multiplier, category, name, h.focuses));
+    } else {
+      max = Math.max(max, h.multiplier);
+    }
+  }
   for (const e of events) {
     if (e.startDate <= todayStr && e.endDate >= todayStr) {
-      max = Math.max(max, e.multiplier);
+      if (category && name) {
+        max = Math.max(max, focusAdjustedMultiplier(e.multiplier, category, name, e.focuses));
+      } else {
+        max = Math.max(max, e.multiplier);
+      }
     }
   }
   return max;
@@ -178,7 +200,6 @@ export function computeSkuCashImpacts(input: {
   velStart.setUTCDate(velStart.getUTCDate() - (velocityDays - 1));
   const velStartStr = velStart.toISOString().slice(0, 10);
 
-  const eventMult = activeEventMultiplier(input.events, todayStr);
   const forecastByUpc = new Map(input.forecasts.map((f) => [f.upc, f]));
 
   // Raw velocities from sales (before event mult — events apply to demand side only)
@@ -198,11 +219,14 @@ export function computeSkuCashImpacts(input: {
     const forecast = forecastByUpc.get(item.upc);
     const policy = resolveCoverPolicy(item.category, item.name);
     const targetCover = policy.leadTimeDays + policy.safetyDays;
-    const price = unitPrice(item.category, item.name);
-    const cost = unitCost(item.category, item.name);
+    const price = unitPrice(item.category, item.name, item.unitPrice);
+    const cost = unitCost(item.category, item.name, item.unitCost, item.unitPrice);
+    const eventMult = activeEventMultiplier(input.events, todayStr, item.category, item.name);
 
     let limitedHistory = false;
     let avgDaily = rawVelocity.get(item.upc) ?? 0;
+    /** Forecast predictedDemand already includes holiday/event multipliers — do not multiply again. */
+    let velocityFromForecast = false;
 
     const salesInWindow = (input.salesByUpc.get(item.upc) ?? []).filter(
       (r) => r.date >= velStartStr && r.date <= todayStr,
@@ -217,13 +241,14 @@ export function computeSkuCashImpacts(input: {
     } else if (avgDaily <= 0 && forecast && forecast.predictedDemand14d > 0) {
       avgDaily = forecast.predictedDemand14d / 14;
       limitedHistory = forecast.confidence === 'low';
+      velocityFromForecast = true;
     } else if (avgDaily <= 0) {
       avgDaily = categoryAvgDaily(input.inventory, rawVelocity, item.category);
       limitedHistory = true;
     }
 
-    // Event uplift on demand side only (never invent volume elsewhere)
-    const demandDaily = avgDaily * eventMult;
+    // Event uplift on demand side only when velocity is sales/category-based (not forecast)
+    const demandDaily = velocityFromForecast ? avgDaily : avgDaily * eventMult;
     const daysOfCover = item.currentStock / Math.max(demandDaily, 0.1);
     const excessUnits = Math.max(0, item.currentStock - targetCover * demandDaily);
     const overstockDollars = excessUnits * cost;
@@ -338,12 +363,15 @@ export function buildCashOptimizationImpact(input: {
   const recommendations: OptimizationRecommendation[] = [];
 
   if (activeEvents.length > 0) {
+    const focuses = activeEvents[0].focuses?.length
+      ? activeEvents[0].focuses.join(', ')
+      : 'storewide';
     recommendations.push({
       upc: 'event',
       name: activeEvents[0].name,
       action: 'promote',
       dollarsImpact: 0,
-      reason: `Active event ×${activeEvents[0].multiplier} — demand uplift already applied in cover math (ice & beer focus).`,
+      reason: `Active event ×${activeEvents[0].multiplier} — demand uplift applied to ${focuses} (local events pick up regional demand).`,
     });
   }
 

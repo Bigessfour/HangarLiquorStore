@@ -87,13 +87,27 @@ export function groundedAssistantReply(
   const { pulse, optimization, categoryMix, health } = snapshot;
   const safeEvents = eventsSummary.map(sanitizeEventLine).filter(Boolean);
 
-  if (q.includes('hay days') || q.includes('event') || q.includes('festival')) {
+  if (
+    q.includes('hay days') ||
+    q.includes('event') ||
+    q.includes('festival') ||
+    q.includes('holiday') ||
+    q.includes('christmas') ||
+    q.includes('thanksgiving') ||
+    q.includes('new year') ||
+    q.includes('july 4') ||
+    q.includes('memorial') ||
+    q.includes('labor day') ||
+    q.includes('halloween') ||
+    q.includes('hunting')
+  ) {
     const eventLine =
-      safeEvents[0] || 'No local event on the calendar yet — add one under Events.';
+      safeEvents[0] ||
+      'National holidays auto-lift demand; add a local event under Events for Hay Days, hunting, or rodeos.';
     citations.push(eventLine);
     citations.push(`Optimization made ~$${optimization.dollarsMade} (${snapshot.periodLabel})`);
     return {
-      reply: `${eventLine} For ice & beer/RTD, lean on the event focus tags and keep days-of-supply near ${pulse.daysOfSupply} days. Estimated money from being event-ready this period: about $${optimization.dollarsMade} made.`,
+      reply: `${eventLine} Stock focused categories early (beer/ice for summer holidays; spirits/wine for Thanksgiving–NYE). Keep days-of-supply near ${pulse.daysOfSupply}. Estimated event-ready money this period: about $${optimization.dollarsMade}. See Suggestions → Holiday stocking.`,
       citations,
       source: 'grounded_fallback',
     };
