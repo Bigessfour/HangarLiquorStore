@@ -84,6 +84,8 @@ export async function upsertProductFromSquare(input: {
   category?: string;
   squareCatalogObjectId?: string;
   squareVariationId?: string;
+  unitPrice?: number;
+  unitCost?: number;
 }): Promise<void> {
   if (!input.upc) return;
   const table = productsTable();
@@ -100,11 +102,39 @@ export async function upsertProductFromSquare(input: {
         category: input.category || (prev.category as string) || 'General',
         squareCatalogObjectId: input.squareCatalogObjectId ?? prev.squareCatalogObjectId,
         squareVariationId: input.squareVariationId ?? prev.squareVariationId,
+        ...(input.unitPrice != null ? { unitPrice: input.unitPrice } : {}),
+        ...(input.unitCost != null ? { unitCost: input.unitCost } : {}),
         source: 'square',
         updatedAt: new Date().toISOString(),
       },
     }),
   );
+
+  // Mirror costs onto inventory row when present so Profit/cash-impact use Square shelf prices
+  if (input.unitPrice != null || input.unitCost != null) {
+    const invTable = inventoryTable();
+    const inv = await ddb.send(new GetCommand({ TableName: invTable, Key: { upc: input.upc } }));
+    if (inv.Item) {
+      const sets: string[] = ['updatedAt = :updatedAt'];
+      const values: Record<string, unknown> = { ':updatedAt': new Date().toISOString() };
+      if (input.unitPrice != null) {
+        sets.push('unitPrice = :unitPrice');
+        values[':unitPrice'] = input.unitPrice;
+      }
+      if (input.unitCost != null) {
+        sets.push('unitCost = :unitCost');
+        values[':unitCost'] = input.unitCost;
+      }
+      await ddb.send(
+        new UpdateCommand({
+          TableName: invTable,
+          Key: { upc: input.upc },
+          UpdateExpression: `SET ${sets.join(', ')}`,
+          ExpressionAttributeValues: values,
+        }),
+      );
+    }
+  }
 }
 
 export async function updateInventoryStockIfExists(

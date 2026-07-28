@@ -36,6 +36,19 @@ import {
   logAuthDeny,
 } from '../../shared/auth/roles';
 
+/** Hide Square-derived shelf/cost from ReadOnly — money fields stay Manager+ (Profit path). */
+function stripCostFields<T extends Record<string, unknown>>(row: T): Omit<T, 'unitPrice' | 'unitCost'> {
+  const { unitPrice: _p, unitCost: _c, ...rest } = row;
+  return rest;
+}
+
+function forClientInventory<T extends Record<string, unknown>>(
+  row: T,
+  isManager: boolean,
+): T | Omit<T, 'unitPrice' | 'unitCost'> {
+  return isManager ? row : stripCostFields(row);
+}
+
 type InventoryResource = 'list' | 'item' | 'scan' | 'import' | 'sync' | 'product' | 'users';
 
 function parseInventoryPath(rawPath: string): { resource: InventoryResource; upc?: string; username?: string } {
@@ -117,13 +130,18 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const search = event.queryStringParameters?.search;
       const category = event.queryStringParameters?.category;
       const items = await listInventoryRecords(search, category);
-      return jsonResponse(200, items);
+      const isManager = callerHasManagerAccess(getCallerGroups(event));
+      return jsonResponse(
+        200,
+        items.map((item) => forClientInventory(item as Record<string, unknown>, isManager)),
+      );
     }
 
     if (resource === 'item' && method === 'GET' && pathUpc) {
       const item = await getInventoryRecord(pathUpc);
       if (!item) return errorResponse(404, 'Item not found');
-      return jsonResponse(200, item);
+      const isManager = callerHasManagerAccess(getCallerGroups(event));
+      return jsonResponse(200, forClientInventory(item as Record<string, unknown>, isManager));
     }
 
     if (resource === 'list' && method === 'POST') {
@@ -160,11 +178,11 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       // Product info from OFF dump data in products table (for free/low-cost offline lookup)
       const product = await getProductRecord(pathUpc);
       if (!product) return errorResponse(404, 'Product not found in catalog');
-      return jsonResponse(200, product);
+      const isManager = callerHasManagerAccess(getCallerGroups(event));
+      return jsonResponse(200, forClientInventory(product as Record<string, unknown>, isManager));
     }
 
-    // ========== User Management (Owner/Manager only) ==========
-    const groups = getCallerGroups(event);
+    // ========== User Management (Owner/Manager only) ==========    const groups = getCallerGroups(event);
     if (resource === 'users') {
       const username = pathUsername ?? event.pathParameters?.username;
       const isOwnerUser = callerIsOwner(groups);

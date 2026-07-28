@@ -82,8 +82,6 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Backend unit tests (gate)
-        run: npm run test:backend
-
+      # Backend vitest already gated by `needs: [backend]` — do not re-run without backend npm ci
       - name: E2E tests
         run: npm run test:e2e

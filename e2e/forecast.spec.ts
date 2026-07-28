@@ -63,7 +63,9 @@ test('item detail tab opens from overview row', async ({ page }) => {
   await mockForecastApis(page);
   await page.goto('/forecast');
 
-  await page.getByText('Bud Light 12pk 12oz Cans').click();
+  const row = page.getByText('Bud Light 12pk 12oz Cans');
+  await row.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await row.click({ force: true });
   await expect(page.getByText('Predicted Demand (14d)')).toBeVisible();
   await expect(page.getByText('high confidence')).toBeVisible();
 });

@@ -19,6 +19,7 @@ const PERIODS: { id: ProfitPeriod; label: string }[] = [
 
 const SUGGESTED = [
   'What should I stock for Hay Days?',
+  'What should I stock for the next holiday?',
   'Why is beer cash tied up?',
   'Show me the biggest overstock dollars this month.',
   'How much money is in my pocket this month?',
@@ -244,6 +245,29 @@ export function ProfitOpsPage() {
                       ? ` · ~${data.optimization.recommendations[0].daysOfCover}d cover`
                       : ''}
                   </p>
+                )}
+                {data.optimization.recommendations.filter((r) => r.upc !== 'event').length > 1 && (
+                  <ul className="space-y-2" data-testid="profit-rec-list">
+                    {data.optimization.recommendations
+                      .filter((r) => r.upc !== 'event')
+                      .slice(0, 6)
+                      .map((r) => (
+                        <li
+                          key={r.upc}
+                          className="flex items-start justify-between gap-2 rounded-md border border-border/50 px-3 py-2 text-sm"
+                        >
+                          <span>
+                            <span className="font-medium capitalize">{r.action}</span> {r.name}
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              {r.reason}
+                            </span>
+                          </span>
+                          <span className="shrink-0 tabular-nums font-medium text-hanger-amber">
+                            {money(r.dollarsImpact)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
                 )}
                 <p className="text-xs text-muted-foreground">{data.optimization.explanation}</p>
                 <p className="text-xs text-muted-foreground">

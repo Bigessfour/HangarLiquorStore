@@ -1,8 +1,8 @@
-# Baseline readiness (Gate A)
+# Baseline readiness
 
-Living checklist for **demo-solid** before features `002-owner-guided-trial` and `003-manager-event-planning`.
+Living checklist for **demo-solid** Hangar Liquor inventory PWA.
 
-**Homecoming (Gate B)** stays tracked in [`specs/001-client-homecoming/spec.md`](../specs/001-client-homecoming/spec.md) and does **not** block 002/003.
+**Homecoming (Gate B)** stays tracked in [`specs/001-client-homecoming/spec.md`](../specs/001-client-homecoming/spec.md).
 
 ## How we evaluate
 
@@ -14,97 +14,75 @@ Each capability scored on: **Exists** · **Works (demo/mock)** · **Proof** · *
 | Yellow | Works with thin proof or accepted limitation |
 | Red    | Broken / misleading / blocks Chris demo      |
 
-Severity: **P0** crash/demo-blocker · **P1** embarrassing/misleading · **P2** polish · **Feature** parked as 002/003
+## Proof suite (latest)
 
-## Proof suite (latest run)
+| Check                  | Result          | When       |
+| ---------------------- | --------------- | ---------- |
+| `npm run typecheck`    | Run before ship | 2026-07-28 |
+| `npm run test:backend` | Run before ship | 2026-07-28 |
+| `npm run test:e2e`     | Run before ship | 2026-07-28 |
 
-| Check                  | Result                     | When                        |
-| ---------------------- | -------------------------- | --------------------------- |
-| `npm run typecheck`    | Pass                       | 2026-07-21                  |
-| `npm run test:backend` | 119/119 pass               | 2026-07-21                  |
-| `npm run test:e2e`     | 62/62 pass (Mobile Chrome) | 2026-07-21 (after P1 fixes) |
-
-Demo command (forces mock API even if `.env` has production `VITE_API_URL`):
+Demo command (forces mock API + Square/Profit simulation banners):
 
 ```bash
 npm run demo
 ```
 
-## Capability matrix (Gate A)
+## Capability matrix
 
-| Capability        | Exists | Works demo        | Proof                                   | Role                      | Score                              |
-| ----------------- | ------ | ----------------- | --------------------------------------- | ------------------------- | ---------------------------------- |
-| Auth / demo Owner | Y      | Y                 | e2e fixtures                            | Owner auto                | Green                              |
-| Dashboard         | Y      | Y                 | `e2e/dashboard.spec.ts`                 | Manager actions gated     | Green                              |
-| Scan + FAB        | Y      | Y                 | `e2e/scan.spec.ts`                      | —                         | Green                              |
-| Inventory         | Y      | Y                 | `e2e/inventory.spec.ts`                 | Manager edit/CSV          | Green                              |
-| Forecast          | Y      | Y                 | `e2e/forecast.spec.ts` + backend engine | —                         | Green                              |
-| Events            | Y      | Y                 | `e2e/events.spec.ts`                    | Add Event Manager+        | Green                              |
-| Suggestions       | Y      | Y                 | `e2e/suggestions.spec.ts`               | Manager actions           | Green                              |
-| Offline queue     | Y      | Y                 | scan offline e2e                        | —                         | Yellow (device reconnect = Gate B) |
-| More / install    | Y      | Y                 | `e2e/more.spec.ts`                      | Owner Square/users        | Green                              |
-| Nav shell         | Y      | Y                 | `e2e/navigation.spec.ts`                | —                         | Green                              |
-| Square (mock)     | Y      | Y (mocked status) | e2e + no proxy spam                     | Owner only                | Green                              |
-| User mgmt (mock)  | Y      | Sample owner list | more e2e                                | Mutations blocked in mock | Yellow (Cognito = live)            |
+| Capability              | Exists | Works demo | Proof                           | Role          | Score  |
+| ----------------------- | ------ | ---------- | ------------------------------- | ------------- | ------ |
+| Auth / demo Owner       | Y      | Y          | e2e fixtures                    | Owner auto    | Green  |
+| Dashboard + slow movers | Y      | Y          | dashboard + profit hooks        | Manager gates | Green  |
+| Holiday stocking        | Y      | Y          | suggestions e2e + backend tests | —             | Green  |
+| Scan + FAB              | Y      | Y          | `e2e/scan.spec.ts`              | —             | Green  |
+| Inventory               | Y      | Y          | `e2e/inventory.spec.ts`         | Manager edit  | Green  |
+| Forecast                | Y      | Y          | forecast e2e + engine           | —             | Green  |
+| Events + hunting preset | Y      | Y          | `e2e/events.spec.ts`            | Manager+      | Green  |
+| Suggestions + $ impact  | Y      | Y          | suggestions e2e                 | Manager+      | Green  |
+| Profit & Ops (005)      | Y      | Y          | `e2e/profit.spec.ts`            | Manager+      | Green  |
+| Ask Hangar (006)        | Y      | Y          | profit Ask chips                | Manager+      | Green  |
+| Offline queue           | Y      | Y          | scan offline e2e                | —             | Yellow |
+| More / install honesty  | Y      | Y          | install copy = scan queue       | —             | Green  |
+| Square (mock / sim)     | Y      | Y          | demo sim banners                | Owner only    | Green  |
+| Square live OAuth       | Y      | Needs SSM  | Part A credentials              | Owner         | Yellow |
 
-## Gap list
+## Feature specs
 
-### Fixed in baseline (P1)
+| Spec | Intent                     | Status                                      |
+| ---- | -------------------------- | ------------------------------------------- |
+| 001  | Homecoming                 | North star                                  |
+| 002  | Guided trial               | **Shipped**                                 |
+| 003  | Manager events             | **Shipped** (+ hunting preset)              |
+| 004  | Square analytics           | **Shipped** (live Connect needs SSM Part A) |
+| 005  | Owner Profit & Ops dataviz | **Shipped**                                 |
+| 006  | Optimization + Ask Hangar  | **Shipped**                                 |
 
-| ID   | Symptom                                                                                | Fix                                                                   | Proof                       |
-| ---- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------- |
-| P1-1 | `npm run demo` inherited production `VITE_API_URL` from `.env` → live API + demo token | Force `VITE_API_URL=` (+ clear Cognito) in `package.json` demo script | Demo uses mocks like e2e    |
-| P1-2 | Square `/api/square/status` failed in mock → red error on More                         | Mock status via `isMockApi()` in `src/lib/square-api.ts`              | e2e; no failed status fetch |
-| P1-3 | `/api/users` failed in mock → empty/noisy Owner user mgmt                              | Mock `listUsers`; block mutations with clear error                    | More shows demo-owner       |
-| P1-4 | Events “Add Event” visible for all; dialog no-op for ReadOnly                          | Gate button with `hasRole('Manager')`                                 | Events page role UI         |
-| P1-5 | `.env.demo` gitignored despite docs                                                    | `!.env.demo` in `.gitignore`                                          | File trackable              |
+## Manual Chris path
 
-### Accepted Yellow (not blocking Gate A)
+1. `npm run demo` → Owner
+2. Dashboard → slow movers + holiday stocking teaser
+3. Scan → Inventory
+4. Events → Hay Days / Hunting presets; static holidays on badges
+5. Suggestions → Holiday stocking + $ reorder / hold-promote
+6. More → Profit & Ops → Saved/Made, rec list, Ask Hangar
+7. Point at amber banners: Square/Profit simulation until live Connect
 
-| Item                                                        | Notes                                            |
-| ----------------------------------------------------------- | ------------------------------------------------ |
-| Dashboard not in bottom nav                                 | Parked → **002** guided trial routes Chris there |
-| No interactive tour                                         | Parked → **002**                                 |
-| Events calendar / Hay Days / ice tags / dashboard Add Event | Parked → **003**                                 |
-| Offline device reconnect proof                              | Gate B SC-002                                    |
-| Client AWS / Cognito production                             | Gate B SC-005/006                                |
-| Square OAuth end-to-end                                     | Optional; needs live credentials                 |
+## Branding decision (G6)
 
-### Feature (do not fix in baseline)
+**Product brand in-app: Hangar Liquor** (store: Hangar / Hanger Liquor Store).
+“RuralStock” is email-only working title — not shown in the app.
 
-- `specs/002-owner-guided-trial/spec.md`
-- `specs/003-manager-event-planning/spec.md`
+## External ops (not a code gap)
 
-## Manual Chris path (Gate A)
+Live Square Connect requires real Developer Application ID + Secret:
 
-Run `npm run demo`, then:
+```bash
+npm run setup-square-ssm -- --application-id=sq0idp-... --application-secret=sq0csp-... --profile=steve
+```
 
-1. More → Dashboard — low stock / movers visible
-2. FAB or Scan — manual UPC → add form
-3. Inventory — search / filter
-4. More → Local Events — Add Event (Owner), multipliers
-5. Forecast — chart / suggestions path
-6. Suggestions — items visible
-7. More — reset demo catalog, install QR, Square shows optional (not error)
+Until then `credentialsConfigured: false` by design.
 
-## Active feature specs
+## Status
 
-| Spec | Intent                      | Status                                                                                        |
-| ---- | --------------------------- | --------------------------------------------------------------------------------------------- |
-| 001  | Homecoming                  | North star                                                                                    |
-| 002  | Guided trial                | Implemented (2026-07-21) — `npm run demo` auto-offers; More → Start trial run                 |
-| 003  | Manager events              | Implemented (2026-07-21) — Hay Days, focus tags, dashboard Add event                          |
-| 004  | Square analytics groundwork | Next                                                                                          |
-| 005  | Owner Profit & Ops dataviz  | Specced — money-in-pocket KPIs ([research-backed](../specs/005-owner-profit-dataviz/spec.md)) |
-| 006  | SageMaker + Hangar AI chat  | Specced stub — after 004/005                                                                  |
-
-## Gate A pass criteria
-
-- [x] `npm run typecheck` passes
-- [x] `npm run test:backend` passes
-- [x] Playwright e2e passes on demo/mock path
-- [x] No open P0; P1s fixed or accepted
-- [x] Feature work (tour, Hay Days) parked as 002/003
-- [x] Manual Chris path — covered by e2e critical routes + post-fix suite (0 proxy errors); spot-check with `npm run demo` before Chris meeting
-
-**Status: Gate A PASSED (2026-07-21)** — baseline ready to start **002**, then **003**. Do not start features until this doc still says PASSED after any further baseline edits.
+**Project complete for demo scope (2026-07-28).** Specs 002–006 shipped; honesty polish closed; holiday auto-stocking shipped. Remaining action is ops-only: paste Square credentials when Chris is ready.

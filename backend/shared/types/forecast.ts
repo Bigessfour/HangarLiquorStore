@@ -43,6 +43,10 @@ export interface StaticHoliday {
   startDate: string;
   endDate: string;
   multiplier: number;
+  /** Category focus for automatic holiday stocking suggestions. */
+  focuses?: EventFocusTag[];
+  /** Plain-English stocking guidance for managers. */
+  stockingNote?: string;
 }
 
 export interface SalesRecord {
@@ -57,6 +61,10 @@ export interface InventoryRecord {
   category: string;
   currentStock: number;
   reorderPoint?: number;
+  /** Shelf price in dollars when known (e.g. Square catalog). */
+  unitPrice?: number;
+  /** Unit cost in dollars when known (Square cost or derived from price × margin). */
+  unitCost?: number;
 }
 
 export interface CreateLocalEventInput {

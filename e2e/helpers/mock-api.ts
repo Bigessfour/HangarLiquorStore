@@ -36,6 +36,15 @@ export const mockEvents = {
       startDate: '2026-07-03',
       endDate: '2026-07-05',
       multiplier: 2.8,
+      focuses: ['Beer/RTD', 'Ice'],
+    },
+    {
+      id: 'e2',
+      name: 'Hunting Season Opener',
+      startDate: '2026-10-17',
+      endDate: '2026-10-19',
+      multiplier: 1.55,
+      focuses: ['Spirits', 'Beer/RTD'],
     },
   ],
   staticHolidays: [
@@ -45,6 +54,17 @@ export const mockEvents = {
       startDate: '2026-07-03',
       endDate: '2026-07-05',
       multiplier: 2.8,
+      focuses: ['Beer/RTD', 'Ice', 'Essentials'],
+      stockingNote: 'Top summer holiday — beer and ice early.',
+    },
+    {
+      id: 'labor-day',
+      name: 'Labor Day Weekend',
+      startDate: '2026-09-05',
+      endDate: '2026-09-07',
+      multiplier: 2.0,
+      focuses: ['Beer/RTD', 'Ice'],
+      stockingNote: 'Last big summer weekend.',
     },
   ],
 };

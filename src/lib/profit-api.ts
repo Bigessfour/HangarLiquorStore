@@ -193,10 +193,17 @@ export async function askHangarAssistant(
         };
       }
     }
-    if (q.includes('hay')) {
+    if (
+      q.includes('hay') ||
+      q.includes('holiday') ||
+      q.includes('christmas') ||
+      q.includes('thanksgiving') ||
+      q.includes('new year') ||
+      q.includes('stock for')
+    ) {
       return {
-        reply: `For Hay Days, prioritize Ice and Beer/RTD. This ${snap.periodLabel} optimization shows about $${snap.optimization.dollarsMade} made from being event-ready (demo estimate).`,
-        citations: [`Made $${snap.optimization.dollarsMade}`, 'Focus: Ice | Beer/RTD'],
+        reply: `For the next high-demand holiday, stock focused categories early (beer/ice for summer; spirits for Thanksgiving–NYE). Local events (Hay Days, hunting) pick up area demand via focus tags. This ${snap.periodLabel} shows about $${snap.optimization.dollarsMade} made from being event-ready (demo estimate). See Suggestions → Holiday stocking.`,
+        citations: [`Made $${snap.optimization.dollarsMade}`, 'Holiday stocking + local events'],
         source: 'demo',
       };
     }

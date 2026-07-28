@@ -8,6 +8,7 @@ export type {
   StaticHoliday,
   CreateLocalEventInput,
   TrendingSuggestion,
+  InventoryRecord,
 } from '../../backend/shared/types/forecast';
 
 export { EVENT_FOCUS_TAGS } from '../../backend/shared/types/forecast';

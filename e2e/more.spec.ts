@@ -37,28 +37,9 @@ test('more page links to forecast', async ({ page }) => {
 });
 
 test('owner sees Square POS connection (owner only)', async ({ page }) => {
-  await page.route('**/api/square/status', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        credentialsConfigured: true,
-        connected: false,
-        merchantName: null,
-        merchantId: null,
-        locationName: null,
-        locationId: null,
-        connectedAt: null,
-        connectedBy: null,
-        lastSyncAt: null,
-        lastSyncSummary: null,
-        scopes: ['ORDERS_READ', 'PAYMENTS_READ'],
-      }),
-    });
-  });
   await page.goto('/more');
   await expect(page.getByText(/Square POS connection/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Connect Square account/i })).toBeVisible();
+  await expect(page.getByText('Connected to Square (demo simulation)')).toBeVisible();
 });
 
 test('owner can run demo Square sync in mock mode', async ({ page }) => {

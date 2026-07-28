@@ -22,8 +22,18 @@ type CatalogObject = {
     upc?: string;
     sku?: string;
     item_id?: string;
+    price_money?: { amount?: number; currency?: string };
   };
 };
+
+/** Square amount is cents → dollars. Cost defaults to ~72% of shelf (28% margin proxy) until wholesale COGS available. */
+function priceAndCost(variation: CatalogObject): { unitPrice?: number; unitCost?: number } {
+  const cents = variation.item_variation_data?.price_money?.amount;
+  if (cents == null || cents <= 0) return {};
+  const unitPrice = Math.round((cents / 100) * 100) / 100;
+  const unitCost = Math.round(unitPrice * 0.72 * 100) / 100;
+  return { unitPrice, unitCost };
+}
 
 function extractUpc(variation: CatalogObject): string | null {
   const data = variation.item_variation_data;
@@ -72,12 +82,14 @@ export async function syncCatalog(accessToken: string): Promise<CatalogUpcMap> {
 
       variationToUpc.set(obj.id, upc);
       upcToName.set(upc, name);
+      const pricing = priceAndCost(obj);
 
       await upsertProductFromSquare({
         upc,
         name,
         squareCatalogObjectId: obj.item_variation_data?.item_id,
         squareVariationId: obj.id,
+        ...pricing,
       });
       productsUpserted += 1;
     }
@@ -96,11 +108,13 @@ export async function syncCatalog(accessToken: string): Promise<CatalogUpcMap> {
             : parentName;
         variationToUpc.set(variation.id, upc);
         upcToName.set(upc, name);
+        const pricing = priceAndCost(variation);
         await upsertProductFromSquare({
           upc,
           name,
           squareCatalogObjectId: item.id,
           squareVariationId: variation.id,
+          ...pricing,
         });
         productsUpserted += 1;
       }

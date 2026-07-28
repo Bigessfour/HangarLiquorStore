@@ -6,7 +6,7 @@ import type {
   LocalEvent,
   SalesRecord,
 } from '../../../shared/types/forecast';
-import { getMultiplierForDate } from './event-multiplier';
+import { getItemMultiplierForDate } from './event-multiplier';
 
 const HISTORY_DAYS = 90;
 const CHART_HISTORY_DAYS = 14;
@@ -130,7 +130,12 @@ export function buildItemForecast(input: ForecastEngineInput): ItemForecast {
     const dateStr = formatDate(date);
     const dow = date.getUTCDay();
     const base = weekdayAvg[dow] * trend;
-    const multiplier = getMultiplierForDate(dateStr, localEvents);
+    const multiplier = getItemMultiplierForDate(
+      dateStr,
+      inventory.category,
+      inventory.name,
+      localEvents,
+    );
     const predicted = Math.max(0, Math.round(base * multiplier));
     const lower = Math.max(0, Math.round(predicted * (1 - band)));
     const upper = Math.round(predicted * (1 + band));
