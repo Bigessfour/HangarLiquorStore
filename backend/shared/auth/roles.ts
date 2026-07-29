@@ -3,9 +3,19 @@ export type UserRole = 'ReadOnly' | 'Manager' | 'Owner';
 const ROLE_HIERARCHY: UserRole[] = ['ReadOnly', 'Manager', 'Owner'];
 
 export function resolveRoleFromGroups(groups: string[]): UserRole {
-  if (groups.includes('Owner')) return 'Owner';
-  if (groups.includes('Manager')) return 'Manager';
+  const normalized = groups.map(canonicalizeGroupName);
+  if (normalized.includes('Owner')) return 'Owner';
+  if (normalized.includes('Manager')) return 'Manager';
   return 'ReadOnly';
+}
+
+/** Map Cognito group names to canonical Hangar roles (case-insensitive). */
+export function canonicalizeGroupName(name: string): string {
+  const key = name.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (key === 'owner') return 'Owner';
+  if (key === 'manager') return 'Manager';
+  if (key === 'readonly') return 'ReadOnly';
+  return name.trim();
 }
 
 /**
@@ -16,8 +26,11 @@ export function resolveRoleFromGroups(groups: string[]): UserRole {
 export function parseCognitoGroups(raw: unknown): string[] {
   if (raw == null) return [];
 
+  const mapCanonical = (list: string[]) =>
+    list.map(canonicalizeGroupName).filter(Boolean);
+
   if (Array.isArray(raw)) {
-    return raw.map(String).map((g) => g.trim()).filter(Boolean);
+    return mapCanonical(raw.map(String).map((g) => g.trim()).filter(Boolean));
   }
 
   if (typeof raw === 'string') {
@@ -28,17 +41,19 @@ export function parseCognitoGroups(raw: unknown): string[] {
       try {
         const parsed = JSON.parse(trimmed) as unknown;
         if (Array.isArray(parsed)) {
-          return parsed.map(String).map((g) => g.trim()).filter(Boolean);
+          return mapCanonical(parsed.map(String).map((g) => g.trim()).filter(Boolean));
         }
       } catch {
         /* fall through */
       }
     }
 
-    return trimmed
-      .split(/[, ]+/)
-      .map((g) => g.replace(/^\[|"|\]$/g, '').trim())
-      .filter(Boolean);
+    return mapCanonical(
+      trimmed
+        .split(/[, ]+/)
+        .map((g) => g.replace(/^\[|"|\]$/g, '').trim())
+        .filter(Boolean),
+    );
   }
 
   return [];
@@ -118,7 +133,7 @@ export function callerIsOwner(groups: string[]): boolean {
   return resolveRoleFromGroups(groups) === 'Owner';
 }
 
-/** Log deny paths when groups are empty or DEBUG_AUTH=true (CloudWatch). Never log tokens. */
+/** Log deny paths (CloudWatch). Never log tokens. Always log empty-group denies; others when DEBUG_AUTH. */
 export function logAuthDeny(input: {
   required: 'Manager' | 'Owner';
   groups: string[];
@@ -127,7 +142,7 @@ export function logAuthDeny(input: {
 }): void {
   const role = resolveRoleFromGroups(input.groups);
   const empty = input.groups.length === 0;
-  if (!empty && process.env.DEBUG_AUTH !== 'true') return;
+  // Always log role denials — Owner Unauthorized triage depends on this
   console.warn('[auth-deny]', {
     required: input.required,
     role,

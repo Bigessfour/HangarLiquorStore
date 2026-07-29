@@ -145,30 +145,35 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     if (resource === 'list' && method === 'POST') {
+      requireRole(getCallerGroups(event), 'Manager', { path: rawPath, method });
       const input = validateCreateInput(JSON.parse(event.body ?? '{}'));
       const created = await createOrAddInventory(input);
       return jsonResponse(201, created);
     }
 
     if (resource === 'item' && method === 'PATCH' && pathUpc) {
+      requireRole(getCallerGroups(event), 'Manager', { path: rawPath, method });
       const input = validateUpdateInput(JSON.parse(event.body ?? '{}'), pathUpc);
       const updated = await updateInventoryRecord(input);
       return jsonResponse(200, updated);
     }
 
     if (resource === 'scan' && method === 'POST') {
+      // Floor scans: any authenticated user (JWT) may adjust stock
       const input = validateScanInput(JSON.parse(event.body ?? '{}'));
       const updated = await adjustInventoryStock(input.upc, input.delta);
       return jsonResponse(200, updated);
     }
 
     if (resource === 'import' && method === 'POST') {
+      requireRole(getCallerGroups(event), 'Manager', { path: rawPath, method });
       const rows = validateImportRows(JSON.parse(event.body ?? '{}'));
       const result = await importInventoryRows(rows);
       return jsonResponse(200, result);
     }
 
     if (resource === 'sync' && method === 'POST') {
+      // Offline queue sync: JWT only (same as scan)
       const actions = validateSyncActions(JSON.parse(event.body ?? '{}'));
       const result = await processSyncActions(actions);
       return jsonResponse(200, result);
@@ -182,7 +187,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       return jsonResponse(200, forClientInventory(product as Record<string, unknown>, isManager));
     }
 
-    // ========== User Management (Owner/Manager only) ==========    const groups = getCallerGroups(event);
+    // ========== User Management (Owner/Manager only) ==========
+    const groups = getCallerGroups(event);
     if (resource === 'users') {
       const username = pathUsername ?? event.pathParameters?.username;
       const isOwnerUser = callerIsOwner(groups);
@@ -320,6 +326,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   } catch (error) {
     console.error('inventory-api error', error);
     const message = error instanceof Error ? error.message : 'Inventory request failed';
+    if (message.includes('Owner role required') || message.includes('Manager or Owner role required')) {
+      return errorResponse(403, message);
+    }
     const statusCode =
       message.includes('must') ||
       message.includes('required') ||

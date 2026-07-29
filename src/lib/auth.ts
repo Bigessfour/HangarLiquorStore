@@ -192,8 +192,59 @@ export function getAuthToken(): string | null {
   return user ? user.token : null;
 }
 
+function isIdTokenExpired(token: string, skewSeconds = 90): boolean {
+  if (!token || token.startsWith('demo-')) return false;
+  const payload = parseJwt(token);
+  const exp = Number(payload.exp);
+  if (!Number.isFinite(exp)) return true;
+  return Date.now() / 1000 >= exp - skewSeconds;
+}
+
+/**
+ * Refresh Cognito ID token via the SDK session (uses refresh token when needed).
+ * Returns null if no Cognito session / refresh failed.
+ */
+export function refreshAuthSession(): Promise<AuthUser | null> {
+  const pool = getUserPool();
+  if (!pool) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const cognitoUser = pool.getCurrentUser();
+    if (!cognitoUser) {
+      resolve(null);
+      return;
+    }
+    cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session?.isValid()) {
+        logAuth({ source: 'refreshAuthSession', ok: false, error: err?.message });
+        resolve(null);
+        return;
+      }
+      const username = cognitoUser.getUsername();
+      resolve(sessionToAuthUser(username, session));
+    });
+  });
+}
+
+/** Ensure Authorization header uses a non-expired ID token (refresh if needed). */
+export async function ensureFreshAuthToken(): Promise<string | null> {
+  const user = getCurrentUser();
+  if (!user?.token) return null;
+  if (user.token.startsWith('demo-')) return user.token;
+  if (!isIdTokenExpired(user.token)) return user.token;
+
+  const refreshed = await refreshAuthSession();
+  return refreshed?.token ?? null;
+}
+
 export function getAuthHeaders(): Record<string, string> {
   const token = getAuthToken();
+  return token && !token.startsWith('demo-') ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** Async headers with refresh — prefer this for API calls. */
+export async function getFreshAuthHeaders(): Promise<Record<string, string>> {
+  const token = await ensureFreshAuthToken();
   return token && !token.startsWith('demo-') ? { Authorization: `Bearer ${token}` } : {};
 }
 

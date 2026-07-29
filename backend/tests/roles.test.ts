@@ -42,9 +42,11 @@ describe('parseCognitoGroups (API Gateway claim shapes)', () => {
     expect(callerHasManagerAccess(parseCognitoGroups('["ReadOnly"]'))).toBe(false);
   });
 
-  it('recognizes Owner for Square requireOwner path', () => {
-    expect(callerIsOwner(parseCognitoGroups('["Owner"]'))).toBe(true);
-    expect(callerIsOwner(parseCognitoGroups('Owner'))).toBe(true);
+  it('canonicalizes case-insensitive Cognito group names', () => {
+    expect(parseCognitoGroups('owner')).toEqual(['Owner']);
+    expect(parseCognitoGroups('["OWNER","manager"]')).toEqual(['Owner', 'Manager']);
+    expect(callerIsOwner(parseCognitoGroups('owner'))).toBe(true);
+    expect(callerHasManagerAccess(parseCognitoGroups('OWNER'))).toBe(true);
   });
 });
 
