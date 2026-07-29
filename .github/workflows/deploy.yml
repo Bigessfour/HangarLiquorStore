@@ -1,0 +1,118 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    name: Deploy Lambdas + CloudFront
+    runs-on: ubuntu-latest
+    # Only when CI succeeded on main (or manual run)
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'push')
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID }}
+      VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
+      VITE_PWA_URL: ${{ vars.VITE_PWA_URL }}
+      FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET || 'hanger-frontend-prod' }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID || 'E1FQRM0G55ZOMD' }}
+    steps:
+      - name: Require AWS secrets + Vite vars
+        env:
+          HAS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+          HAS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY != '' }}
+          HAS_API: ${{ vars.VITE_API_URL != '' }}
+        run: |
+          ok=1
+          if [ "$HAS_KEY" != "true" ] || [ "$HAS_SECRET" != "true" ]; then
+            echo "::error::Missing AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY secrets. See docs/deploy-pipeline.md"
+            ok=0
+          fi
+          if [ "$HAS_API" != "true" ]; then
+            echo "::error::Missing repo variables (VITE_API_URL, Cognito, PWA URL). See docs/deploy-pipeline.md"
+            ok=0
+          fi
+          if [ "$ok" != "1" ]; then
+            echo "Live deploy was last run manually via: npm run deploy:production"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix backend
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build Lambda bundles
+        run: npm run build:backend
+
+      - name: Package + update Lambda functions
+        working-directory: backend/lambda-dist
+        run: |
+          set -euo pipefail
+          zip -j inventory.zip inventory/inventory-api.js
+          zip -j forecast.zip forecast/get-forecast.js
+          zip -j events.zip events/manage-events.js
+          zip -j square.zip square/square-api.js
+          aws lambda update-function-code --function-name hanger-inventory-api --zip-file fileb://inventory.zip
+          aws lambda update-function-code --function-name hanger-forecast --zip-file fileb://forecast.zip
+          aws lambda update-function-code --function-name hanger-events --zip-file fileb://events.zip
+          aws lambda update-function-code --function-name hanger-square --zip-file fileb://square.zip
+
+      - name: Build production frontend
+        run: |
+          cat > .env.production <<EOF
+          VITE_API_URL=${VITE_API_URL}
+          VITE_COGNITO_USER_POOL_ID=${VITE_COGNITO_USER_POOL_ID}
+          VITE_COGNITO_CLIENT_ID=${VITE_COGNITO_CLIENT_ID}
+          VITE_PWA_URL=${VITE_PWA_URL}
+          EOF
+          # Strip accidental indent from YAML block
+          sed -i 's/^[[:space:]]*//' .env.production
+          npm run generate:pwa-icons
+          npm run build -- --mode production
+
+      - name: Sync S3 + invalidate CloudFront
+        run: |
+          aws s3 sync dist/ "s3://${FRONTEND_BUCKET}/" --delete --exclude "hanger-liquor-native.apk"
+          aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" --paths "/*"
+
+      - name: Smoke live index
+        run: |
+          sleep 5
+          code=$(curl -sS -o /tmp/live.html -w "%{http_code}" "${VITE_PWA_URL}/")
+          test "$code" = "200"
+          grep -q 'assets/index-' /tmp/live.html
+          echo "Live OK: ${VITE_PWA_URL}"
