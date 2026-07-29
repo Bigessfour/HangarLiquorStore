@@ -26,6 +26,7 @@ import {
 import { getCurrentUser, signOut, isOwner, hasRole, getUserRole } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { useGuidedTrialStore } from '@/features/guided-trial';
+import { isDemoAuthEnabled } from '@/lib/demo-auth';
 
 const moreLinks = [
   {
@@ -167,7 +168,8 @@ export function MorePage() {
         <CardContent className="space-y-3 p-4">
           <p className="font-medium">Owner trial run</p>
           <p className="text-sm text-muted-foreground">
-            Walk through each control — Dashboard, Scan, Inventory, Events, Forecast, and more.
+            Walk through each control — Dashboard, Scan, Inventory, Events, Forecast, Suggestions,
+            Profit, and More.
             {trialStatus === 'completed' ? ' You already finished once; restart anytime.' : null}
             {trialStatus === 'skipped' ? ' You skipped earlier; restart anytime.' : null}
           </p>
@@ -181,6 +183,22 @@ export function MorePage() {
           </Button>
         </CardContent>
       </Card>
+
+      {isDemoAuthEnabled() && (
+        <Card className="border-dashed border-hanger-amber/50" data-testid="chris-prep-checklist">
+          <CardContent className="space-y-2 p-4">
+            <p className="font-medium">Before Chris sits down</p>
+            <ol className="list-decimal space-y-1 pl-4 text-sm text-muted-foreground">
+              <li>Reset demo catalog (below) so training data looks like Hangar.</li>
+              <li>Start trial run — walk Stop by Stop; use Try it on Scan, Events, Suggestions, Profit.</li>
+              <li>
+                Amber banners mean simulation — not live Square dollars yet. Connect the register
+                later from this page when you are ready.
+              </li>
+            </ol>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-hanger-amber/10">
         <CardContent className="flex min-h-14 items-center justify-between p-4">
@@ -204,6 +222,7 @@ export function MorePage() {
               variant="outline"
               size="sm"
               className="min-h-10 w-full text-xs"
+              data-testid="reset-demo-catalog"
               onClick={() => {
                 if (
                   confirm(

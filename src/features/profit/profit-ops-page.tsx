@@ -83,7 +83,9 @@ export function ProfitOpsPage() {
     <div className="space-y-5 p-4 pb-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Profit & Ops</h1>
+          <h1 className="text-2xl font-bold tracking-tight" data-tour="tour-profit">
+            Profit & Ops
+          </h1>
           <p className="text-sm text-muted-foreground">
             How Hangar is doing — and cash staying in your pocket.
           </p>
@@ -352,6 +354,13 @@ export function ProfitOpsPage() {
                   className="min-h-11 text-left text-xs sm:text-sm"
                   disabled={chatMutation.isPending}
                   onClick={() => chatMutation.mutate(prompt)}
+                  data-testid={
+                    prompt.includes('next holiday')
+                      ? 'ask-hangar-holiday'
+                      : prompt.includes('money is in my pocket')
+                        ? 'ask-hangar-pocket'
+                        : undefined
+                  }
                 >
                   {prompt}
                 </Button>
@@ -370,6 +379,7 @@ export function ProfitOpsPage() {
                     'rounded-md px-3 py-2 text-sm',
                     entry.role === 'user' ? 'bg-muted' : 'bg-hanger-amber/10',
                   )}
+                  data-testid={entry.role === 'assistant' ? 'ask-hangar-reply' : 'ask-hangar-user'}
                 >
                   <p>{entry.text}</p>
                   {entry.citations && entry.citations.length > 0 && (

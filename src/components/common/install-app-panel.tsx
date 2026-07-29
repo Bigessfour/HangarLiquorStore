@@ -254,7 +254,7 @@ export function InstallAppPanel({ showQr = true }: { showQr?: boolean }) {
   const isLocalHttp = appUrl.startsWith('http://');
 
   return (
-    <Card className="border-hanger-gold/20">
+    <Card className="border-hanger-gold/20" data-testid="install-app-panel">
       <CardContent className="space-y-4 p-4">
         <div className="flex items-center gap-3">
           <Smartphone className="h-6 w-6 text-hanger-amber" aria-hidden />

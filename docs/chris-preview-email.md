@@ -38,6 +38,6 @@ In short: clearer decisions when you’re ordering — less guesswork about what
 
 This is a **working preview / demo**. The walkthrough can show the Square-connected Profit screen as a simulation so you see the shape of the product; plugging in Hangar’s real Square account is what turns sample $ into your register.
 
-Let me know what questions you have or if you want a live walkthrough.
+Let me know what questions you have or if you want a live walkthrough. Meeting script: `docs/chris-walkthrough.md` (Start trial run from More; Try it on Scan, Events, Suggestions, Profit).
 
 Steve
