@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,8 @@ import { NewPasswordRequiredError, completeNewPassword, isCognitoConfigured, sig
 import { isDemoAuthEnabled } from '@/lib/demo-auth';
 
 export function LoginPage() {
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('reason') === 'session';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -63,6 +66,11 @@ export function LoginPage() {
           <p className="text-center text-sm text-muted-foreground">
             {needsNewPassword ? 'Set your new password' : 'Employee Login'}
           </p>
+          {sessionExpired && !needsNewPassword && (
+            <p className="text-center text-xs text-amber-700 dark:text-amber-300" role="status">
+              Your session expired — sign in again to keep Owner permissions working.
+            </p>
+          )}
           {!isCognitoConfigured() && !isDemoAuthEnabled() && (
             <p className="text-center text-xs text-amber-600">
               Cognito is not configured. Set VITE_DEMO_AUTH=true for local demos.
