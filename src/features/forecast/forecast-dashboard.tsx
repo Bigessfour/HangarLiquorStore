@@ -24,7 +24,7 @@ export function ForecastDashboard() {
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [model, setModel] = useState<'statistical' | 'canvas'>('statistical');
 
-  const { data: forecasts = [], isLoading, error } = useForecasts(14, model);
+  const { data: forecasts = [], isLoading, error, refetch } = useForecasts(14, model);
   const { data: eventsData } = useLocalEvents();
 
   const localEvents = eventsData?.localEvents ?? [];
@@ -54,10 +54,26 @@ export function ForecastDashboard() {
   }
 
   if (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown error';
     return (
       <Alert variant="destructive" className="m-4">
-        <AlertDescription>
-          Failed to load forecasts
+        <AlertDescription className="space-y-3">
+          <p className="font-medium">Failed to load forecasts</p>
+          <p className="text-sm opacity-90">{detail}</p>
+          {(detail === 'Unauthorized' || detail.includes('Unauthorized')) && (
+            <p className="text-sm">
+              Your login session may have expired. Sign out and sign back in as Owner, then try
+              again.
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-12"
+            onClick={() => void refetch()}
+          >
+            Retry
+          </Button>
         </AlertDescription>
       </Alert>
     );

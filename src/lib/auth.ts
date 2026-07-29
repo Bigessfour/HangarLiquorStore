@@ -200,30 +200,39 @@ function isIdTokenExpired(token: string, skewSeconds = 90): boolean {
   return Date.now() / 1000 >= exp - skewSeconds;
 }
 
+let refreshInFlight: Promise<AuthUser | null> | null = null;
+
 /**
  * Refresh Cognito ID token via the SDK session (uses refresh token when needed).
- * Returns null if no Cognito session / refresh failed.
+ * Single-flight: concurrent callers share one refresh (avoids Cognito race → Unauthorized).
  */
 export function refreshAuthSession(): Promise<AuthUser | null> {
+  if (refreshInFlight) return refreshInFlight;
+
   const pool = getUserPool();
   if (!pool) return Promise.resolve(null);
 
-  return new Promise((resolve) => {
+  refreshInFlight = new Promise<AuthUser | null>((resolve) => {
     const cognitoUser = pool.getCurrentUser();
     if (!cognitoUser) {
+      logAuth({ source: 'refreshAuthSession', ok: false, error: 'no Cognito user in pool' });
       resolve(null);
       return;
     }
     cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
       if (err || !session?.isValid()) {
-        logAuth({ source: 'refreshAuthSession', ok: false, error: err?.message });
+        logAuth({ source: 'refreshAuthSession', ok: false, error: err?.message ?? 'invalid session' });
         resolve(null);
         return;
       }
       const username = cognitoUser.getUsername();
       resolve(sessionToAuthUser(username, session));
     });
+  }).finally(() => {
+    refreshInFlight = null;
   });
+
+  return refreshInFlight;
 }
 
 /** Ensure Authorization header uses a non-expired ID token (refresh if needed). */
@@ -234,7 +243,9 @@ export async function ensureFreshAuthToken(): Promise<string | null> {
   if (!isIdTokenExpired(user.token)) return user.token;
 
   const refreshed = await refreshAuthSession();
-  return refreshed?.token ?? null;
+  if (refreshed?.token) return refreshed.token;
+  // Last resort: send existing token (API GW may still accept briefly) rather than bare request
+  return user.token;
 }
 
 export function getAuthHeaders(): Record<string, string> {
