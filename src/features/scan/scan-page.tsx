@@ -469,6 +469,7 @@ export function ScanPage() {
                 value={manualUpc}
                 onChange={(e) => setManualUpc(e.target.value)}
                 aria-label="Enter UPC manually"
+                data-testid="scan-manual-upc"
               />
               <Button
                 type="button"
@@ -476,6 +477,7 @@ export function ScanPage() {
                 className="min-h-12 shrink-0"
                 onClick={handleManualUpc}
                 aria-label="Apply manual UPC"
+                data-testid="scan-apply-manual-upc"
               >
                 <Keyboard className="h-5 w-5" aria-hidden />
               </Button>

@@ -225,7 +225,7 @@ export function SuggestionsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {suggestions.length > 0 ? (
-            suggestions.map((item) => (
+            suggestions.map((item, index) => (
               <div
                 key={item.upc}
                 className="rounded-lg border border-border bg-card/50 p-3 transition-colors hover:bg-card"
@@ -256,6 +256,7 @@ export function SuggestionsPage() {
                       className="min-h-9 flex-1 text-xs"
                       onClick={() => handleAddToStock(item)}
                       disabled={addInventory.isPending}
+                      data-testid={index === 0 ? 'guided-try-add-stock' : undefined}
                     >
                       <Plus className="mr-1 h-3 w-3" /> Add to Stock
                     </Button>

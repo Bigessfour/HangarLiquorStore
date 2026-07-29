@@ -10,7 +10,7 @@ test.describe('owner guided trial', () => {
     });
     await page.goto('/');
     await expect(page.getByTestId('guided-trial-overlay')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Welcome to Hanger Liquor/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Welcome to Hangar Liquor/i })).toBeVisible();
   });
 
   test('skip closes overlay and leaves app usable', async ({ page, context }) => {
@@ -30,15 +30,16 @@ test.describe('owner guided trial', () => {
     await page.goto('/more');
     await page.getByTestId('start-trial-run').click();
     await expect(page.getByTestId('guided-trial-overlay')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Welcome to Hanger Liquor/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Welcome to Hangar Liquor/i })).toBeVisible();
 
     await page.getByTestId('guided-trial-next').click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { name: /Home story/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Home — your store/i })).toBeVisible();
 
     await page.getByTestId('guided-trial-next').click();
     await expect(page).toHaveURL(/\/scan/);
     await expect(page.getByRole('heading', { name: /Scan a bottle/i })).toBeVisible();
+    await expect(page.getByTestId('guided-trial-try')).toBeVisible();
   });
 
   test('in-progress trial resumes overlay after reload', async ({ page, context }) => {
@@ -57,7 +58,7 @@ test.describe('owner guided trial', () => {
     await context.addInitScript(() => {
       localStorage.setItem(
         'hanger_guided_trial',
-        JSON.stringify({ status: 'completed', stepIndex: 7 }),
+        JSON.stringify({ status: 'completed', stepIndex: 8 }),
       );
     });
     await page.goto('/');

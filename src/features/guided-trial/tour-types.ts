@@ -13,4 +13,13 @@ export interface GuidedTrialStep {
   target?: string;
   title: string;
   body: string;
+  /** Short coaching line shown above the Try it button. */
+  tryHint?: string;
+  /** data-testid of a real control to click/focus via Try it. */
+  tryTestId?: string;
+  /**
+   * When true, UI nudges Chris to Try before Next — Next is still allowed
+   * so demos never trap.
+   */
+  requireTry?: boolean;
 }
