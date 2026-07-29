@@ -129,6 +129,11 @@ export function InventoryPage() {
             <p className="text-sm text-destructive" role="alert">
               {error?.message ?? 'Failed to load inventory'}
             </p>
+            {(error?.message === 'Unauthorized' || error?.message?.includes('Unauthorized')) && (
+              <p className="text-sm text-muted-foreground">
+                Session expired or token rejected — sign in again from the login screen.
+              </p>
+            )}
             <Button
               type="button"
               variant="outline"

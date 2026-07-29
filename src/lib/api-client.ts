@@ -1,4 +1,4 @@
-import { getFreshAuthHeaders, refreshAuthSession, signOut } from './auth';
+import { getCurrentUser, getFreshAuthHeaders, refreshAuthSession, signOut } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -54,6 +54,12 @@ async function fetchOnce(
   });
 }
 
+function forceSessionExpired(message: string): never {
+  signOut();
+  redirectToLogin('session');
+  throw new ApiError(401, message || 'Unauthorized');
+}
+
 /**
  * Authenticated API client. Refreshes Cognito ID token before calls and once on 401
  * so Owner sessions do not die with API Gateway "Unauthorized" after the 1h ID token expires.
@@ -61,12 +67,28 @@ async function fetchOnce(
 export async function apiClient<T>(path: string, options?: RequestInit): Promise<T> {
   const method = options?.method ?? 'GET';
   let authHeaders = await getFreshAuthHeaders();
+
+  // Never hit JWT-protected APIs without a Bearer token while a Cognito user is "logged in"
+  if (!authHeaders.Authorization) {
+    const user = getCurrentUser();
+    if (user && !user.token.startsWith('demo-') && API_BASE) {
+      const refreshed = await refreshAuthSession();
+      if (!refreshed?.token) {
+        if (isApiDebugEnabled()) {
+          console.warn('[api]', { method, path, message: 'No Bearer token after refresh' });
+        }
+        forceSessionExpired('Unauthorized');
+      }
+      authHeaders = await getFreshAuthHeaders();
+    }
+  }
+
   let response = await fetchOnce(path, options, authHeaders);
 
   if (response.status === 401) {
     const refreshed = await refreshAuthSession();
     if (refreshed?.token) {
-      authHeaders = await getFreshAuthHeaders();
+      authHeaders = { Authorization: `Bearer ${refreshed.token}` };
       response = await fetchOnce(path, options, authHeaders);
     }
   }
@@ -76,9 +98,7 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
     if (isApiDebugEnabled()) {
       console.warn('[api]', { status: 401, method, path, message, action: 'signOut' });
     }
-    signOut();
-    redirectToLogin('session');
-    throw new ApiError(401, message || 'Unauthorized');
+    forceSessionExpired(message);
   }
 
   if (!response.ok) {
