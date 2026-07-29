@@ -171,6 +171,20 @@ export function DashboardPage() {
 
       <SquareDashboardCard />
 
+      {hasRole('Manager') && (
+        <Link
+          to="/profit"
+          className="block rounded-lg border border-border bg-muted/40 px-3 py-3 text-sm"
+          data-testid="dashboard-ask-hangar-tip"
+        >
+          <p className="font-medium text-foreground">Ask Hangar on Profit &amp; Ops</p>
+          <p className="mt-0.5 text-muted-foreground">
+            Plain questions about orders, overstock cash, and holidays — answers use Hangar numbers
+            for the period you pick.
+          </p>
+        </Link>
+      )}
+
       {nextHoliday && (
         <Link
           to="/suggestions"

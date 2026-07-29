@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { hasRole } from '@/lib/auth';
 import { DEMO_PROFIT_DISCLAIMER, isDemoProfitSimulated } from '@/lib/demo-sim';
 import { askHangarAssistant, fetchProfitOps } from '@/lib/profit-api';
-import type { ProfitPeriod } from '@/types/profit';
+import type { AssistantDeepLink, ProfitPeriod } from '@/types/profit';
 import { cn } from '@/lib/utils';
 
 const PERIODS: { id: ProfitPeriod; label: string }[] = [
@@ -20,11 +20,19 @@ const PERIODS: { id: ProfitPeriod; label: string }[] = [
 const SUGGESTED = [
   'What should I stock for Hay Days?',
   'What should I stock for the next holiday?',
+  'What should I order this week?',
   'Why is beer cash tied up?',
   'Show me the biggest overstock dollars this month.',
   'How much money is in my pocket this month?',
+  'How do I scan a bottle offline?',
   'How do forecasts improve with more Square history?',
 ];
+
+function sourceLabel(source?: string): string {
+  if (source === 'bedrock') return 'Bedrock';
+  if (source === 'demo') return 'Demo';
+  return 'Hangar data';
+}
 
 function money(n: number): string {
   return `$${n.toLocaleString()}`;
@@ -35,7 +43,13 @@ export function ProfitOpsPage() {
   const [period, setPeriod] = useState<ProfitPeriod>('month');
   const [chatInput, setChatInput] = useState('');
   const [chatLog, setChatLog] = useState<
-    Array<{ role: 'user' | 'assistant'; text: string; citations?: string[] }>
+    Array<{
+      role: 'user' | 'assistant';
+      text: string;
+      citations?: string[];
+      source?: 'bedrock' | 'grounded_fallback' | 'demo';
+      deepLinks?: AssistantDeepLink[];
+    }>
   >([]);
 
   const { data, isLoading, error } = useQuery({
@@ -45,12 +59,24 @@ export function ProfitOpsPage() {
   });
 
   const chatMutation = useMutation({
-    mutationFn: (message: string) => askHangarAssistant(message, period),
+    mutationFn: (message: string) => {
+      const history = chatLog.slice(-4).map((e) => ({
+        role: e.role,
+        content: e.text,
+      }));
+      return askHangarAssistant(message, period, history);
+    },
     onSuccess: (res, message) => {
       setChatLog((prev) => [
         ...prev,
         { role: 'user', text: message },
-        { role: 'assistant', text: res.reply, citations: res.citations },
+        {
+          role: 'assistant',
+          text: res.reply,
+          citations: res.citations,
+          source: res.source,
+          deepLinks: res.deepLinks,
+        },
       ]);
       setChatInput('');
     },
@@ -368,9 +394,16 @@ export function ProfitOpsPage() {
             </div>
             <div className="space-y-2 rounded-lg border border-border p-3">
               {chatLog.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Spitball ideas against Hangar numbers — no invented dollars.
-                </p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>
+                    Answers use Hangar inventory, events, and Saved/Made for the{' '}
+                    <span className="font-medium text-foreground">{period}</span> period —
+                    not web trends or distributor catalogs.
+                  </p>
+                  <p className="text-xs">
+                    Ask what to order, overstock cash, holidays, or a product by name.
+                  </p>
+                </div>
               )}
               {chatLog.map((entry, idx) => (
                 <div
@@ -381,6 +414,11 @@ export function ProfitOpsPage() {
                   )}
                   data-testid={entry.role === 'assistant' ? 'ask-hangar-reply' : 'ask-hangar-user'}
                 >
+                  {entry.role === 'assistant' && entry.source && (
+                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {sourceLabel(entry.source)}
+                    </p>
+                  )}
                   <p>{entry.text}</p>
                   {entry.citations && entry.citations.length > 0 && (
                     <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
@@ -388,6 +426,35 @@ export function ProfitOpsPage() {
                         <li key={c}>{c}</li>
                       ))}
                     </ul>
+                  )}
+                  {entry.role === 'assistant' && entry.deepLinks && entry.deepLinks.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {entry.deepLinks.map((link) =>
+                        link.type === 'route' && link.path ? (
+                          <Button
+                            key={`${link.path}-${link.label}`}
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="min-h-10 text-xs"
+                          >
+                            <Link to={link.path}>{link.label}</Link>
+                          </Button>
+                        ) : link.type === 'sku' && link.upc ? (
+                          <Button
+                            key={link.upc}
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="min-h-10 text-xs"
+                          >
+                            <Link to={`/inventory?q=${encodeURIComponent(link.label)}`}>
+                              {link.label}
+                            </Link>
+                          </Button>
+                        ) : null,
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
@@ -401,7 +468,7 @@ export function ProfitOpsPage() {
               >
                 <input
                   className="min-h-12 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder="Ask about sales, events, or orders…"
+                  placeholder="Ask about orders, overstock, holidays, or a SKU…"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   aria-label="Ask Hangar"

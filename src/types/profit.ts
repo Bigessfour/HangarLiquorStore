@@ -54,6 +54,22 @@ export interface OptimizationImpact {
   recommendations: OptimizationRecommendation[];
 }
 
+export interface VelocityMover {
+  upc: string;
+  name: string;
+  unitsPerDay: number;
+  daysOfCover: number | null;
+  cashTiedUp?: number;
+  action?: OptimizationRecommendation['action'];
+}
+
+export interface ActiveEventLift {
+  name: string;
+  multiplier: number;
+  startDate: string;
+  endDate: string;
+}
+
 export interface ProfitOpsSnapshot {
   period: ProfitPeriod;
   periodLabel: string;
@@ -66,6 +82,7 @@ export interface ProfitOpsSnapshot {
     daysOfSupply: number;
     unitsSold: number;
     avgBasketDollars: number | null;
+    trend?: { sales7d: number; salesPrior7d: number; pctChange: number } | null;
   };
   categoryMix: CategoryMixSlice[];
   health: {
@@ -74,9 +91,18 @@ export interface ProfitOpsSnapshot {
       name: string;
       currentStock: number;
       reorderPoint: number;
+      daysOfCover?: number | null;
     }>;
     turnsPerYear: number | null;
+    fastMovers: VelocityMover[];
+    slowMovers: VelocityMover[];
+    velocitySummary: {
+      avgDaysOfCover: number;
+      itemsUnder7d: number;
+      itemsOver45d: number;
+    };
   };
+  activeEvents: ActiveEventLift[];
   optimization: OptimizationImpact;
   squareConnected: boolean;
   squareLastSyncAt: string | null;
@@ -84,8 +110,21 @@ export interface ProfitOpsSnapshot {
   learning: ForecastLearningStatus;
 }
 
+export interface AssistantChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AssistantDeepLink {
+  type: 'sku' | 'route';
+  label: string;
+  upc?: string;
+  path?: string;
+}
+
 export interface AssistantChatResponse {
   reply: string;
   citations: string[];
   source: 'bedrock' | 'grounded_fallback' | 'demo';
+  deepLinks?: AssistantDeepLink[];
 }

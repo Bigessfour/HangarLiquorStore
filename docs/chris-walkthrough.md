@@ -25,6 +25,15 @@ Five–eight minute owner demo on **`npm run demo`** (mock + Square/Profit simul
 
 Finish closes the overlay. Skip at any stop leaves a fully usable app.
 
+## Ask Hangar (what it is)
+
+On **Profit & Ops**, Managers/Owners can ask plain questions about Hangar’s own numbers for the selected period (orders, overstock cash, holidays, SKU names) **and** how to use the PWA (Scan, offline queue, Events, Square).
+
+- Production default: **grounded responder** with intent router + store briefing (fast/slow movers, active event lifts). No invented dollars.
+- **Multi-turn**: last few chat turns are sent so follow-ups like “what about that whiskey?” work.
+- **Bedrock** is optional (`bedrock_model_id` in Terraform). When unset, answers still come from Hangar inventory + events + Saved/Made.
+- It does **not** pull industry web trends or distributor catalogs.
+
 ## Proof
 
 ```bash
