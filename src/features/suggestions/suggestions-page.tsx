@@ -142,6 +142,15 @@ export function SuggestionsPage() {
         <p className="text-muted-foreground">
           Reorder, holiday stocking, and cash impact — forecasts + static holidays + your local events.
         </p>
+        {hasRole('Manager') && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Curious why a SKU shows up?{' '}
+            <Link to="/profit" className="font-medium text-hanger-amber hover:underline">
+              Ask Hangar on Profit &amp; Ops
+            </Link>
+            .
+          </p>
+        )}
       </div>
 
       {actionMessage && (

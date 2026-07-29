@@ -5,11 +5,13 @@ import type {
   SalesRecord,
 } from '../../../shared/types/forecast';
 import type {
+  ActiveEventLift,
   CategoryMixSlice,
   OptimizationImpact,
   ProfitOpsSnapshot,
   ProfitPeriod,
   ProfitProvenance,
+  VelocityMover,
 } from '../../../shared/types/profit';
 import { buildCashOptimizationImpact, unitPrice } from './cash-impact-engine';
 import {
@@ -159,21 +161,6 @@ export function buildProfitSnapshot(input: {
     }
   }
 
-  const lowStockItems = input.inventory
-    .filter((i) => (i.reorderPoint ?? 0) > 0 && i.currentStock <= (i.reorderPoint ?? 0))
-    .map((i) => ({
-      upc: i.upc,
-      name: i.name,
-      currentStock: i.currentStock,
-      reorderPoint: i.reorderPoint ?? 0,
-    }))
-    .slice(0, 8);
-
-  const totalStock = input.inventory.reduce((s, i) => s + i.currentStock, 0);
-  const avgDaily = Math.max(unitsSold / window.dayCount, 0.1);
-  const daysOfSupply = Math.round(totalStock / avgDaily);
-  const turnsPerYear = daysOfSupply > 0 ? Math.round((365 / daysOfSupply) * 10) / 10 : null;
-
   const optimization = buildOptimizationImpact({
     inventory: input.inventory,
     forecasts: input.forecasts,
@@ -183,6 +170,77 @@ export function buildProfitSnapshot(input: {
     provenance,
     salesByUpc: input.salesByUpc,
   });
+
+  const coverByUpc = new Map<string, number>();
+  for (const r of optimization.recommendations) {
+    if (r.upc !== 'event' && r.daysOfCover != null) coverByUpc.set(r.upc, r.daysOfCover);
+  }
+
+  const lowStockItems = input.inventory
+    .filter((i) => (i.reorderPoint ?? 0) > 0 && i.currentStock <= (i.reorderPoint ?? 0))
+    .map((i) => ({
+      upc: i.upc,
+      name: i.name,
+      currentStock: i.currentStock,
+      reorderPoint: i.reorderPoint ?? 0,
+      daysOfCover: coverByUpc.get(i.upc) ?? null,
+    }))
+    .slice(0, 8);
+
+  const totalStock = input.inventory.reduce((s, i) => s + i.currentStock, 0);
+  const avgDaily = Math.max(unitsSold / window.dayCount, 0.1);
+  const daysOfSupply = Math.round(totalStock / avgDaily);
+  const turnsPerYear = daysOfSupply > 0 ? Math.round((365 / daysOfSupply) * 10) / 10 : null;
+
+  const skuRecs = optimization.recommendations.filter((r) => r.upc !== 'event');
+  const toMover = (r: (typeof skuRecs)[0]): VelocityMover => {
+    const cover = r.daysOfCover ?? null;
+    const unitsPerDay =
+      cover != null && cover > 0
+        ? Math.round((input.inventory.find((i) => i.upc === r.upc)?.currentStock ?? 0) / cover * 10) / 10
+        : Math.round((unitsByUpc.get(r.upc) ?? 0) / window.dayCount * 10) / 10;
+    return {
+      upc: r.upc,
+      name: r.name,
+      unitsPerDay,
+      daysOfCover: cover,
+      cashTiedUp: r.cashTiedUp,
+      action: r.action,
+    };
+  };
+
+  const fastMovers = [...skuRecs]
+    .filter((r) => r.action === 'order' || (r.daysOfCover != null && r.daysOfCover < 10))
+    .sort((a, b) => (a.daysOfCover ?? 99) - (b.daysOfCover ?? 99))
+    .slice(0, 4)
+    .map(toMover);
+
+  const slowMovers = [...skuRecs]
+    .filter(
+      (r) =>
+        r.action === 'hold' ||
+        r.action === 'promote' ||
+        (r.daysOfCover != null && r.daysOfCover > 30) ||
+        (r.cashTiedUp ?? 0) > 0,
+    )
+    .sort((a, b) => (b.cashTiedUp ?? 0) - (a.cashTiedUp ?? 0) || (b.daysOfCover ?? 0) - (a.daysOfCover ?? 0))
+    .slice(0, 4)
+    .map(toMover);
+
+  const covers = skuRecs.map((r) => r.daysOfCover).filter((d): d is number => d != null);
+  const itemsUnder7d = covers.filter((d) => d < 7).length;
+  const itemsOver45d = covers.filter((d) => d > 45).length;
+
+  const todayStr = window.end;
+  const activeEvents: ActiveEventLift[] = input.events
+    .filter((e) => e.startDate <= todayStr && e.endDate >= todayStr)
+    .map((e) => ({
+      name: e.name,
+      multiplier: e.multiplier,
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }))
+    .slice(0, 5);
 
   const salesDataSince = earliestSaleDate(input.salesByUpc);
   const holidayStats = countPastHolidaysWithSales(input.events, input.salesByUpc);
@@ -205,12 +263,21 @@ export function buildProfitSnapshot(input: {
       unitsSold,
       avgBasketDollars:
         unitsSold > 0 ? Math.round((salesDollars / Math.max(unitsSold / 3, 1)) * 10) / 10 : null,
+      trend: null,
     },
     categoryMix,
     health: {
       lowStockItems,
       turnsPerYear,
+      fastMovers,
+      slowMovers,
+      velocitySummary: {
+        avgDaysOfCover: daysOfSupply,
+        itemsUnder7d,
+        itemsOver45d,
+      },
     },
+    activeEvents,
     optimization,
     squareConnected,
     squareLastSyncAt: input.squareLastSyncAt ?? null,

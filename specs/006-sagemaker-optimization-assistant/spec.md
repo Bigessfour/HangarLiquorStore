@@ -67,15 +67,18 @@ Existing `canvas-bridge.ts` remains the bridge. Forecast UI `?model=canvas` cont
 
 ### User Story 3 - Hangar AI chat (Priority: P1 for full outline)
 
-Manager/Owner opens Ask Hangar on `/profit`. Suggested prompts include overstock dollars, Hay Days, beer cash.
+Manager/Owner opens Ask Hangar on `/profit`. Suggested prompts include overstock dollars, Hay Days, beer cash, and what to order this week.
 
 Agent answers using **only** grounded context. Each money claim cites optimize/inventory numbers.
 
 **Implementation path**:
 
-1. `POST /api/assistant/chat` with `{ message, period? }`
-2. Context pack (JSON, capped)
-3. Bedrock optional; deterministic grounded responder otherwise
+1. `POST /api/assistant/chat` with `{ message, period?, history? }` (last 2–4 turns)
+2. Enriched context pack (recs with cover/cashTiedUp, fast/slow movers, active event lifts, featureStatus)
+3. Intent router + SKU aliases + APP_KNOWLEDGE for how-to / Scan / offline / Events
+4. Bedrock optional; deterministic grounded responder otherwise
+5. Grounded fallback builds a **store briefing** so unmatched free-text still returns specific Hangar numbers
+6. Replies may include `deepLinks` (SKU / route) for tappable UI
 
 **Acceptance**:
 
@@ -83,6 +86,8 @@ Agent answers using **only** grounded context. Each money claim cites optimize/i
 2. Answers cite numbers from context pack.
 3. If data missing, refuse clearly.
 4. Mock client returns grounded demo replies without AWS.
+5. Unknown questions return a multi-SKU / event briefing with “Try asking…” hints.
+6. UI empty state states Hangar-only scope; replies show source badge (`Hangar data` / `Bedrock` / `Demo`).
 
 ### Edge Cases
 

@@ -126,6 +126,105 @@ describe('assistant grounded fallback', () => {
     expect(res.citations.length).toBeGreaterThan(0);
   });
 
+  it('unknown question returns multi-SKU store briefing', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map(),
+      forecasts,
+      events,
+      provenance: 'demo_proxy',
+    });
+    const res = groundedAssistantReply('Tell me something random about the store', snap, [
+      'Hay Days 2026-06-18→2026-06-20 ×1.5',
+    ]);
+    expect(res.source).toBe('grounded_fallback');
+    expect(res.reply).toMatch(/saved|made|sales/i);
+    expect(res.reply.toLowerCase()).toMatch(/try asking/);
+    const skuOrEventHits =
+      (res.reply.match(/Coors|Tito|Hay Days|order|hold|low stock/gi) ?? []).length;
+    expect(skuOrEventHits).toBeGreaterThanOrEqual(2);
+    expect(res.citations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('named SKU question cites that product', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map(),
+      forecasts,
+      events,
+      provenance: 'demo_proxy',
+    });
+    const res = groundedAssistantReply('What about Coors Light?', snap, [
+      'Hay Days 2026-06-18→2026-06-20 ×1.5',
+    ]);
+    expect(res.reply.toLowerCase()).toMatch(/coors/);
+    expect(res.citations.some((c) => /coors/i.test(c))).toBe(true);
+  });
+
+  it('order-this-week intent lists order recommendations', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map(),
+      forecasts,
+      events,
+      provenance: 'demo_proxy',
+    });
+    const res = groundedAssistantReply('What should I order this week?', snap, []);
+    expect(res.reply.toLowerCase()).toMatch(/order|low stock|saved|made/);
+    expect(res.citations.length).toBeGreaterThan(0);
+  });
+
+  it('how_to intent explains scan / offline from app knowledge', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map(),
+      forecasts,
+      events,
+      provenance: 'demo_proxy',
+    });
+    const res = groundedAssistantReply('How do I scan a bottle offline?', snap, []);
+    expect(res.reply.toLowerCase()).toMatch(/scan|offline|queue/);
+    expect(res.deepLinks?.some((d) => d.path === '/scan')).toBe(true);
+  });
+
+  it('follow-up uses last mentioned SKU from history', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map(),
+      forecasts,
+      events,
+      provenance: 'demo_proxy',
+    });
+    const res = groundedAssistantReply('what about that one?', snap, [], [
+      { role: 'user', content: 'Tell me about Coors Light' },
+      {
+        role: 'assistant',
+        content: 'order Coors Light 12pk (~$100, ~3d cover) — low stock',
+      },
+    ]);
+    expect(res.reply.toLowerCase()).toMatch(/coors/);
+  });
+
+  it('snapshot includes fast/slow movers and active events', () => {
+    const snap = buildProfitSnapshot({
+      period: 'month',
+      inventory,
+      salesByUpc: new Map(),
+      forecasts,
+      events,
+      provenance: 'demo_proxy',
+    });
+    expect(snap.health.fastMovers).toBeDefined();
+    expect(snap.health.slowMovers).toBeDefined();
+    expect(snap.health.velocitySummary.itemsUnder7d).toBeGreaterThanOrEqual(0);
+    expect(snap.activeEvents.length).toBeGreaterThan(0);
+  });
+
   it('marks empty sales history as proxy', () => {
     const snap = buildProfitSnapshot({
       period: 'month',

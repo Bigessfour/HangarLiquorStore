@@ -212,6 +212,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const body = event.body ? JSON.parse(event.body) : {};
       const message = String(body.message || '');
       const period = parsePeriod(body.period || event.queryStringParameters?.period);
+      const history = Array.isArray(body.history) ? body.history : [];
       const [{ inventoryItems, localEvents, salesByUpc, forecasts }, square] = await Promise.all([
         loadForecastBundle(),
         loadSquareSyncMeta(),
@@ -228,7 +229,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       const eventsSummary = localEvents.map(
         (e) => `${e.name} ${e.startDate}→${e.endDate} ×${e.multiplier}`,
       );
-      const reply = await runAssistantChat({ message, snapshot, eventsSummary, period });
+      const reply = await runAssistantChat({ message, snapshot, eventsSummary, period, history });
       return jsonResponse(200, reply);
     }
 

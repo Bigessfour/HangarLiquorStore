@@ -8,6 +8,8 @@ import { isMockApi } from '@/lib/mock-api';
 import { applyProfitPeriod } from '@/lib/profit-period';
 import type {
   AssistantChatResponse,
+  AssistantChatTurn,
+  AssistantDeepLink,
   OptimizationImpact,
   ProfitOpsSnapshot,
   ProfitPeriod,
@@ -52,16 +54,50 @@ const MOCK_SNAPSHOT_BASE: Omit<
         name: 'Bud Light 12pk 12oz Cans',
         currentStock: 5,
         reorderPoint: 24,
+        daysOfCover: 3,
       },
       {
         upc: '082184000012',
         name: "Jack Daniel's Tennessee Whiskey 750ml",
         currentStock: 3,
         reorderPoint: 12,
+        daysOfCover: 67,
       },
     ],
     turnsPerYear: 16.6,
+    fastMovers: [
+      {
+        upc: '018200000103',
+        name: 'Bud Light 12pk',
+        unitsPerDay: 1.6,
+        daysOfCover: 3,
+        action: 'order',
+      },
+    ],
+    slowMovers: [
+      {
+        upc: '082184000012',
+        name: "Jack Daniel's Tennessee Whiskey 750ml",
+        unitsPerDay: 0.1,
+        daysOfCover: 67,
+        cashTiedUp: 412,
+        action: 'promote',
+      },
+    ],
+    velocitySummary: {
+      avgDaysOfCover: 22,
+      itemsUnder7d: 1,
+      itemsOver45d: 1,
+    },
   },
+  activeEvents: [
+    {
+      name: 'Hay Days',
+      multiplier: 1.5,
+      startDate: '2026-06-18',
+      endDate: '2099-12-31',
+    },
+  ],
   optimization: {
     dollarsSaved: 1840,
     dollarsMade: 2100,
@@ -115,6 +151,7 @@ function buildMockSnapshot(): ProfitOpsSnapshot {
     pulse: MOCK_SNAPSHOT_BASE.pulse,
     categoryMix: MOCK_SNAPSHOT_BASE.categoryMix,
     health: MOCK_SNAPSHOT_BASE.health,
+    activeEvents: MOCK_SNAPSHOT_BASE.activeEvents,
     optimization: {
       ...MOCK_SNAPSHOT_BASE.optimization,
       provenance: simulate ? 'square_sync' : 'demo_proxy',
@@ -156,10 +193,48 @@ export async function fetchOptimization(period: ProfitPeriod): Promise<Optimizat
 export async function askHangarAssistant(
   message: string,
   period: ProfitPeriod,
+  history: AssistantChatTurn[] = [],
 ): Promise<AssistantChatResponse> {
   if (isMockApi()) {
     const snap = withPeriod(buildMockSnapshot(), period);
     const q = message.toLowerCase();
+    const recent = history.slice(-4);
+
+    if (
+      q.includes('how do i') ||
+      q.includes('how to') ||
+      q.includes('where is') ||
+      q.includes('offline') ||
+      q.includes('scan') && (q.includes('how') || q.includes('open') || q.includes('camera'))
+    ) {
+      const deepLinks: AssistantDeepLink[] = [{ type: 'route', label: 'Open Scan', path: '/scan' }];
+      return {
+        reply:
+          'Tap the floating Scan button (or Scan in the bottom nav). Point at the UPC, or take a photo / type the UPC on a laptop. Offline scans queue and sync when you are back online.',
+        citations: ['Hangar PWA features'],
+        source: 'demo',
+        deepLinks,
+      };
+    }
+
+    const followUp = q.includes('what about') || q.includes('how about') || q.includes('that whiskey') || q.includes('the whiskey');
+    if (followUp || (q.includes('whiskey') && recent.some((t) => /jack|whiskey|overstock|tied/i.test(t.content)))) {
+      const overstock = [...snap.optimization.recommendations]
+        .filter((r) => r.upc !== 'event' && /jack|whiskey/i.test(r.name))
+        .sort((a, b) => (b.cashTiedUp ?? 0) - (a.cashTiedUp ?? 0))[0];
+      if (overstock) {
+        return {
+          reply: `${overstock.name}: ~$${overstock.cashTiedUp ?? overstock.dollarsImpact} cash tied up (~${overstock.daysOfCover ?? '?'}d cover). ${overstock.reason}`,
+          citations: [`Cash tied up $${overstock.cashTiedUp ?? overstock.dollarsImpact}`],
+          source: 'demo',
+          deepLinks: [
+            { type: 'sku', label: overstock.name, upc: overstock.upc },
+            { type: 'route', label: 'Open Suggestions', path: '/suggestions' },
+          ],
+        };
+      }
+    }
+
     if (q.includes('overstock') || q.includes('cash tied') || q.includes('tied up') || q.includes('whiskey')) {
       const overstock = [...snap.optimization.recommendations]
         .filter((r) => r.upc !== 'event' && (r.cashTiedUp ?? 0) > 0)
@@ -172,6 +247,10 @@ export async function askHangarAssistant(
             overstock.reason,
           ],
           source: 'demo',
+          deepLinks: [
+            { type: 'sku', label: overstock.name, upc: overstock.upc },
+            { type: 'route', label: 'Open Profit', path: '/profit' },
+          ],
         };
       }
     }
@@ -187,6 +266,10 @@ export async function askHangarAssistant(
         reply: `For the next high-demand holiday, stock focused categories early (beer/ice for summer; spirits for Thanksgiving–NYE). Local events (Hay Days, hunting) pick up area demand via focus tags. This ${snap.periodLabel} shows about $${snap.optimization.dollarsMade} made from being event-ready (demo estimate). See Suggestions → Holiday stocking.`,
         citations: [`Made $${snap.optimization.dollarsMade}`, 'Holiday stocking + local events'],
         source: 'demo',
+        deepLinks: [
+          { type: 'route', label: 'Open Suggestions', path: '/suggestions' },
+          { type: 'route', label: 'Open Events', path: '/events' },
+        ],
       };
     }
     if (
@@ -209,28 +292,82 @@ export async function askHangarAssistant(
     }
     if (q.includes('beer')) {
       const beer = snap.categoryMix.find((c) => c.category === 'Beer') ?? snap.categoryMix[0];
+      const beerRecs = snap.optimization.recommendations
+        .filter((r) => r.upc !== 'event')
+        .slice(0, 2);
       return {
-        reply: `Beer is ~${beer?.sharePct}% of mix (~$${beer?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}. Saved ~$${snap.optimization.dollarsSaved} from cover targets.`,
-        citations: [`Beer $${beer?.salesDollars}`, `DOS ${snap.pulse.daysOfSupply}`],
+        reply: `Beer is ~${beer?.sharePct}% of mix (~$${beer?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}. Saved ~$${snap.optimization.dollarsSaved} from cover targets.${
+          beerRecs.length
+            ? ` Moves: ${beerRecs.map((r) => `${r.action} ${r.name} (~$${r.dollarsImpact})`).join(' · ')}`
+            : ''
+        }`,
+        citations: [
+          `Beer $${beer?.salesDollars}`,
+          `DOS ${snap.pulse.daysOfSupply}`,
+          ...beerRecs.map((r) => `${r.action} ${r.name}: $${r.dollarsImpact}`),
+        ],
         source: 'demo',
       };
     }
+    if (q.includes('order') || q.includes('this week') || q.includes('buy') || q.includes('reorder')) {
+      const orders = snap.optimization.recommendations
+        .filter((r) => r.upc !== 'event' && r.action === 'order')
+        .slice(0, 3);
+      const lows = snap.health.lowStockItems.slice(0, 3);
+      return {
+        reply: [
+          orders.length
+            ? `Order this period: ${orders.map((r) => `${r.name} (~$${r.dollarsImpact}) — ${r.reason}`).join(' · ')}`
+            : `You have ${snap.pulse.lowStockCount} low-stock SKUs.`,
+          lows.length
+            ? `Low stock: ${lows.map((l) => `${l.name} (${l.currentStock}/${l.reorderPoint})`).join(', ')}.`
+            : null,
+          `Totals: $${snap.optimization.dollarsSaved} saved / $${snap.optimization.dollarsMade} made.`,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        citations: [
+          ...orders.map((r) => `${r.action} ${r.name}: $${r.dollarsImpact}`),
+          ...lows.map((l) => `Low stock: ${l.name} (${l.currentStock})`),
+        ],
+        source: 'demo',
+        deepLinks: [{ type: 'route', label: 'Open Suggestions', path: '/suggestions' }],
+      };
+    }
+    const topRecs = snap.optimization.recommendations.filter((r) => r.upc !== 'event').slice(0, 3);
+    const lows = snap.health.lowStockItems.slice(0, 2);
     return {
-      reply: `${snap.periodLabel}: ~$${snap.pulse.salesDollars} sales, $${snap.optimization.dollarsSaved} saved / $${snap.optimization.dollarsMade} made${
-        isDemoProfitSimulated()
-          ? ' (demo simulation of a Square-connected view — not live register data yet)'
-          : ''
-      }. Ask about Hay Days, beer cash, or what to order.`,
+      reply: [
+        `Using inventory + forecast estimates (demo). ${snap.periodLabel}: ~$${snap.pulse.salesDollars} sales, $${snap.optimization.dollarsSaved} saved / $${snap.optimization.dollarsMade} made${
+          isDemoProfitSimulated()
+            ? ' (demo simulation of a Square-connected view — not live register data yet)'
+            : ''
+        }, ~${snap.pulse.daysOfSupply}d supply.`,
+        topRecs.length
+          ? `Top moves: ${topRecs.map((r) => `${r.action} ${r.name} (~$${r.dollarsImpact})`).join(' · ')}`
+          : null,
+        lows.length
+          ? `Low stock: ${lows.map((l) => `${l.name} (${l.currentStock})`).join(', ')}.`
+          : null,
+        'Try asking: what to order this week, biggest overstock, beer cash, the next holiday, or how to scan.',
+      ]
+        .filter(Boolean)
+        .join(' '),
       citations: [
         `Sales $${snap.pulse.salesDollars}`,
         `Saved $${snap.optimization.dollarsSaved}`,
         `Made $${snap.optimization.dollarsMade}`,
+        ...topRecs.map((r) => `${r.action} ${r.name}: $${r.dollarsImpact}`),
       ],
       source: 'demo',
+      deepLinks: [
+        { type: 'route', label: 'Open Suggestions', path: '/suggestions' },
+        { type: 'route', label: 'Open Profit', path: '/profit' },
+      ],
     };
   }
   return apiClient<AssistantChatResponse>('/api/assistant/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, period }),
+    body: JSON.stringify({ message, period, history: history.slice(-4) }),
   });
 }
