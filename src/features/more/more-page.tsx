@@ -33,7 +33,7 @@ const moreLinks = [
     to: '/',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    description: 'Store overview & alerts',
+    description: 'Store overview & alerts (also on Home tab)',
     minRole: 'ReadOnly' as const,
   },
   {
@@ -190,7 +190,7 @@ export function MorePage() {
             <p className="font-medium">Before Chris sits down</p>
             <ol className="list-decimal space-y-1 pl-4 text-sm text-muted-foreground">
               <li>Reset demo catalog (below) so training data looks like Hangar.</li>
-              <li>Start trial run — walk Stop by Stop; use Try it on Scan, Events, Suggestions, Profit.</li>
+              <li>Start trial run — walk Stop by Stop; use Try it on Scan, Events, Suggestions, Profit. Home is on the bottom nav.</li>
               <li>
                 Amber banners mean simulation — not live Square dollars yet. Connect the register
                 later from this page when you are ready.

@@ -27,11 +27,19 @@ for (const route of routes) {
 test('all bottom nav links present', async ({ page }) => {
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(nav.getByRole('link', { name: 'Home' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Scan' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Inventory' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Forecast' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Suggestions' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'More' })).toBeVisible();
+});
+
+test('Home bottom nav opens dashboard', async ({ page }) => {
+  await page.goto('/scan');
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Home' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('[data-tour="tour-dashboard"]')).toBeVisible();
 });
 
 test('scan FAB present on inventory page', async ({ page }) => {

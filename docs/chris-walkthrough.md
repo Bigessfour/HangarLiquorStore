@@ -14,7 +14,7 @@ Five–eight minute owner demo on **`npm run demo`** (mock + Square/Profit simul
 | #   | Stop                | What to say                                                 |
 | --- | ------------------- | ----------------------------------------------------------- |
 | 1   | Welcome             | Short trial — Skip anytime                                  |
-| 2   | Home / Dashboard    | Store at a glance; Home lives under More → Dashboard        |
+| 2   | Home / Dashboard    | Store at a glance — **Home** is on the bottom nav           |
 | 3   | Scan                | Phone camera on the floor; laptop = type UPC → **Try it**   |
 | 4   | Inventory           | Search, filter, edit; CSV receive for managers              |
 | 5   | Local events        | Hay Days / hunting bump demand → **Try it** (Hay Days form) |
@@ -32,9 +32,8 @@ npm run typecheck
 npx playwright test e2e/chris-walkthrough.spec.ts e2e/guided-trial.spec.ts
 ```
 
-## Deferred (vNext — not blocking Chris meeting)
+## Deferred (explicitly out of scope)
 
-- Bottom-nav Dashboard tab (tour still routes to `/`)
-- Live Square OAuth / SSM as a tour stop
+- Live Square OAuth as a tour stop (Chris connects when ready — amber banners until then)
 - Voiceover video
-- Profit engine math rewrite
+- Profit engine formula rewrite (validated via cash-impact unit tests + demo period contract)

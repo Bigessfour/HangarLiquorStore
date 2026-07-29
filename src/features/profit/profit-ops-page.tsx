@@ -217,13 +217,13 @@ export function ProfitOpsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Saved</p>
-                    <p className="text-2xl font-bold tabular-nums">
+                    <p className="text-2xl font-bold tabular-nums" data-testid="profit-dollars-saved">
                       {money(data.optimization.dollarsSaved)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Made</p>
-                    <p className="text-2xl font-bold tabular-nums">
+                    <p className="text-2xl font-bold tabular-nums" data-testid="profit-dollars-made">
                       {money(data.optimization.dollarsMade)}
                     </p>
                   </div>

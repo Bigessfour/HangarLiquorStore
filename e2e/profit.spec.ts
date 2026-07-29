@@ -47,3 +47,17 @@ test('profit recommendation list visible', async ({ page }) => {
   await page.goto('/profit');
   await expect(page.getByTestId('profit-rec-list')).toBeVisible({ timeout: 5000 });
 });
+
+test('Saved stays fixed across periods; Made scales with window', async ({ page }) => {
+  await page.goto('/profit');
+  await expect(page.getByTestId('profit-dollars-saved')).toHaveText('$1,840');
+  await expect(page.getByTestId('profit-dollars-made')).toHaveText('$2,100');
+
+  await page.getByRole('group', { name: /Period/i }).getByRole('button', { name: 'Day', exact: true }).click();
+  await expect(page.getByTestId('profit-dollars-saved')).toHaveText('$1,840');
+  await expect(page.getByTestId('profit-dollars-made')).toHaveText('$70'); // 2100/30
+
+  await page.getByRole('group', { name: /Period/i }).getByRole('button', { name: 'Year', exact: true }).click();
+  await expect(page.getByTestId('profit-dollars-saved')).toHaveText('$1,840');
+  await expect(page.getByTestId('profit-dollars-made')).toHaveText('$25,200'); // 2100*12
+});

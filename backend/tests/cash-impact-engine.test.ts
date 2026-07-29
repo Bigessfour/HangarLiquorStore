@@ -289,4 +289,102 @@ describe('buildCashOptimizationImpact', () => {
     });
     expect(year.dollarsSaved).toBe(month.dollarsSaved);
   });
+
+  it('year Made exceeds month Made when stockout risk scales with dayCount', () => {
+    const beer: InventoryRecord = {
+      upc: 'b3',
+      name: 'Bud Light 12pk',
+      category: 'Beer',
+      currentStock: 4,
+    };
+    const sales = new Map<string, SalesRecord[]>([
+      [
+        'b3',
+        Array.from({ length: 14 }, (_, i) => {
+          const d = new Date(today);
+          d.setUTCDate(d.getUTCDate() - i);
+          return { upc: 'b3', date: d.toISOString().slice(0, 10), quantity: 5 };
+        }),
+      ],
+    ]);
+    const month = buildCashOptimizationImpact({
+      inventory: [beer],
+      forecasts: [forecastFor(beer, 70, 'high')],
+      salesByUpc: sales,
+      events: [],
+      period: 'month',
+      dayCount: 30,
+      today,
+    });
+    const year = buildCashOptimizationImpact({
+      inventory: [beer],
+      forecasts: [forecastFor(beer, 70, 'high')],
+      salesByUpc: sales,
+      events: [],
+      period: 'year',
+      dayCount: 365,
+      today,
+    });
+    expect(year.dollarsMade).toBeGreaterThan(month.dollarsMade);
+    expect(year.dollarsSaved).toBe(month.dollarsSaved);
+  });
+
+  it('aggregates Saved/Made as sum of overstock and stockout dollars (no event $)', () => {
+    const beer: InventoryRecord = {
+      upc: 'b4',
+      name: 'Coors Light 12pk',
+      category: 'Beer',
+      currentStock: 100,
+    };
+    const thin: InventoryRecord = {
+      upc: 'b5',
+      name: 'Bud Light 12pk',
+      category: 'Beer',
+      currentStock: 2,
+    };
+    const sales = new Map<string, SalesRecord[]>();
+    for (const upc of ['b4', 'b5']) {
+      sales.set(
+        upc,
+        Array.from({ length: 20 }, (_, i) => {
+          const d = new Date(today);
+          d.setUTCDate(d.getUTCDate() - i);
+          return { upc, date: d.toISOString().slice(0, 10), quantity: upc === 'b5' ? 4 : 1 };
+        }),
+      );
+    }
+    const inventory = [beer, thin];
+    const forecasts = [forecastFor(beer, 14), forecastFor(thin, 56, 'high')];
+    const events: LocalEvent[] = [
+      {
+        id: 'hay',
+        name: 'Hay Days',
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        multiplier: 1.5,
+      },
+    ];
+    const skus = computeSkuCashImpacts({
+      inventory,
+      forecasts,
+      salesByUpc: sales,
+      events,
+      dayCount: 30,
+      today,
+    });
+    const impact = buildCashOptimizationImpact({
+      inventory,
+      forecasts,
+      salesByUpc: sales,
+      events,
+      period: 'month',
+      dayCount: 30,
+      today,
+    });
+    const sumOver = Math.round(skus.reduce((s, x) => s + x.overstockDollars, 0));
+    const sumRisk = Math.round(skus.reduce((s, x) => s + x.stockoutRiskDollars, 0));
+    expect(impact.dollarsSaved).toBe(sumOver);
+    expect(impact.dollarsMade).toBe(sumRisk);
+    expect(impact.recommendations.find((r) => r.upc === 'event')?.dollarsImpact).toBe(0);
+  });
 });
