@@ -85,4 +85,7 @@ Until then `credentialsConfigured: false` by design.
 
 ## Status
 
-**Project complete for demo scope (2026-07-28).** Specs 002–006 shipped; honesty polish closed; holiday auto-stocking shipped. Remaining action is ops-only: paste Square credentials when Chris is ready.
+**Project complete for demo scope (2026-07-28).** Specs 002–006 shipped; honesty polish closed; holiday auto-stocking shipped.
+
+**Live AWS (2026-07-29):** `npm run deploy:production` applied Lambdas + CloudFront. App: https://d1imxsgur21o71.cloudfront.net  
+**Pipeline:** CI on PR/`main`; Deploy production workflow after green CI on `main` (see [`docs/deploy-pipeline.md`](./deploy-pipeline.md)). Square Connect still needs real SSM app credentials (ops).
