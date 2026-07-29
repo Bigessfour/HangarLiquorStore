@@ -39,11 +39,15 @@ Turn Canvas on only after ~6–12 months of reasonably clean Square sales. Until
 days_of_cover     = current_units / max(avg_daily_velocity, 0.1)
 target_cover      = lead_time_days + safety_days   # category table
 excess_units      = max(0, current - target_cover * velocity)
-overstock_dollars = excess_units * unit_cost       # → dollarsSaved / hold
-stockout_risk_$   = P(stockout) × expected_lost_margin  # → dollarsMade / order
+overstock_dollars = excess_units * unit_cost       # → dollarsSaved / hold (period-invariant)
+stockout_risk_$   = P(stockout) × expected_lost_margin  # → dollarsMade / order (scales with dayCount)
 ```
 
+**Period toggle:** Day / Month / Year changes the sales pulse window and **Made** (stockout risk over that window). **Saved** (cash tied in overstock vs cover targets) stays the same — velocity lookback is fixed (~90d) so flipping the period does not rewrite shelf math.
+
 Events multiply **demand only**. Thin history → `limitedHistory` + lower confidence; never invent dollars without provenance.
+
+Demo mock (`src/lib/profit-period.ts`) follows the same Saved-fixed / Made-scales contract.
 
 ## Hangar AI chat
 

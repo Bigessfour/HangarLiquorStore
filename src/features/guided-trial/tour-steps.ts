@@ -12,7 +12,7 @@ export const GUIDED_TRIAL_STEPS: GuidedTrialStep[] = [
     route: '/',
     target: 'tour-dashboard',
     title: 'Home — your store at a glance',
-    body: 'Low stock, total bottles, Top Movers, and holiday heads-ups live here. Home is under More → Dashboard anytime — this tour takes you there so you do not dig for it.',
+    body: 'Low stock, total bottles, Top Movers, and holiday heads-ups live here. Home is on the bottom nav anytime — this stop opens it first so you see the store story.',
   },
   {
     id: 'scan',

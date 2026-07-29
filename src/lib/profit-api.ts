@@ -5,6 +5,7 @@ import {
   demoSimulatedSalesSince,
 } from '@/lib/forecast-learning';
 import { isMockApi } from '@/lib/mock-api';
+import { applyProfitPeriod } from '@/lib/profit-period';
 import type {
   AssistantChatResponse,
   OptimizationImpact,
@@ -12,7 +13,10 @@ import type {
   ProfitPeriod,
 } from '@/types/profit';
 
-/** Base sample numbers used for both proxy and Square-sim walkthroughs. */
+/**
+ * Demo sample numbers (not live register $). Period scaling via applyProfitPeriod
+ * matches cash-impact-engine: Saved fixed, Made scales with window.
+ */
 const MOCK_SNAPSHOT_BASE: Omit<
   ProfitOpsSnapshot,
   | 'period'
@@ -132,29 +136,7 @@ function buildMockSnapshot(): ProfitOpsSnapshot {
 }
 
 function withPeriod(base: ProfitOpsSnapshot, period: ProfitPeriod): ProfitOpsSnapshot {
-  const labels = { day: 'Today', month: 'Last 30 days', year: 'Last 12 months' } as const;
-  const scale = period === 'day' ? 1 / 30 : period === 'year' ? 12 : 1;
-  return {
-    ...base,
-    period,
-    periodLabel: labels[period],
-    generatedAt: new Date().toISOString(),
-    pulse: {
-      ...base.pulse,
-      salesDollars: Math.round(base.pulse.salesDollars * scale),
-      unitsSold: Math.round(base.pulse.unitsSold * scale),
-    },
-    optimization: {
-      ...base.optimization,
-      dollarsSaved: Math.round(base.optimization.dollarsSaved * scale),
-      dollarsMade: Math.round(base.optimization.dollarsMade * scale),
-    },
-    categoryMix: base.categoryMix.map((c) => ({
-      ...c,
-      salesDollars: Math.round(c.salesDollars * scale),
-      units: Math.round(c.units * scale),
-    })),
-  };
+  return applyProfitPeriod(base, period);
 }
 
 export async function fetchProfitOps(period: ProfitPeriod): Promise<ProfitOpsSnapshot> {
@@ -226,9 +208,10 @@ export async function askHangarAssistant(
       };
     }
     if (q.includes('beer')) {
+      const beer = snap.categoryMix.find((c) => c.category === 'Beer') ?? snap.categoryMix[0];
       return {
-        reply: `Beer is ~${snap.categoryMix[0]?.sharePct}% of mix (~$${snap.categoryMix[0]?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}. Saved ~$${snap.optimization.dollarsSaved} from cover targets.`,
-        citations: [`Beer $${snap.categoryMix[0]?.salesDollars}`, `DOS ${snap.pulse.daysOfSupply}`],
+        reply: `Beer is ~${beer?.sharePct}% of mix (~$${beer?.salesDollars}). Days of supply ~${snap.pulse.daysOfSupply}. Saved ~$${snap.optimization.dollarsSaved} from cover targets.`,
+        citations: [`Beer $${beer?.salesDollars}`, `DOS ${snap.pulse.daysOfSupply}`],
         source: 'demo',
       };
     }
